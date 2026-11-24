@@ -95,7 +95,11 @@ Nothing here is automatic. Each step is something you do in your own accounts, a
    - **Direct** (pooling off) → this is `DIRECT_DATABASE_URL` (used only for migrations).
 3. Check your Neon plan's compute and connection limits in the Neon console; don't assume free-tier capacity for a big party.
 
-### 2. Run migrations and seed (from your computer)
+### 2. Create the tables and load the questions
+
+**Easiest (browser only):** in the Neon console, open **SQL Editor**, paste the entire contents of [`neon-setup.sql`](./neon-setup.sql) and click **Run**. The last line should show `prompts_loaded = 50`. It is safe to run again. (Regenerate it after schema changes with `npx tsx scripts/build-setup-sql.ts`.)
+
+**Or from a terminal on your computer:**
 
 ```bash
 DATABASE_URL="<pooled url>" DIRECT_DATABASE_URL="<direct url>" npm run db:migrate
