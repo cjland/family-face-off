@@ -20,7 +20,8 @@ function cookieBase() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: env().NODE_ENV === "production",
+    // Secure in production over HTTPS. Plain-http LAN testing (NEXT_PUBLIC_APP_URL=http://192.168...) still works.
+    secure: env().NODE_ENV === "production" && !(env().NEXT_PUBLIC_APP_URL ?? "").startsWith("http://"),
     path: "/",
   };
 }

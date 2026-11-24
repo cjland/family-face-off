@@ -1,7 +1,6 @@
 import { ANSWER_MAX, NAME_MAX } from "./settings";
 
 // Control characters, zero-width characters and bidi overrides are stripped from user text.
-// eslint-disable-next-line no-control-regex
 const UNSAFE_CHARS = /[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤﻿]/g;
 
 /** Unicode-normalizes, strips invisible characters and collapses whitespace. */
@@ -62,7 +61,9 @@ export function nearDuplicate(a: string, b: string): boolean {
   if (short.length >= 4 && new RegExp(`(^| )${short.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}( |$)`).test(long)) {
     return true;
   }
-  const maxEdits = short.length >= 8 ? 2 : short.length >= 4 ? 1 : 0;
+  // Typo tolerance only for longer words that start the same ("Hiking" vs "Biking" stay distinct).
+  if (ka[0] !== kb[0]) return false;
+  const maxEdits = short.length >= 10 ? 2 : short.length >= 6 ? 1 : 0;
   return levenshtein(ka, kb) <= maxEdits;
 }
 

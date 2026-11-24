@@ -1,0 +1,187 @@
+import { expect, test, type Browser, type Page } from "@playwright/test";
+
+/**
+ * Full game: host + three isolated phone browsers (separate cookie jars) + TV display.
+ * All names and answers are fictional sample data.
+ */
+const PHONE = { width: 390, height: 844 };
+const TV = { width: 1920, height: 1080 };
+const SHOTS = process.env.E2E_SHOTS_DIR;
+
+async function shot(page: Page, name: string) {
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` });
+}
+
+async function hostLogin(page: Page) {
+  await page.goto("/host");
+  await page.getByLabel("Host password").fill(process.env.HOST_PASSWORD!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "New game" })).toBeVisible();
+}
+
+const ANSWERS = [
+  ["Lasagna", "Tiramisu", "Iceland", "Flying", "Otters", "Autumn", "Pancakes", "Chess"],
+  ["Tacos", "Key lime pie", "Peru", "Invisibility", "Owls", "Spring", "Waffles", "Scrabble"],
+  ["Ramen", "Churros", "Kenya", "Teleporting", "Red pandas", "Winter", "Bagels", "Uno"],
+];
+
+async function joinAndAnswer(browser: Browser, code: string, name: string, answers: string[]) {
+  const ctx = await browser.newContext({ viewport: PHONE, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  await page.goto(`/join/${code}`);
+  await page.getByLabel("What should we call you?").fill(name);
+  await page.getByRole("button", { name: "Let's play!" }).click();
+  await page.waitForURL(`**/play/${code}`);
+  for (let i = 0; i < 8; i++) {
+    await expect(page.getByText(`Question ${i + 1} of 8`)).toBeVisible();
+    await page.locator("#answer").fill(answers[i]);
+    await page.getByRole("button", { name: i === 7 ? "Review" : "Next" }).click();
+  }
+  await expect(page.getByRole("heading", { name: "Looking good!" })).toBeVisible();
+  return page;
+}
+
+async function hostAction(host: Page, label: string | RegExp) {
+  await host.getByRole("button", { name: label }).click();
+}
+
+test("host, TV and three phones play a full game", async ({ browser }) => {
+  const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const host = await hostCtx.newPage();
+  await hostLogin(host);
+  await host.getByLabel("Questions").fill("3");
+  await host.getByRole("button", { name: "Create game" }).click();
+  await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
+  const code = host.url().split("/").pop()!;
+
+  // TV display via the host's display link.
+  const tvHref = await host.getByRole("link", { name: /Open TV display/ }).getAttribute("href");
+  const tvCtx = await browser.newContext({ viewport: TV });
+  const tv = await tvCtx.newPage();
+  await tv.goto(tvHref!);
+  await expect(tv.getByRole("heading", { name: "Scan to join" })).toBeVisible();
+
+  // Three players join and answer, with one refreshing mid-questionnaire.
+  const p1 = await joinAndAnswer(browser, code, "Aunt Rosie", ANSWERS[0]);
+  const p2 = await joinAndAnswer(browser, code, "Cousin Theo", ANSWERS[1]);
+  const p3 = await joinAndAnswer(browser, code, "Grandpa Lou", ANSWERS[2]);
+  await shot(p1, "phone-review");
+
+  // Duplicate name (case-insensitive) is rejected with a friendly error.
+  const dupCtx = await browser.newContext({ viewport: PHONE });
+  const dup = await dupCtx.newPage();
+  await dup.goto(`/join/${code}`);
+  await dup.getByLabel("What should we call you?").fill("aunt rosie");
+  await dup.getByRole("button", { name: "Let's play!" }).click();
+  await expect(dup.getByText(/already joined with that name/)).toBeVisible();
+  await dupCtx.close();
+
+  for (const p of [p1, p2, p3]) {
+    await p.getByRole("button", { name: "I'm ready!" }).click();
+    await expect(p.getByRole("heading", { name: "You're ready!" })).toBeVisible();
+  }
+  // Refresh recovery: session survives reload.
+  await p2.reload();
+  await expect(p2.getByRole("heading", { name: "You're ready!" })).toBeVisible();
+
+  await expect(tv.getByText("3 of 3 ready")).toBeVisible();
+  await shot(tv, "tv-lobby");
+  await shot(p1, "phone-ready");
+
+  await hostAction(host, "Start game");
+  await expect(host.getByRole("heading", { name: "Questions are ready" })).toBeVisible();
+  await expect(tv.getByText("Get ready!")).toBeVisible();
+  await hostAction(host, "Start first question");
+  await expect(tv.getByText(/Question 1 of 3/)).toBeVisible();
+
+  const players = [p1, p2, p3];
+  for (let q = 1; q <= 3; q++) {
+    await expect(tv.getByText(new RegExp(`Question ${q} of 3`))).toBeVisible();
+    let guessed = 0;
+    for (const p of players) {
+      await expect(p.getByText(new RegExp(`Q${q} of 3|This one's about you`))).toBeVisible();
+      if (await p.getByText("This one's about you").isVisible()) {
+        if (q === 1) await shot(p, "phone-sitting-out");
+        continue;
+      }
+      await p.getByRole("button", { name: /^A: / }).click();
+      await p.getByRole("button", { name: /Lock in A/ }).click();
+      await expect(p.getByText(/Locked in: A/)).toBeVisible();
+      // Double submission is impossible once locked.
+      await expect(p.getByRole("button", { name: /^B: / })).toBeDisabled();
+      guessed++;
+      if (q === 1 && guessed === 1) await shot(p, "phone-locked");
+    }
+    expect(guessed).toBe(2);
+    await expect(tv.getByText("2 of 2 locked in")).toBeVisible();
+    if (q === 1) await shot(tv, "tv-question");
+
+    if (q === 2) {
+      // Pause / resume.
+      await hostAction(host, /Pause/);
+      await expect(tv.getByText("Paused", { exact: true })).toBeVisible();
+      await hostAction(host, /Resume/);
+      await expect(tv.getByText("Paused", { exact: true })).toBeHidden();
+    }
+
+    await hostAction(host, "Reveal answer");
+    await expect(tv.getByText("Correct answer")).toBeVisible();
+    await expect(tv.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
+    for (const p of players) await expect(p.getByText(/Correct answer|That was about you/).first()).toBeVisible();
+    if (q === 1) {
+      await shot(tv, "tv-reveal");
+      await shot(p1, "phone-reveal");
+    }
+    await hostAction(host, q === 3 ? "Show final results" : "Next question");
+  }
+
+  await expect(tv.getByText("Final results")).toBeVisible();
+  await expect(host.getByRole("heading", { name: /Game over/ })).toBeVisible();
+  for (const p of players) await expect(p.getByText("Game over!")).toBeVisible();
+  await tv.waitForTimeout(1200);
+  await shot(tv, "tv-final");
+  await shot(p1, "phone-final");
+
+  // Scores add up: each round awards 1000 per correct guess, max 3 rounds x 2 guessers.
+  const res = await tv.request.get(`/api/games/${code}/results?key=${new URL(tvHref!, "http://x").searchParams.get("key")}`);
+  const body = await res.json();
+  expect(body.standings).toHaveLength(3);
+  for (const s of body.standings) {
+    expect(s.points % 1000).toBe(0);
+    expect(s.eligible).toBe(2); // each player is the subject of exactly one of three rounds
+  }
+});
+
+test("demo bots let one person test, with auto reveal and auto next", async ({ browser }) => {
+  const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const host = await hostCtx.newPage();
+  await hostLogin(host);
+  await host.getByLabel("Questions").fill("2");
+  await host.getByText("Auto reveal").click();
+  await host.getByText("Auto next question").click();
+  await host.getByLabel("Seconds per question").fill("8");
+  await host.getByRole("radio", { name: "Thanksgiving" }).check({ force: true });
+  await host.getByRole("button", { name: "Create game" }).click();
+  await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
+  await hostAction(host, /Add 4 demo players/);
+  await expect(host.getByText("4 ready")).toBeVisible();
+  const tvHref = await host.getByRole("link", { name: /Open TV display/ }).getAttribute("href");
+  const tvCtx = await browser.newContext({ viewport: TV });
+  const tv = await tvCtx.newPage();
+  await tv.goto(tvHref!);
+  await expect(tv.getByText("Thanksgiving Edition").first()).toBeVisible();
+  await shot(tv, "tv-lobby-thanksgiving");
+  await hostAction(host, "Start game");
+  await hostAction(host, "Start first question");
+  await expect(tv.getByText(/Question 1 of 2/)).toBeVisible();
+  await shot(tv, "tv-question-thanksgiving");
+  // Bots answer on their own; auto reveal fires; auto next moves to Q2; then the game finishes.
+  await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
+  await shot(tv, "tv-reveal-thanksgiving");
+  await expect(tv.getByText(/Question 2 of 2/)).toBeVisible({ timeout: 30_000 });
+  await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
+  await hostAction(host, "Show final results");
+  await expect(tv.getByText("Final results")).toBeVisible();
+  await tv.waitForTimeout(1500);
+  await shot(tv, "tv-final-thanksgiving");
+});
