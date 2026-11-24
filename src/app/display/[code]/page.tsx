@@ -20,10 +20,23 @@ const H = 1080;
 function TvCanvas({ children }: { children: React.ReactNode }) {
   const [scale, setScale] = useState(0);
   useEffect(() => {
-    const fit = () => setScale(Math.min(window.innerWidth / W, window.innerHeight / H));
+    // Keep a safe margin around the canvas: many TVs crop the edges (overscan), and
+    // desktop taskbars can cover the bottom of a maximized browser.
+    const fit = () => {
+      const vv = window.visualViewport;
+      const w = vv?.width ?? window.innerWidth;
+      const h = vv?.height ?? window.innerHeight;
+      setScale(Math.min(w / W, h / H) * 0.94);
+    };
     fit();
     window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    document.addEventListener("fullscreenchange", fit);
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+      document.removeEventListener("fullscreenchange", fit);
+    };
   }, []);
   return (
     <div className="fixed inset-0 overflow-hidden grid place-items-center">
@@ -47,6 +60,27 @@ function usePrefersReducedMotion() {
     return () => mq.removeEventListener("change", update);
   }, []);
   return reduced;
+}
+
+/** Columns that give evenly filled rows (12 -> 6+6, never 11+1). */
+function balancedColumns(n: number, maxCols: number): number {
+  if (n <= 0) return 1;
+  const rows = Math.ceil(n / maxCols);
+  return Math.ceil(n / rows);
+}
+
+function RosterGrid({ players, maxCols, size }: { players: { id: string; name: string; piece: string | null }[]; maxCols: number; size: number }) {
+  const cols = balancedColumns(players.length, maxCols);
+  return (
+    <ul className="flex flex-wrap justify-center gap-x-8 gap-y-6 mx-auto" style={{ maxWidth: cols * (size + 40) + (cols - 1) * 32 }}>
+      {players.map((p) => (
+        <li key={p.id} className="flex flex-col items-center gap-2 pop-in" style={{ width: size + 40 }}>
+          <Avatar name={p.name} piece={p.piece} size={size} />
+          <span className="font-display text-3xl text-center truncate max-w-full">{p.name}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 const MUSIC_LABEL: Record<MusicStyle, string> = {
@@ -244,25 +278,25 @@ function TvScreen({
   switch (state.phase) {
     case "LOBBY":
       return <TvLobby state={state} />;
-    case "PREPARING":
+    case "PREPARING": {
+      const n = state.players?.length ?? 0;
+      const size = n <= 6 ? 210 : n <= 12 ? 175 : n <= 21 ? 120 : 88;
+      const maxCols = n <= 6 ? 6 : n <= 12 ? 6 : n <= 21 ? 7 : 10;
       return (
-        <div className="h-full flex flex-col items-center justify-center gap-10 text-center px-16">
-          <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="xl" />
-          <p className="font-display text-7xl font-bold pulse-soft">Get ready!</p>
-          <div className="flex flex-wrap justify-center gap-4 max-w-[1600px]">
-            {(state.players ?? []).map((p) => (
-              <div key={p.id} className="flex flex-col items-center gap-1 pop-in">
-                <Avatar name={p.name} piece={p.piece} size={(state.players?.length ?? 0) > 20 ? 72 : 110} />
-                <span className="text-2xl font-display">{p.name}</span>
-              </div>
-            ))}
+        <div className="h-full">
+          <div className="absolute inset-x-14 top-12 bottom-[170px] flex flex-col items-center justify-center gap-8 text-center">
+            <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="lg" />
+            <p className="font-display text-7xl font-bold pulse-soft">Get ready!</p>
+            <RosterGrid players={state.players ?? []} maxCols={maxCols} size={size} />
           </div>
-          <p className="text-4xl text-muted">
-            {state.settings.perPlayer ? `${state.settings.perPlayer} questions about each person · ` : ""}the first question is coming up
-          </p>
-          <TvFooter state={state} />
+          <TvFooter state={state}>
+            <span className="text-4xl text-muted">
+              {state.settings.perPlayer ? `${state.settings.perPlayer} questions about each person · ` : ""}the first question is coming up
+            </span>
+          </TvFooter>
         </div>
       );
+    }
     case "QUESTION":
       return <TvQuestion key={state.round?.id} state={state} offsetMs={offsetMs} sfx={sfx} />;
     case "REVEAL":
@@ -357,7 +391,7 @@ function TvLobby({ state }: { state: GameStateDTO }) {
   const joinUrl = useMemo(() => joinUrlFor(state.code), [state.code]);
   const players = state.lobby ?? [];
   const many = players.length > 15;
-  const cols = players.length > 24 ? 7 : players.length > 15 ? 6 : 5;
+  const cols = balancedColumns(Math.max(players.length, 1), players.length > 24 ? 7 : players.length > 15 ? 6 : 5);
   return (
     <div className="h-full grid grid-cols-[700px_1fr] gap-12 px-16 pt-12 pb-16 overflow-hidden">
       <div className="flex flex-col items-center justify-center gap-6 text-center">
@@ -381,12 +415,13 @@ function TvLobby({ state }: { state: GameStateDTO }) {
             {state.counts.ready} of {state.counts.players} ready
           </span>
         </div>
-        <ul
-          className="grid gap-4 content-start flex-1 min-h-0 overflow-hidden"
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-        >
+        <ul className="flex flex-wrap justify-center content-start gap-4 flex-1 min-h-0 overflow-hidden">
           {players.map((p) => (
-            <li key={p.id} className={`panel pop-in flex flex-col items-center gap-1 ${many ? "p-2" : "p-4"}`}>
+            <li
+              key={p.id}
+              className={`panel pop-in flex flex-col items-center gap-1 ${many ? "p-2" : "p-4"}`}
+              style={{ width: `calc(${100 / cols}% - ${(16 * (cols - 1)) / cols}px)` }}
+            >
               <div className="relative">
                 <div className={p.ready ? "" : "opacity-60"}>
                   <Avatar name={p.name} piece={p.piece} size={many ? 84 : 120} />
@@ -404,7 +439,7 @@ function TvLobby({ state }: { state: GameStateDTO }) {
               {!many && <span className="text-lg text-muted">{p.ready ? "Ready!" : "Answering…"}</span>}
             </li>
           ))}
-          {players.length === 0 && <li className="col-span-full text-3xl text-muted py-10">Waiting for the first player…</li>}
+          {players.length === 0 && <li className="w-full text-3xl text-muted py-10">Waiting for the first player…</li>}
         </ul>
         <div className="panel-strong px-8 py-5 text-center font-display text-4xl">
           {state.counts.ready >= 3 ? "Waiting for the host to start the game" : "Pick a game piece and answer 8 quick questions on your phone"}

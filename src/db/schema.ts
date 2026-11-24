@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  customType,
   boolean,
   check,
   index,
@@ -103,6 +104,28 @@ export const players = pgTable(
     index("players_game_idx").on(t.gameId),
     check("players_name_len", sql`char_length(${t.displayName}) between 1 and 24`),
   ],
+);
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+/**
+ * A player's own photo (optional, instead of a game piece). Small, re-encoded on the phone,
+ * and deleted with the player, which is deleted with the game.
+ */
+export const playerPhotos = pgTable(
+  "player_photos",
+  {
+    playerId: uuid("player_id")
+      .primaryKey()
+      .references(() => players.id, { onDelete: "cascade" }),
+    mime: text("mime").notNull(),
+    data: bytea("data").notNull(),
+    previousPiece: text("previous_piece"),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [check("player_photos_size", sql`octet_length(${t.data}) <= 200000`)],
 );
 
 export const prompts = pgTable(

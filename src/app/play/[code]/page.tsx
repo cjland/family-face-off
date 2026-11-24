@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PhotoPicker } from "@/components/PhotoButton";
 import { Questionnaire } from "@/components/Questionnaire";
 import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Spinner, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { api, ApiClientError } from "@/lib/client/api";
 import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
+import { isPhotoPiece } from "@/lib/pieces";
 import { ordinalLabel } from "@/lib/scoring";
 
 export default function PlayPage() {
@@ -150,6 +152,38 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
             </li>
           ))}
         </ul>
+      </div>
+      <div className="panel p-4 flex items-center gap-3">
+        <Avatar name={state.me!.name} piece={state.me!.piece} size={56} />
+        <div className="flex-1 flex flex-wrap gap-2">
+          <PhotoPicker
+            className="btn btn-ghost !text-base !min-h-[44px]"
+            disabled={busy}
+            onPicked={async (image) => {
+              setBusy(true);
+              await api(`/api/games/${code}/photo`, { method: "POST", body: { image } }).catch(() => {});
+              refresh();
+              setBusy(false);
+            }}
+          >
+            📷 {isPhotoPiece(state.me!.piece) ? "Change photo" : "Use my photo"}
+          </PhotoPicker>
+          {isPhotoPiece(state.me!.piece) && (
+            <button
+              type="button"
+              className="btn btn-ghost !text-base !min-h-[44px]"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await api(`/api/games/${code}/photo`, { method: "DELETE" }).catch(() => {});
+                refresh();
+                setBusy(false);
+              }}
+            >
+              Use a game piece
+            </button>
+          )}
+        </div>
       </div>
       <button
         className="btn btn-ghost"

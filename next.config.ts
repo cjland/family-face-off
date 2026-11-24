@@ -20,7 +20,8 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      { source: "/api/:path*", headers: privateHeaders },
+      // Photos are versioned in their URL, so they may be cached privately; everything else is no-store.
+      { source: "/api/:path((?!photos/).*)", headers: privateHeaders },
       { source: "/host/:path*", headers: privateHeaders },
       { source: "/host", headers: privateHeaders },
       { source: "/join/:path*", headers: privateHeaders },

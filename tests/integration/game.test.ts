@@ -20,6 +20,8 @@ import {
   setReady,
 } from "@/server/lobby";
 import { getGameState, type StateAuth } from "@/server/state";
+import { decodePhoto, getPhoto, removePhoto, setPhoto } from "@/server/photos";
+import { readFileSync } from "node:fs";
 import { closeTestDb, resetGames, testDb } from "../support/db";
 
 let db: DB;
@@ -461,5 +463,37 @@ describe("round loser", () => {
     await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
     const s = await getGameState(db, game.code, auth("display"));
     expect(s.reveal?.roundStats.loser).toMatchObject({ reason: "slowest", name: guessers[1].player.displayName, elapsedMs: 9000 });
+  });
+});
+
+describe("player photos", () => {
+  const jpeg = "data:image/jpeg;base64," + readFileSync("tests/fixtures/sample-photo.jpg").toString("base64");
+
+  it("rejects things that aren't real images, whatever they claim to be", () => {
+    expect(() => decodePhoto("data:image/jpeg;base64," + Buffer.from("<script>alert(1)</script>").toString("base64"))).toThrow();
+    expect(() => decodePhoto("data:text/html;base64,PGgxPg==")).toThrow();
+    expect(() => decodePhoto("data:image/jpeg;base64," + Buffer.alloc(200_000, 0xff).toString("base64"))).toThrow();
+    expect(decodePhoto(jpeg).mime).toBe("image/jpeg");
+  });
+
+  it("replaces the game piece, can be removed (piece comes back), and is deleted with the game", async () => {
+    const game = await createGame(db, {});
+    const { player } = await joinGame(db, game.code, "Ann", null, { piece: "owl" });
+    const piece = await setPhoto(db, game, player, jpeg);
+    expect(piece).toMatch(new RegExp(`^photo:${player.id}:\\d+$`));
+    expect((await refreshPlayer(player.id)).piece).toBe(piece);
+    expect((await getPhoto(db, player.id))?.mime).toBe("image/jpeg");
+    // The photo doesn't block the owl for others, and the join page never sees photo ids.
+    expect((await joinInfo(db, game.code)).taken).not.toContain(piece);
+    const lobby = await getGameState(db, game.code, auth("display"));
+    expect(lobby.lobby?.[0].piece).toBe(piece);
+
+    await removePhoto(db, game.id, player.id);
+    expect((await refreshPlayer(player.id)).piece).toBe("owl");
+    expect(await getPhoto(db, player.id)).toBeNull();
+
+    await setPhoto(db, game, player, jpeg);
+    await db.execute(sql`delete from games where id = ${game.id}`);
+    expect(await getPhoto(db, player.id)).toBeNull();
   });
 });

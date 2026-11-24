@@ -193,6 +193,24 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0004_player_photos (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795563767890) THEN
+    EXECUTE $stmt$CREATE TABLE "player_photos" (
+	"player_id" uuid PRIMARY KEY NOT NULL,
+	"mime" text NOT NULL,
+	"data" "bytea" NOT NULL,
+	"previous_piece" text,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "player_photos_size" CHECK (octet_length("player_photos"."data") <= 200000)
+)$stmt$;
+    EXECUTE $stmt$ALTER TABLE "player_photos" ADD CONSTRAINT "player_photos_player_id_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."players"("id") ON DELETE cascade ON UPDATE no action$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('4dd1ae4ceed9ba71da7677af06d6ed497e252a8f31c9e24ff79c4992d2980ffa', 1795563767890);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true}]'::jsonb, true, NULL),

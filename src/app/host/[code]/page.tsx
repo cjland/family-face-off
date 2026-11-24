@@ -9,6 +9,7 @@ import { AnswerTile, Avatar, Banner, CountdownRing, Leaderboard, QrCode, Spinner
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import type { GameStateDTO } from "@/lib/dto";
+import { isPhotoPiece } from "@/lib/pieces";
 
 type Preview = { readyPlayers: number; totalPlayers: number; maxPerPlayer: number; suggestedPerPlayer: number; questionSeconds: number };
 
@@ -266,6 +267,20 @@ function LobbyControls({
                   {p.name} {p.isBot && <span className="text-xs text-muted font-normal">(demo bot)</span>}
                 </span>
                 <span className="text-sm text-muted">{p.ready ? "Ready" : `${p.answered}/8 answered`}</span>
+                {isPhotoPiece(p.piece) && (
+                  <button
+                    className="btn btn-ghost !min-h-[44px] !px-3 !text-sm"
+                    disabled={busy}
+                    aria-label={`Remove ${p.name}'s photo`}
+                    onClick={() => {
+                      if (window.confirm(`Remove ${p.name}'s photo? They'll get a game piece instead.`)) {
+                        void act(() => api(`/api/games/${code}/players/${p.id}/photo`, { method: "DELETE" }));
+                      }
+                    }}
+                  >
+                    Remove photo
+                  </button>
+                )}
                 <button
                   className="btn btn-ghost !min-h-[44px] !px-3 !text-sm"
                   disabled={busy}

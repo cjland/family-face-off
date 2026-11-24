@@ -29,6 +29,13 @@
       "when": 1795562992327,
       "tag": "0003_leaderboard_phase",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795563767890,
+      "tag": "0004_player_photos",
+      "breakpoints": true
     }
   ]
 }

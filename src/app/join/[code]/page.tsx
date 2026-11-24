@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PhotoPicker } from "@/components/PhotoButton";
 import { Avatar, Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
 import type { GameStateDTO } from "@/lib/dto";
@@ -19,6 +20,7 @@ export default function JoinPage() {
   const [info, setInfo] = useState<Info | null>(null);
   const [name, setName] = useState("");
   const [piece, setPiece] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
@@ -93,6 +95,10 @@ export default function JoinPage() {
               setError(null);
               try {
                 await api(`/api/games/${code}/join`, { method: "POST", body: { name, piece: piece ?? undefined } });
+                if (photo) {
+                  // A failed photo upload shouldn't block joining; they keep a game piece.
+                  await api(`/api/games/${code}/photo`, { method: "POST", body: { image: photo } }).catch(() => {});
+                }
                 router.replace(`/play/${code}`);
               } catch (err) {
                 setError(err instanceof ApiClientError ? err.message : "Couldn't join. Please try again.");
@@ -122,6 +128,28 @@ export default function JoinPage() {
             />
             <fieldset>
               <legend className="font-display text-2xl font-semibold mb-2">Pick your game piece</legend>
+              <div className="flex items-center gap-3 mb-3">
+                {photo ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo} alt="Your photo" width={64} height={64} className="rounded-full ring-4 ring-accent object-cover w-16 h-16" />
+                    <span className="flex-1 text-sm">Using your photo.</span>
+                    <button type="button" className="btn btn-ghost !text-sm !min-h-[44px]" onClick={() => setPhoto(null)}>
+                      Use a piece instead
+                    </button>
+                  </>
+                ) : (
+                  <PhotoPicker
+                    className="btn btn-ghost !text-base w-full"
+                    onPicked={(d) => {
+                      setPhoto(d);
+                      setPiece(null);
+                    }}
+                  >
+                    📷 Use my own photo
+                  </PhotoPicker>
+                )}
+              </div>
               <div className="grid grid-cols-5 gap-1.5 max-h-[46vh] overflow-y-auto pr-1" role="radiogroup" aria-label="Game pieces">
                 {PIECES.map((p) => {
                   const isTaken = taken.has(p.id) && !allTaken;
@@ -134,7 +162,10 @@ export default function JoinPage() {
                       aria-checked={selected}
                       aria-label={`${p.label}${isTaken ? " (taken)" : ""}`}
                       disabled={isTaken}
-                      onClick={() => setPiece(p.id)}
+                      onClick={() => {
+                        setPiece(p.id);
+                        setPhoto(null);
+                      }}
                       className={`relative rounded-2xl p-1 flex flex-col items-center min-h-[72px] transition ${
                         selected ? "bg-accent/30 ring-4 ring-accent scale-105" : "bg-black/20 hover:bg-white/10"
                       } ${isTaken ? "opacity-30 grayscale" : ""}`}
@@ -145,7 +176,9 @@ export default function JoinPage() {
                   );
                 })}
               </div>
-              <p className="text-sm text-muted mt-2">{piece ? "Great choice!" : "Skip it and we'll pick one for you."}</p>
+              <p className="text-sm text-muted mt-2">
+                {photo ? "Your photo shows up on the TV and is deleted when the game is deleted." : piece ? "Great choice!" : "Skip it and we'll pick one for you."}
+              </p>
             </fieldset>
             {error && <Banner kind="error">{error}</Banner>}
             <button className="btn btn-primary" disabled={busy || !name.trim()}>

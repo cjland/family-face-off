@@ -219,6 +219,21 @@ function hash(s: string) {
 }
 
 export function Avatar({ name, size = 48, piece }: { name: string; size?: number; piece?: string | null }) {
+  if (piece && piece.startsWith("photo:")) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={pieceSrc(piece)}
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        className="flex-none rounded-full object-cover shadow-[0_4px_10px_rgba(0,0,0,0.45)]"
+        style={{ width: size, height: size, border: `${Math.max(2, Math.round(size / 24))}px solid rgba(255,255,255,0.9)` }}
+        draggable={false}
+      />
+    );
+  }
   if (piece) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

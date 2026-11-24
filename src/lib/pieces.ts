@@ -49,7 +49,20 @@ export function isPiece(v: unknown): v is PieceId {
   return typeof v === "string" && PIECES.some((p) => p.id === v);
 }
 
+/** A player who uploaded a photo has piece "photo:<playerId>:<version>". */
+export function photoPiece(playerId: string, version: number): string {
+  return `photo:${playerId}:${version}`;
+}
+
+export function isPhotoPiece(v: string | null | undefined): boolean {
+  return typeof v === "string" && v.startsWith("photo:");
+}
+
 export function pieceSrc(id: string): string {
+  if (id.startsWith("photo:")) {
+    const [, playerId, version] = id.split(":");
+    return `/api/photos/${playerId}?v=${version ?? "0"}`;
+  }
   return `/pieces/${id}.webp`;
 }
 

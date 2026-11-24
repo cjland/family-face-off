@@ -271,7 +271,7 @@ export async function joinInfo(db: DB, code: string) {
     familyName: fam?.name ?? null,
     theme: parseSettings(game.settings).theme,
     open: game.phase === "LOBBY" && !game.rosterLockedAt,
-    taken: taken.map((t) => t.piece).filter((p): p is string => Boolean(p)),
+    taken: taken.map((t) => t.piece).filter((p): p is string => isPiece(p)),
   };
 }
 

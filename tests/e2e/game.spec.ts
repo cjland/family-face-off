@@ -30,7 +30,12 @@ async function joinAndAnswer(browser: Browser, code: string, name: string, answe
   const page = await ctx.newPage();
   await page.goto(`/join/${code}`);
   await page.getByLabel("What should we call you?").fill(name);
-  await page.getByRole("radio", { name: piece, exact: true }).click();
+  if (piece === "photo") {
+    await page.locator('input[type="file"]').setInputFiles("tests/fixtures/sample-photo.jpg");
+    await expect(page.getByAltText("Your photo")).toBeVisible();
+  } else {
+    await page.getByRole("radio", { name: piece, exact: true }).click();
+  }
   if (seed === 0) await shot(page, "phone-join-pieces");
   await page.getByRole("button", { name: "Let's play!" }).click();
   await page.waitForURL(`**/play/${code}`);
@@ -73,7 +78,7 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   // Three players join and answer, with one refreshing mid-questionnaire.
   const p1 = await joinAndAnswer(browser, code, "Aunt Rosie", ANSWERS[0], 0, "Unicorn");
   const p2 = await joinAndAnswer(browser, code, "Cousin Theo", ANSWERS[1], 1, "Dino");
-  const p3 = await joinAndAnswer(browser, code, "Grandpa Lou", ANSWERS[2], 2, "Wizard");
+  const p3 = await joinAndAnswer(browser, code, "Grandpa Lou", ANSWERS[2], 2, "photo");
   await shot(p1, "phone-review");
 
   // Duplicate name (case-insensitive) is rejected with a friendly error.
@@ -94,6 +99,11 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   await expect(p2.getByRole("heading", { name: "You're ready!" })).toBeVisible();
 
   await expect(tv.getByText("3 of 3 ready")).toBeVisible();
+  // Grandpa Lou's uploaded photo shows on the TV instead of a game piece.
+  await expect(tv.locator('img[src^="/api/photos/"]').first()).toBeVisible();
+  const photoSrc = await tv.locator('img[src^="/api/photos/"]').first().getAttribute("src");
+  const photoRes = await tv.request.get(photoSrc!);
+  expect(photoRes.headers()["content-type"]).toBe("image/jpeg");
   await shot(tv, "tv-lobby");
   await shot(p1, "phone-ready");
 
