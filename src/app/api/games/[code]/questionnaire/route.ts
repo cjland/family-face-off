@@ -12,7 +12,16 @@ export const GET = route<Ctx>(async (req, ctx, db) => {
 });
 
 const body = z.object({
-  answers: z.array(z.object({ slot: z.number().int().min(1).max(8), answer: z.string().max(400) })).min(1).max(8),
+  answers: z
+    .array(
+      z.object({
+        slot: z.number().int().min(1).max(8),
+        answer: z.string().max(400).optional(),
+        optionId: z.string().max(40).nullable().optional(),
+      }),
+    )
+    .min(1)
+    .max(8),
 });
 
 export const PATCH = route<Ctx>(async (req, ctx, db) => {

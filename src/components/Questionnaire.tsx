@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiClientError } from "@/lib/client/api";
 import { Banner, Spinner } from "./ui";
 
-type Item = { slot: number; promptId: string; prompt: string; answer: string };
+type Item = {
+  slot: number;
+  promptId: string;
+  prompt: string;
+  answer: string;
+  optionId: string | null;
+  options: { id: string; text: string }[];
+};
 
 const MAX = 120;
 
@@ -17,6 +24,7 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [typing, setTyping] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
@@ -36,8 +44,8 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
   }, [load]);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [step]);
+    if (typing) inputRef.current?.focus();
+  }, [step, typing]);
 
   if (!items) return error ? <Banner kind="error">{error}</Banner> : <Spinner label="Loading your questions" />;
 
@@ -45,23 +53,44 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
   const reviewing = step >= total;
   const item = items[Math.min(step, total - 1)];
 
-  const save = async (slot: number, answer: string) => {
-    const res = await api<{ items: Item[] }>(`/api/games/${code}/questionnaire`, { method: "PATCH", body: { answers: [{ slot, answer }] } });
+  const save = async (slot: number, body: { answer?: string; optionId?: string }) => {
+    const res = await api<{ items: Item[] }>(`/api/games/${code}/questionnaire`, { method: "PATCH", body: { answers: [{ slot, ...body }] } });
     setItems(res.items);
+  };
+
+  const goTo = (i: number) => {
+    setError(null);
+    setStep(i);
+    const it = items[Math.min(i, total - 1)];
+    setTyping(Boolean(it && it.answer && !it.optionId));
+  };
+
+  const pick = async (optionId: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await save(item.slot, { optionId });
+      goTo(step + 1);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Couldn't save. Check your connection.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const next = async () => {
     if (busy) return;
     const value = item.answer.trim();
     if (!value) {
-      setError("Please write an answer, or swap this question for another one.");
+      setError("Please pick or write an answer, or swap this question for another one.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await save(item.slot, value);
-      setStep((s) => s + 1);
+      await save(item.slot, { answer: value });
+      goTo(step + 1);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "Couldn't save. Check your connection.");
     } finally {
@@ -76,6 +105,7 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
     try {
       const res = await api<{ items: Item[] }>(`/api/games/${code}/questionnaire/replace`, { method: "POST", body: { slot: item.slot } });
       setItems(res.items);
+      setTyping(false);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "Couldn't swap that question.");
     } finally {
@@ -106,7 +136,7 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
         <ol className="flex flex-col gap-2">
           {items.map((it, i) => (
             <li key={it.slot}>
-              <button type="button" className="w-full text-left panel px-4 py-3 min-h-[44px]" onClick={() => setStep(i)}>
+              <button type="button" className="w-full text-left panel px-4 py-3 min-h-[44px]" onClick={() => goTo(i)}>
                 <span className="block text-sm text-muted">
                   {i + 1}. {it.prompt}
                 </span>
@@ -143,55 +173,103 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
           <div className="h-full bg-accent transition-all" style={{ width: `${((step + 1) / total) * 100}%` }} />
         </div>
       </div>
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void next();
-        }}
-      >
-        <label id="q-title" htmlFor="answer" className="font-display text-3xl font-bold leading-tight">
+      <div className="flex flex-col gap-4">
+        <h2 id="q-title" className="font-display text-3xl font-bold leading-tight">
           {item.prompt}
-        </label>
-        <textarea
-          id="answer"
-          ref={inputRef}
-          className="input min-h-[96px] resize-none"
-          maxLength={MAX}
-          rows={3}
-          value={item.answer}
-          placeholder="Your answer"
-          aria-describedby="count-help"
-          onChange={(e) => {
-            const v = e.target.value.slice(0, MAX);
-            setItems((prev) => prev && prev.map((p) => (p.slot === item.slot ? { ...p, answer: v } : p)));
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+        </h2>
+        {!typing && item.options.length > 0 ? (
+          <div className="grid gap-2" role="group" aria-labelledby="q-title">
+            {item.options.map((o) => {
+              const chosen = item.optionId === o.id;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  className={`panel text-left px-4 py-3 min-h-[52px] text-lg font-semibold transition ${
+                    chosen ? "ring-4 ring-accent bg-accent/20" : "hover:bg-white/10"
+                  }`}
+                  aria-pressed={chosen}
+                  disabled={busy}
+                  onClick={() => pick(o.id)}
+                >
+                  {chosen && <span aria-hidden="true">✓ </span>}
+                  {o.text}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              className={`panel text-left px-4 py-3 min-h-[52px] text-lg text-muted ${item.answer && !item.optionId ? "ring-4 ring-accent" : ""}`}
+              disabled={busy}
+              onClick={() => setTyping(true)}
+            >
+              ✏️ Something else…{item.answer && !item.optionId ? `: “${item.answer}”` : ""}
+            </button>
+          </div>
+        ) : (
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e) => {
               e.preventDefault();
               void next();
-            }
-          }}
-        />
-        <div id="count-help" className="flex justify-between text-sm text-muted">
-          <span>Keep it short. Others will guess it!</span>
-          <span aria-live="polite">
-            {item.answer.length}/{MAX}
-          </span>
-        </div>
+            }}
+          >
+            <label htmlFor="answer" className="sr-only">
+              Your answer
+            </label>
+            <textarea
+              id="answer"
+              ref={inputRef}
+              className="input min-h-[96px] resize-none"
+              maxLength={MAX}
+              rows={3}
+              value={item.optionId ? "" : item.answer}
+              placeholder="Type your own answer"
+              aria-describedby="count-help"
+              onChange={(e) => {
+                const v = e.target.value.slice(0, MAX);
+                setItems((prev) => prev && prev.map((p) => (p.slot === item.slot ? { ...p, answer: v, optionId: null } : p)));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void next();
+                }
+              }}
+            />
+            <div id="count-help" className="flex justify-between text-sm text-muted">
+              <span>Keep it short. Others will guess it!</span>
+              <span aria-live="polite">
+                {item.optionId ? 0 : item.answer.length}/{MAX}
+              </span>
+            </div>
+            <div className="flex gap-3">
+              {item.options.length > 0 && (
+                <button type="button" className="btn btn-ghost" onClick={() => setTyping(false)} disabled={busy}>
+                  Show choices
+                </button>
+              )}
+              <button type="submit" className="btn btn-primary flex-1" disabled={busy}>
+                Save
+              </button>
+            </div>
+          </form>
+        )}
         {error && <Banner kind="error">{error}</Banner>}
-        <div className="flex gap-3">
-          <button type="button" className="btn btn-ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || busy}>
+        <div className="flex gap-3 items-center justify-between">
+          <button type="button" className="btn btn-ghost" onClick={() => goTo(Math.max(0, step - 1))} disabled={step === 0 || busy}>
             Back
           </button>
-          <button type="submit" className="btn btn-primary flex-1" disabled={busy}>
-            {step === total - 1 ? "Review" : "Next"}
-          </button>
+          {item.answer && (
+            <button type="button" className="btn btn-ghost" onClick={() => goTo(step + 1)} disabled={busy}>
+              {step === total - 1 ? "Review" : "Skip ahead"} ›
+            </button>
+          )}
         </div>
         <button type="button" className="text-accent underline underline-offset-4 self-center min-h-[44px]" onClick={swap} disabled={busy}>
           Rather not answer? Swap for a different question
         </button>
-      </form>
+      </div>
     </section>
   );
 }

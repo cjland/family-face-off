@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { notInArray, sql } from "drizzle-orm";
 import { PROMPT_BANK } from "@/lib/promptBank";
 import type { DB } from "./client";
 import { prompts } from "./schema";
@@ -13,6 +13,9 @@ export async function seedPrompts(db: DB): Promise<number> {
     common: pr.common,
     sortOrder: i,
     fallbackOptions: pr.fallback,
+    options: pr.options,
+    active: pr.active,
+    seasonal: pr.seasonal,
   }));
   await db
     .insert(prompts)
@@ -26,7 +29,15 @@ export async function seedPrompts(db: DB): Promise<number> {
         common: sql`excluded.common`,
         sortOrder: sql`excluded.sort_order`,
         fallbackOptions: sql`excluded.fallback_options`,
+        options: sql`excluded.options`,
+        active: sql`excluded.active`,
+        seasonal: sql`excluded.seasonal`,
       },
     });
+  // Questions removed from the bank are retired (kept for old games' answers, never assigned again).
+  await db
+    .update(prompts)
+    .set({ active: false, common: false })
+    .where(notInArray(prompts.id, rows.map((r) => r.id)));
   return rows.length;
 }

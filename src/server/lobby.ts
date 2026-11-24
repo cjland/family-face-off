@@ -13,6 +13,7 @@ import {
   settingsSchema,
   type GameSettings,
 } from "@/lib/settings";
+import { seasonMatchesTheme } from "@/lib/promptBank";
 import { cleanText, normalizeName, validateAnswer, validateDisplayName } from "@/lib/text";
 
 function randomPick<T>(items: T[], n: number): T[] {
@@ -160,7 +161,13 @@ export async function joinGame(
     const player = inserted[0];
     if (!player) throw new ApiError("NAME_TAKEN", "Someone already joined with that name. Try adding an initial.");
 
-    const bank = await tx.select({ id: prompts.id, common: prompts.common }).from(prompts).orderBy(asc(prompts.sortOrder));
+    const bank = (
+      await tx
+        .select({ id: prompts.id, common: prompts.common, seasonal: prompts.seasonal })
+        .from(prompts)
+        .where(eq(prompts.active, true))
+        .orderBy(asc(prompts.sortOrder))
+    ).filter((b) => seasonMatchesTheme(b.seasonal, settings.theme));
     const common = bank.filter((b) => b.common).slice(0, COMMON_SLOTS);
     const random = randomPick(bank.filter((b) => !b.common), PROMPT_SLOTS - common.length);
     const chosen = [...common, ...random];
@@ -191,7 +198,14 @@ export async function removePlayer(db: DB, code: string, playerId: string): Prom
 
 // ---------- Questionnaire ----------
 
-export type QuestionnaireItem = { slot: number; promptId: string; prompt: string; answer: string };
+export type QuestionnaireItem = {
+  slot: number;
+  promptId: string;
+  prompt: string;
+  answer: string;
+  optionId: string | null;
+  options: { id: string; text: string }[];
+};
 
 export async function getQuestionnaire(db: DB, player: Player): Promise<QuestionnaireItem[]> {
   const rows = await db
@@ -200,12 +214,14 @@ export async function getQuestionnaire(db: DB, player: Player): Promise<Question
       promptId: playerPrompts.promptId,
       prompt: prompts.text,
       answer: playerPrompts.answerText,
+      optionId: playerPrompts.answerOptionId,
+      options: prompts.options,
     })
     .from(playerPrompts)
     .innerJoin(prompts, eq(prompts.id, playerPrompts.promptId))
     .where(eq(playerPrompts.playerId, player.id))
     .orderBy(asc(playerPrompts.slot));
-  return rows.map((r) => ({ ...r, answer: r.answer ?? "" }));
+  return rows.map((r) => ({ ...r, answer: r.answer ?? "", options: r.options.map((o) => ({ id: o.id, text: o.text })) }));
 }
 
 function assertEditable(game: Game, player: Player) {
@@ -226,19 +242,29 @@ export async function saveAnswers(
   db: DB,
   game: Game,
   player: Player,
-  answers: { slot: number; answer: string }[],
+  answers: { slot: number; answer?: string; optionId?: string | null }[],
 ): Promise<QuestionnaireItem[]> {
   const errors: Record<string, string> = {};
-  const cleaned = answers.map(({ slot, answer }) => {
+  const current = await getQuestionnaire(db, player);
+  const bySlot = new Map(current.map((c) => [c.slot, c]));
+  const cleaned = answers.map(({ slot, answer, optionId }) => {
     if (!Number.isInteger(slot) || slot < 1 || slot > PROMPT_SLOTS) throw new ApiError("VALIDATION", "Invalid question slot.");
-    const text = cleanText(answer);
-    if (!text) return { slot, value: null as string | null };
+    if (optionId) {
+      // A picked option: the stored answer is exactly the curated option text.
+      const opt = bySlot.get(slot)?.options.find((o) => o.id === optionId);
+      if (!opt) throw new ApiError("VALIDATION", "That choice isn't available for this question. Refresh and try again.");
+      return { slot, value: opt.text, optionId: opt.id };
+    }
+    const text = cleanText(answer ?? "");
+    if (!text) return { slot, value: null as string | null, optionId: null as string | null };
     const v = validateAnswer(text);
     if (!v.ok) {
       errors[String(slot)] = v.reason;
-      return { slot, value: null };
+      return { slot, value: null, optionId: null };
     }
-    return { slot, value: v.value };
+    // Typed text that matches an option exactly counts as picking it.
+    const match = bySlot.get(slot)?.options.find((o) => o.text.toLowerCase() === v.value.toLowerCase());
+    return { slot, value: match?.text ?? v.value, optionId: match?.id ?? null };
   });
   if (Object.keys(errors).length) {
     throw new ApiError("VALIDATION", Object.values(errors)[0], { slots: errors });
@@ -250,7 +276,7 @@ export async function saveAnswers(
     for (const c of cleaned) {
       await tx
         .update(playerPrompts)
-        .set({ answerText: c.value, updatedAt: new Date() })
+        .set({ answerText: c.value, answerOptionId: c.optionId, updatedAt: new Date() })
         .where(and(eq(playerPrompts.playerId, player.id), eq(playerPrompts.slot, c.slot)));
     }
     const [{ blanks }] = await tx
@@ -275,15 +301,18 @@ export async function replacePrompt(db: DB, game: Game, player: Player, slot: nu
       .from(playerPrompts)
       .where(eq(playerPrompts.playerId, player.id));
     const used = current.map((c) => c.promptId);
-    const unused = await tx
-      .select({ id: prompts.id })
-      .from(prompts)
-      .where(and(eq(prompts.common, false), used.length ? notInArray(prompts.id, used) : undefined));
+    const theme = parseSettings(g.settings).theme;
+    const unused = (
+      await tx
+        .select({ id: prompts.id, seasonal: prompts.seasonal })
+        .from(prompts)
+        .where(and(eq(prompts.common, false), eq(prompts.active, true), used.length ? notInArray(prompts.id, used) : undefined))
+    ).filter((u) => seasonMatchesTheme(u.seasonal, theme));
     if (!unused.length) throw new ApiError("CONFLICT", "There are no more questions to swap in.");
     const next = unused[randomInt(unused.length)];
     await tx
       .update(playerPrompts)
-      .set({ promptId: next.id, answerText: null, updatedAt: new Date() })
+      .set({ promptId: next.id, answerText: null, answerOptionId: null, updatedAt: new Date() })
       .where(and(eq(playerPrompts.playerId, player.id), eq(playerPrompts.slot, slot)));
     await tx.update(players).set({ readyAt: null }).where(eq(players.id, player.id));
   });
@@ -317,16 +346,15 @@ export async function addDemoPlayers(db: DB, code: string, count: number): Promi
   const existing = await db.select({ name: players.normalizedName }).from(players).where(eq(players.gameId, game.id));
   const taken = new Set(existing.map((e) => e.name));
   const names = DEMO_NAMES.filter((n) => !taken.has(normalizeName(n))).slice(0, count);
-  const bank = await db.select().from(prompts);
-  const fallback = new Map(bank.map((b) => [b.id, b.fallbackOptions]));
   let added = 0;
   for (const name of names) {
     const { player } = await joinGame(db, code, name, null, { isBot: true });
     const items = await getQuestionnaire(db, player);
-    const answers = items.map((it) => {
-      const opts = fallback.get(it.promptId) ?? ["Something fun"];
-      return { slot: it.slot, answer: opts[randomInt(opts.length)] };
-    });
+    const answers = items.map((it) =>
+      it.options.length
+        ? { slot: it.slot, optionId: it.options[randomInt(it.options.length)].id }
+        : { slot: it.slot, answer: "Something fun" },
+    );
     await saveAnswers(db, game, player, answers);
     await setReady(db, game, { ...player }, true);
     added++;

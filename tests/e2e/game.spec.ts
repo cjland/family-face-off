@@ -25,7 +25,7 @@ const ANSWERS = [
   ["Ramen", "Churros", "Kenya", "Teleporting", "Red pandas", "Winter", "Bagels", "Uno"],
 ];
 
-async function joinAndAnswer(browser: Browser, code: string, name: string, answers: string[]) {
+async function joinAndAnswer(browser: Browser, code: string, name: string, answers: string[], seed: number) {
   const ctx = await browser.newContext({ viewport: PHONE, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   await page.goto(`/join/${code}`);
@@ -34,8 +34,15 @@ async function joinAndAnswer(browser: Browser, code: string, name: string, answe
   await page.waitForURL(`**/play/${code}`);
   for (let i = 0; i < 8; i++) {
     await expect(page.getByText(`Question ${i + 1} of 8`)).toBeVisible();
-    await page.locator("#answer").fill(answers[i]);
-    await page.getByRole("button", { name: i === 7 ? "Review" : "Next" }).click();
+    if (i === 5) {
+      // One typed answer via "Something else…".
+      await page.getByRole("button", { name: /Something else/ }).click();
+      await page.locator("#answer").fill(answers[i]);
+      await page.getByRole("button", { name: "Save" }).click();
+    } else {
+      if (seed === 0 && i === 0) await shot(page, "phone-question-options");
+      await page.locator('[role="group"] button').nth((seed + i) % 6).click();
+    }
   }
   await expect(page.getByRole("heading", { name: "Looking good!" })).toBeVisible();
   return page;
@@ -62,9 +69,9 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   await expect(tv.getByRole("heading", { name: "Scan to join" })).toBeVisible();
 
   // Three players join and answer, with one refreshing mid-questionnaire.
-  const p1 = await joinAndAnswer(browser, code, "Aunt Rosie", ANSWERS[0]);
-  const p2 = await joinAndAnswer(browser, code, "Cousin Theo", ANSWERS[1]);
-  const p3 = await joinAndAnswer(browser, code, "Grandpa Lou", ANSWERS[2]);
+  const p1 = await joinAndAnswer(browser, code, "Aunt Rosie", ANSWERS[0], 0);
+  const p2 = await joinAndAnswer(browser, code, "Cousin Theo", ANSWERS[1], 1);
+  const p3 = await joinAndAnswer(browser, code, "Grandpa Lou", ANSWERS[2], 2);
   await shot(p1, "phone-review");
 
   // Duplicate name (case-insensitive) is rejected with a friendly error.

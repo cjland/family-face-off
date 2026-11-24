@@ -10,6 +10,8 @@ export type GenAnswer = {
   promptText: string;
   template: string;
   answer: string;
+  /** True when the answer is one of the question's curated options (never "unusual"). */
+  curated?: boolean;
 };
 
 export type GenInput = {
@@ -144,7 +146,7 @@ export function generateQuiz(input: GenInput): GenResult {
 
     const { picked, fromPool } = pickDistractors(a.answer, [peerAnswers, fallback, extra], 3, [subject.name]);
     const realDistractors = fromPool.filter((p) => p === 0).length;
-    const typeAOk = picked.length === 3 && !(isUnusual(a.answer) && realDistractors < 2);
+    const typeAOk = picked.length === 3 && (a.curated || !(isUnusual(a.answer) && realDistractors < 2));
 
     if (typeAOk) {
       const correct = { id: nextId(), label: capitalizeFirst(a.answer) };

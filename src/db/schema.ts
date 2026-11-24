@@ -94,6 +94,9 @@ export const prompts = pgTable(
     common: boolean("common").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     fallbackOptions: jsonb("fallback_options").$type<string[]>().notNull(),
+    options: jsonb("options").$type<{ id: string; text: string; humorous: boolean }[]>().notNull().default(sql`'[]'::jsonb`),
+    active: boolean("active").notNull().default(true),
+    seasonal: text("seasonal"),
   },
   (t) => [check("prompts_template_has_name", sql`${t.questionTemplate} like '%{name}%'`)],
 );
@@ -113,6 +116,8 @@ export const playerPrompts = pgTable(
       .references(() => prompts.id),
     slot: integer("slot").notNull(),
     answerText: text("answer_text"),
+    /** Set when the player picked one of the curated options (null for typed answers). */
+    answerOptionId: text("answer_option_id"),
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
   (t) => [

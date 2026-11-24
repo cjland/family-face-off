@@ -87,7 +87,10 @@ describe("joining", () => {
     const items = await getQuestionnaire(db, player);
     expect(items).toHaveLength(8);
     expect(new Set(items.map((i) => i.promptId)).size).toBe(8);
-    expect(items.slice(0, 4).map((i) => i.promptId)).toEqual(["favorite-food", "favorite-dessert", "dream-vacation", "superpower"]);
+    expect(items.slice(0, 4).map((i) => i.promptId)).toEqual(["q001", "q002", "q017", "q053"]);
+    expect(items.every((i) => i.options.length === 6)).toBe(true);
+    // Classic theme: no seasonal (Thanksgiving/Christmas) questions.
+    expect(items.some((i) => ["q010", "q079", "q080", "q084"].includes(i.promptId))).toBe(false);
   });
 
   it("reconnects an existing player by token instead of creating a new one", async () => {
@@ -107,6 +110,48 @@ describe("joining", () => {
 });
 
 describe("questionnaire and roster", () => {
+  it("saves a picked option as its exact text, and rejects options from other questions", async () => {
+    const game = await createGame(db, {});
+    const { player } = await joinGame(db, game.code, "Ann", null);
+    const items = await getQuestionnaire(db, player);
+    const opt = items[0].options[4];
+    const after = await saveAnswers(db, game, player, [{ slot: 1, optionId: opt.id }]);
+    expect(after[0]).toMatchObject({ answer: opt.text, optionId: opt.id });
+    await expectApiError(saveAnswers(db, game, player, [{ slot: 1, optionId: items[1].options[0].id }]), "VALIDATION");
+    // Typing an option's exact text counts as picking it.
+    const typed = await saveAnswers(db, game, player, [{ slot: 2, answer: items[1].options[2].text.toUpperCase() }]);
+    expect(typed[1].optionId).toBe(items[1].options[2].id);
+  });
+
+  it("plays a full round from picked options, with options from the bank as wrong choices", async () => {
+    const game = await createGame(db, { settings: { roundCount: 4 } });
+    const ps: Player[] = [];
+    for (const name of ["Ann", "Ben", "Cal"]) {
+      const { player } = await joinGame(db, game.code, name, null);
+      const items = await getQuestionnaire(db, player);
+      await saveAnswers(db, game, player, items.map((it, k) => ({ slot: it.slot, optionId: it.options[(k + ps.length) % 6].id })));
+      await setReady(db, game, player, true);
+      ps.push(player);
+    }
+    await startGame(db, game.id, { excludeUnready: false });
+    const planned = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
+    expect(planned.filter((r) => r.status === "PENDING")).toHaveLength(4);
+    for (const r of planned) {
+      expect(r.questionText).toMatch(/^How did (Ann|Ben|Cal) answer: “/);
+      expect(r.options.find((o) => o.id === r.correctOptionId)?.label.toLowerCase()).toBe(r.answerText.toLowerCase());
+    }
+  });
+
+  it("hands out Thanksgiving questions only in Thanksgiving games", async () => {
+    const game = await createGame(db, { settings: { theme: "thanksgiving" } });
+    const seen = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const { player } = await joinGame(db, game.code, `Guest ${i}`, null);
+      for (const it of await getQuestionnaire(db, player)) seen.add(it.promptId);
+    }
+    expect(seen.has("q080")).toBe(false); // Christmas never appears in a Thanksgiving game
+  });
+
   it("requires eight answers before ready, and allows replacing a prompt", async () => {
     const game = await createGame(db, {});
     const { player } = await joinGame(db, game.code, "Ann", null);

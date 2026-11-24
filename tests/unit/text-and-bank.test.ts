@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PROMPT_BANK } from "@/lib/promptBank";
+import { pickDistractors } from "@/lib/generator";
+import { PROMPT_BANK, seasonMatchesTheme } from "@/lib/promptBank";
 import { DEFAULT_SETTINGS, parseSettings, settingsSchema } from "@/lib/settings";
 import { cleanText, nearDuplicate, normalizeName, validateAnswer, validateDisplayName } from "@/lib/text";
 
@@ -28,21 +29,34 @@ describe("text handling", () => {
   });
 });
 
-describe("prompt bank", () => {
-  it("has 4 common prompts first and enough random prompts", () => {
-    expect(PROMPT_BANK.slice(0, 4).every((p) => p.common)).toBe(true);
+describe("prompt bank (src/data/questions.json)", () => {
+  it("loads 100 questions with the 4 common ones first", () => {
+    expect(PROMPT_BANK).toHaveLength(100);
+    expect(PROMPT_BANK.slice(0, 4).map((p) => p.id)).toEqual(["q001", "q002", "q017", "q053"]);
     expect(PROMPT_BANK.filter((p) => p.common)).toHaveLength(4);
-    expect(PROMPT_BANK.filter((p) => !p.common).length).toBeGreaterThanOrEqual(40);
   });
-  it("has unique ids, a {name} template and at least 6 distinct fallbacks per prompt", () => {
+  it("has unique ids, a {name} template and unique option ids", () => {
     expect(new Set(PROMPT_BANK.map((p) => p.id)).size).toBe(PROMPT_BANK.length);
+    const optionIds = PROMPT_BANK.flatMap((p) => p.options.map((o) => o.id));
+    expect(new Set(optionIds).size).toBe(optionIds.length);
     for (const p of PROMPT_BANK) {
       expect(p.template).toContain("{name}");
-      expect(p.fallback.length).toBeGreaterThanOrEqual(6);
-      for (let i = 0; i < p.fallback.length; i++) {
-        for (let j = i + 1; j < p.fallback.length; j++) expect(nearDuplicate(p.fallback[i], p.fallback[j]), `${p.id}: ${p.fallback[i]} / ${p.fallback[j]}`).toBe(false);
+      expect(p.template).not.toContain("{playerName}");
+    }
+  });
+  it("can build 3 distinct wrong choices for every option", () => {
+    for (const p of PROMPT_BANK) {
+      for (const o of p.options) {
+        const { picked } = pickDistractors(o.text, [p.fallback.filter((f) => f !== o.text)], 3);
+        expect(picked, `${p.id}: ${o.text}`).toHaveLength(3);
       }
     }
+  });
+  it("only offers seasonal questions in the matching theme", () => {
+    expect(seasonMatchesTheme(null, "classic")).toBe(true);
+    expect(seasonMatchesTheme("Thanksgiving", "thanksgiving")).toBe(true);
+    expect(seasonMatchesTheme("Thanksgiving", "classic")).toBe(false);
+    expect(seasonMatchesTheme("Christmas", "thanksgiving")).toBe(false);
   });
 });
 

@@ -69,7 +69,7 @@ describe("generateQuiz", () => {
 
   it("never offers a near-duplicate of the correct answer as a distractor", () => {
     // Everyone loves pizza in slightly different words.
-    const { players, answers } = makeInput(5, (i, pid) => (pid === "favorite-food" ? ["Pizza", "pizza!", "Pizzas", "PIZZA", "Tacos"][i] : distinct(i, pid)));
+    const { players, answers } = makeInput(5, (i, pid) => (pid === "q001" ? ["Pizza", "pizza!", "Pizzas", "PIZZA", "Tacos"][i] : distinct(i, pid)));
     const res = generateQuiz({ players, answers, fallbackByPrompt, roundCount: 40, seed: 4 });
     for (const r of res.rounds.filter((x) => x.type === "WHAT_ANSWER")) {
       const labels = r.options.map((o) => o.label.toLowerCase().replace(/[^a-z]/g, "").replace(/s$/, ""));
@@ -86,9 +86,9 @@ describe("generateQuiz", () => {
 
   it("uses 'Who submitted this answer?' for unusual answers when 4+ players", () => {
     const long = "the little bakery on the corner near grandma's old house";
-    const { players, answers } = makeInput(4, (i, pid) => (i === 0 && pid === "favorite-food" ? long : distinct(i, pid)));
+    const { players, answers } = makeInput(4, (i, pid) => (i === 0 && pid === "q001" ? long : distinct(i, pid)));
     const res = generateQuiz({ players, answers, fallbackByPrompt, roundCount: 32, seed: 6 });
-    const r = res.rounds.find((x) => x.sourcePlayerPromptId === "p0:favorite-food");
+    const r = res.rounds.find((x) => x.sourcePlayerPromptId === "p0:q001");
     expect(r?.type).toBe("WHO_ANSWERED");
     expect(r?.questionText).toBe("Who submitted this answer?");
   });

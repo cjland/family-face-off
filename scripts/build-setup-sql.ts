@@ -20,8 +20,13 @@ for (const e of journal.entries) {
   out += statements.map((st) => `    EXECUTE $stmt$${st}$stmt$;`).join("\n");
   out += `\n    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES (${q(hash)}, ${e.when});\n  END IF;\nEND\n$migration$;\n\n`;
 }
-out += `-- Prompt bank (safe to re-run)\nINSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options) VALUES\n`;
-out += PROMPT_BANK.map((p, i) => `  (${q(p.id)}, ${q(p.text)}, ${q(p.template)}, ${q(p.category)}, ${p.common}, ${i}, ${q(JSON.stringify(p.fallback))}::jsonb)`).join(",\n");
-out += `\nON CONFLICT (id) DO UPDATE SET text = excluded.text, question_template = excluded.question_template, category = excluded.category, common = excluded.common, sort_order = excluded.sort_order, fallback_options = excluded.fallback_options;\n\nSELECT count(*) AS prompts_loaded FROM prompts;\n`;
+out += `-- Question bank from src/data/questions.json (safe to re-run)\nINSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES\n`;
+out += PROMPT_BANK.map(
+  (p, i) =>
+    `  (${q(p.id)}, ${q(p.text)}, ${q(p.template)}, ${q(p.category)}, ${p.common}, ${i}, ${q(JSON.stringify(p.fallback))}::jsonb, ${q(JSON.stringify(p.options))}::jsonb, ${p.active}, ${p.seasonal === null ? "NULL" : q(p.seasonal)})`,
+).join(",\n");
+out += `\nON CONFLICT (id) DO UPDATE SET text = excluded.text, question_template = excluded.question_template, category = excluded.category, common = excluded.common, sort_order = excluded.sort_order, fallback_options = excluded.fallback_options, options = excluded.options, active = excluded.active, seasonal = excluded.seasonal;\n\n`;
+out += `-- Retire questions no longer in the bank (kept for old games, never assigned again)\nUPDATE prompts SET active = false, common = false WHERE id NOT IN (${PROMPT_BANK.map((p) => q(p.id)).join(", ")});\n\n`;
+out += `SELECT count(*) FILTER (WHERE active) AS questions_ready FROM prompts;\n`;
 writeFileSync("neon-setup.sql", out);
 console.log("Wrote neon-setup.sql");

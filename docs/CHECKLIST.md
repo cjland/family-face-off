@@ -6,7 +6,7 @@ Status of the MVP against `CLAUDE.md`. ✅ done · ⚙️ optional/partial · �
 - ✅ Next.js App Router + TypeScript + Tailwind + ESLint, npm lockfile
 - ✅ Zod-validated server env (`src/lib/env.ts`), `.env.example`, no hardcoded secrets
 - ✅ Drizzle schema with UUID PKs, timestamptz, FKs + cascade, enums, checks, unique indexes (`src/db/schema.ts`), migration `drizzle/0000_init.sql`
-- ✅ Prompt bank seed: 4 common + 46 random prompts, stable IDs, question templates, 6–8 curated distractors each
+- ✅ Question bank: 100 questions from `src/data/questions.json` (owner-supplied), 4 common, 6 options each, seasonal filtering by theme. Supersedes the spec's free-text prompt list; players pick an option or type their own.
 - ✅ Host auth: env password, constant-time compare, rate-limited login, hashed session tokens
 - ✅ Game creation with unique 6-char codes, 7-day expiry enforced on reads/writes
 - ✅ Join with case-insensitive unique names, per-game player cookie, idempotent reconnect, friendly invalid/full/closed errors

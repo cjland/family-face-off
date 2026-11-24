@@ -106,6 +106,7 @@ export async function loadGenerationInput(db: DB, gameId: string) {
       promptText: prompts.text,
       template: prompts.questionTemplate,
       answer: playerPrompts.answerText,
+      optionId: playerPrompts.answerOptionId,
       fallback: prompts.fallbackOptions,
     })
     .from(playerPrompts)
@@ -118,7 +119,15 @@ export async function loadGenerationInput(db: DB, gameId: string) {
     fallbackByPrompt[r.promptId] = r.fallback;
     const v = r.answer ? validateAnswer(r.answer) : null;
     if (v?.ok) {
-      answers.push({ playerPromptId: r.playerPromptId, playerId: r.playerId, promptId: r.promptId, promptText: r.promptText, template: r.template, answer: v.value });
+      answers.push({
+        playerPromptId: r.playerPromptId,
+        playerId: r.playerId,
+        promptId: r.promptId,
+        promptText: r.promptText,
+        template: r.template,
+        answer: v.value,
+        curated: Boolean(r.optionId),
+      });
     }
   }
   return { roster, answers, fallbackByPrompt };

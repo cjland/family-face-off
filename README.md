@@ -22,7 +22,7 @@ No player accounts, emails or app installs. AI is optional and off by default.
 | Play | `/play/ABC123` | Players' phones during the game |
 
 1. Create a game on `/host`, then click **Open TV display** and put that tab on the TV (HDMI or screen mirroring). Keep the host console on your phone or laptop.
-2. Players scan the QR code, enter a name and answer 8 private questions. They can swap any question they'd rather not answer.
+2. Players scan the QR code, enter a name and answer 8 private questions by tapping one of six choices (or "Something else…" to type their own). They can swap any question they'd rather not answer.
 3. When at least 3 players are ready, press **Start game**. This locks the roster and answers and builds the questions.
 4. Press **Start first question**. Players lock in A–D on their phones, and whoever the question is about sits that one out.
 5. **Reveal answer** shows the correct answer, who guessed what, and the leaderboard. **Next question** continues. The final screen shows a podium and confetti.
@@ -45,7 +45,7 @@ Requirements: Node.js 20.9+ (22 recommended) and a Postgres database, either a f
 npm install
 cp .env.example .env.local      # then fill in the values (see below)
 npm run db:migrate              # creates tables
-npm run db:seed                 # loads the 50-question prompt bank (safe to re-run)
+npm run db:seed                 # loads the 100-question bank from src/data/questions.json (safe to re-run)
 npm run dev                     # http://localhost:3000
 ```
 
@@ -97,7 +97,7 @@ Nothing here is automatic. Each step is something you do in your own accounts, a
 
 ### 2. Create the tables and load the questions
 
-**Easiest (browser only):** in the Neon console, open **SQL Editor**, paste the entire contents of [`neon-setup.sql`](./neon-setup.sql) and click **Run**. The last line should show `prompts_loaded = 50`. It is safe to run again. (Regenerate it after schema changes with `npx tsx scripts/build-setup-sql.ts`.)
+**Easiest (browser only):** in the Neon console, open **SQL Editor**, paste the entire contents of [`neon-setup.sql`](./neon-setup.sql) and click **Run**. The last line should show `questions_ready = 100`. It is safe to run again. (Regenerate it after schema changes with `npx tsx scripts/build-setup-sql.ts`.)
 
 **Or from a terminal on your computer:**
 
@@ -151,6 +151,12 @@ Set `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` (a model that supports JSON `res
 
 ---
 
+## Editing the questions
+
+All questions live in [`src/data/questions.json`](./src/data/questions.json): each has a personal question, the TV wording (`{playerName}` is replaced with the player's name), six options (`is_humorous` marks the funny ones), `active`, and an optional `seasonal` tag. The four everyone answers are set in `COMMON_PROMPT_IDS` in `src/lib/promptBank.ts`. Seasonal questions are only handed out when the game's theme matches (Thanksgiving questions in Thanksgiving games; there's no Christmas theme yet, so Christmas questions stay unused).
+
+After editing: run `npx tsx scripts/build-setup-sql.ts` and paste the new `neon-setup.sql` into the Neon SQL Editor (or run `npm run db:seed`). The unit tests check that every option can be quizzed with three distinct wrong choices.
+
 ## Real-device checklist (before the party)
 
 - [ ] `/api/health` returns `ok: true` on the deployed URL
@@ -158,7 +164,7 @@ Set `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` (a model that supports JSON `res
 - [ ] QR code on the TV opens the join page on an iPhone **and** an Android phone (camera app, no install)
 - [ ] Two phones can't take the same name ("Rosie" vs "rosie")
 - [ ] A player who refreshes or closes and reopens the browser returns to the same spot
-- [ ] Answer all 8 questions on one phone; try "swap question"
+- [ ] Answer all 8 questions on one phone (tap a choice, and try "Something else…"); try "swap question"
 - [ ] Start with ≥3 ready players; confirm the warning appears if someone isn't ready
 - [ ] Countdown on phones and TV match within about a second
 - [ ] Lock in an answer; the phone shows "Locked in" and other choices are disabled
