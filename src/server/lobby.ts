@@ -1,0 +1,351 @@
+import { and, asc, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
+import { randomInt } from "node:crypto";
+import type { DB } from "@/db/client";
+import { games, playerPrompts, players, prompts, type Game, type Player } from "@/db/schema";
+import { hashToken, newGameCode, newToken } from "@/lib/crypto";
+import { env } from "@/lib/env";
+import { ApiError } from "@/lib/errors";
+import {
+  COMMON_SLOTS,
+  PROMPT_SLOTS,
+  RETENTION_DAYS,
+  parseSettings,
+  settingsSchema,
+  type GameSettings,
+} from "@/lib/settings";
+import { cleanText, normalizeName, validateAnswer, validateDisplayName } from "@/lib/text";
+
+function randomPick<T>(items: T[], n: number): T[] {
+  const a = items.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, n);
+}
+
+// ---------- Games ----------
+
+export async function createGame(
+  db: DB,
+  input: { title?: string; settings?: Partial<GameSettings> },
+): Promise<Game> {
+  const settings = settingsSchema.parse(input.settings ?? {});
+  const title = cleanText(input.title ?? "").slice(0, 60) || "Family Face-Off";
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const rows = await db
+      .insert(games)
+      .values({
+        code: newGameCode(),
+        title,
+        settings,
+        expiresAt: new Date(Date.now() + RETENTION_DAYS * 86400_000),
+      })
+      .onConflictDoNothing({ target: games.code })
+      .returning();
+    if (rows[0]) return rows[0];
+  }
+  throw new ApiError("INTERNAL", "Could not allocate a game code. Please try again.");
+}
+
+export async function listGames(db: DB) {
+  const rows = await db
+    .select({
+      code: games.code,
+      title: games.title,
+      phase: games.phase,
+      createdAt: games.createdAt,
+      expiresAt: games.expiresAt,
+      settings: games.settings,
+      playerCount: sql<number>`(select count(*)::int from ${players} p where p.game_id = ${games.id} and p.active)`,
+    })
+    .from(games)
+    .where(gt(games.expiresAt, new Date()))
+    .orderBy(desc(games.createdAt))
+    .limit(50);
+  return rows.map((r) => ({ ...r, theme: parseSettings(r.settings).theme, settings: undefined }));
+}
+
+export async function deleteGame(db: DB, code: string): Promise<boolean> {
+  const rows = await db.delete(games).where(eq(games.code, code)).returning({ id: games.id });
+  return rows.length > 0;
+}
+
+export async function deleteExpiredGames(db: DB): Promise<number> {
+  const rows = await db.delete(games).where(lt(games.expiresAt, new Date())).returning({ id: games.id });
+  return rows.length;
+}
+
+/** Loads a live (non-expired) game by code. Expiration is enforced on every read and write path. */
+export async function findGame(db: DB, code: string): Promise<Game> {
+  const rows = await db
+    .select()
+    .from(games)
+    .where(and(eq(games.code, code), gt(games.expiresAt, new Date())))
+    .limit(1);
+  if (!rows[0]) throw new ApiError("GAME_NOT_FOUND", "We couldn't find that game. Check the code and try again.");
+  return rows[0];
+}
+
+export async function updateSettings(db: DB, code: string, patch: Partial<GameSettings>): Promise<Game> {
+  const game = await findGame(db, code);
+  if (game.phase !== "LOBBY") throw new ApiError("WRONG_PHASE", "Settings can only change before the game starts.");
+  const settings = settingsSchema.parse({ ...parseSettings(game.settings), ...patch });
+  const rows = await db
+    .update(games)
+    .set({ settings, version: sql`${games.version} + 1`, updatedAt: new Date() })
+    .where(and(eq(games.id, game.id), eq(games.phase, "LOBBY")))
+    .returning();
+  if (!rows[0]) throw new ApiError("WRONG_PHASE", "Settings can only change before the game starts.");
+  return rows[0];
+}
+
+// ---------- Joining ----------
+
+export type JoinResult = { player: Player; token: string | null; reconnected: boolean };
+
+/**
+ * Joins a game by name. If the request already carries a valid player token for this game,
+ * it reconnects that player instead (idempotent).
+ */
+export async function joinGame(
+  db: DB,
+  code: string,
+  rawName: string,
+  existingToken: string | null,
+  opts: { isBot?: boolean } = {},
+): Promise<JoinResult> {
+  const name = validateDisplayName(rawName);
+  if (!name.ok) throw new ApiError("VALIDATION", name.reason);
+
+  return db.transaction(async (tx) => {
+    const [game] = await tx
+      .select()
+      .from(games)
+      .where(and(eq(games.code, code), gt(games.expiresAt, new Date())))
+      .for("update");
+    if (!game) throw new ApiError("GAME_NOT_FOUND", "We couldn't find that game. Check the code and try again.");
+
+    const secret = env().SESSION_SECRET;
+    if (existingToken) {
+      const [existing] = await tx
+        .select()
+        .from(players)
+        .where(and(eq(players.gameId, game.id), eq(players.tokenHash, hashToken(existingToken, secret))));
+      if (existing) return { player: existing, token: null, reconnected: true };
+    }
+
+    if (game.phase !== "LOBBY" || game.rosterLockedAt) {
+      throw new ApiError("GAME_CLOSED", "This game has already started, so new players can't join.");
+    }
+    const settings = parseSettings(game.settings);
+    const [{ n }] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(players)
+      .where(and(eq(players.gameId, game.id), eq(players.active, true)));
+    if (n >= settings.maxPlayers) throw new ApiError("GAME_FULL", "This game is full.");
+
+    const token = newToken();
+    const inserted = await tx
+      .insert(players)
+      .values({
+        gameId: game.id,
+        displayName: name.value,
+        normalizedName: normalizeName(name.value),
+        tokenHash: hashToken(token, secret),
+        isBot: opts.isBot ?? false,
+      })
+      .onConflictDoNothing({ target: [players.gameId, players.normalizedName] })
+      .returning();
+    const player = inserted[0];
+    if (!player) throw new ApiError("NAME_TAKEN", "Someone already joined with that name. Try adding an initial.");
+
+    const bank = await tx.select({ id: prompts.id, common: prompts.common }).from(prompts).orderBy(asc(prompts.sortOrder));
+    const common = bank.filter((b) => b.common).slice(0, COMMON_SLOTS);
+    const random = randomPick(bank.filter((b) => !b.common), PROMPT_SLOTS - common.length);
+    const chosen = [...common, ...random];
+    if (chosen.length < PROMPT_SLOTS) throw new ApiError("INTERNAL", "The question bank is not seeded. Run npm run db:seed.");
+    await tx.insert(playerPrompts).values(
+      chosen.map((c, i) => ({ gameId: game.id, playerId: player.id, promptId: c.id, slot: i + 1 })),
+    );
+    await tx.update(games).set({ version: sql`${games.version} + 1`, updatedAt: new Date() }).where(eq(games.id, game.id));
+    return { player, token, reconnected: false };
+  });
+}
+
+export async function removePlayer(db: DB, code: string, playerId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [game] = await tx.select().from(games).where(eq(games.code, code)).for("update");
+    if (!game) throw new ApiError("GAME_NOT_FOUND", "Game not found.");
+    if (game.phase !== "LOBBY" || game.rosterLockedAt) {
+      throw new ApiError("WRONG_PHASE", "Players can only be removed before the roster is locked.");
+    }
+    const rows = await tx
+      .delete(players)
+      .where(and(eq(players.id, playerId), eq(players.gameId, game.id)))
+      .returning({ id: players.id });
+    if (!rows[0]) throw new ApiError("NOT_FOUND", "That player isn't in this game.");
+    await tx.update(games).set({ version: sql`${games.version} + 1`, updatedAt: new Date() }).where(eq(games.id, game.id));
+  });
+}
+
+// ---------- Questionnaire ----------
+
+export type QuestionnaireItem = { slot: number; promptId: string; prompt: string; answer: string };
+
+export async function getQuestionnaire(db: DB, player: Player): Promise<QuestionnaireItem[]> {
+  const rows = await db
+    .select({
+      slot: playerPrompts.slot,
+      promptId: playerPrompts.promptId,
+      prompt: prompts.text,
+      answer: playerPrompts.answerText,
+    })
+    .from(playerPrompts)
+    .innerJoin(prompts, eq(prompts.id, playerPrompts.promptId))
+    .where(eq(playerPrompts.playerId, player.id))
+    .orderBy(asc(playerPrompts.slot));
+  return rows.map((r) => ({ ...r, answer: r.answer ?? "" }));
+}
+
+function assertEditable(game: Game, player: Player) {
+  if (game.phase !== "LOBBY" || game.rosterLockedAt) {
+    throw new ApiError("WRONG_PHASE", "Answers are locked because the game has started.");
+  }
+  if (!player.active) throw new ApiError("FORBIDDEN", "You're no longer part of this game.");
+}
+
+async function lockGameRow(tx: DB, gameId: string): Promise<Game> {
+  const [g] = await tx.select().from(games).where(eq(games.id, gameId)).for("share");
+  if (!g) throw new ApiError("GAME_NOT_FOUND", "Game not found.");
+  return g;
+}
+
+/** Saves draft answers. Blank answers are allowed while drafting but clear the ready flag. */
+export async function saveAnswers(
+  db: DB,
+  game: Game,
+  player: Player,
+  answers: { slot: number; answer: string }[],
+): Promise<QuestionnaireItem[]> {
+  const errors: Record<string, string> = {};
+  const cleaned = answers.map(({ slot, answer }) => {
+    if (!Number.isInteger(slot) || slot < 1 || slot > PROMPT_SLOTS) throw new ApiError("VALIDATION", "Invalid question slot.");
+    const text = cleanText(answer);
+    if (!text) return { slot, value: null as string | null };
+    const v = validateAnswer(text);
+    if (!v.ok) {
+      errors[String(slot)] = v.reason;
+      return { slot, value: null };
+    }
+    return { slot, value: v.value };
+  });
+  if (Object.keys(errors).length) {
+    throw new ApiError("VALIDATION", Object.values(errors)[0], { slots: errors });
+  }
+
+  await db.transaction(async (tx) => {
+    const g = await lockGameRow(tx, game.id);
+    assertEditable(g, player);
+    for (const c of cleaned) {
+      await tx
+        .update(playerPrompts)
+        .set({ answerText: c.value, updatedAt: new Date() })
+        .where(and(eq(playerPrompts.playerId, player.id), eq(playerPrompts.slot, c.slot)));
+    }
+    const [{ blanks }] = await tx
+      .select({ blanks: sql<number>`count(*)::int` })
+      .from(playerPrompts)
+      .where(and(eq(playerPrompts.playerId, player.id), sql`coalesce(btrim(${playerPrompts.answerText}), '') = ''`));
+    if (blanks > 0 && player.readyAt) {
+      await tx.update(players).set({ readyAt: null }).where(eq(players.id, player.id));
+    }
+  });
+  return getQuestionnaire(db, player);
+}
+
+/** Swaps one prompt for an unused one from the bank, without penalty. */
+export async function replacePrompt(db: DB, game: Game, player: Player, slot: number): Promise<QuestionnaireItem[]> {
+  if (!Number.isInteger(slot) || slot < 1 || slot > PROMPT_SLOTS) throw new ApiError("VALIDATION", "Invalid question slot.");
+  await db.transaction(async (tx) => {
+    const g = await lockGameRow(tx, game.id);
+    assertEditable(g, player);
+    const current = await tx
+      .select({ promptId: playerPrompts.promptId })
+      .from(playerPrompts)
+      .where(eq(playerPrompts.playerId, player.id));
+    const used = current.map((c) => c.promptId);
+    const unused = await tx
+      .select({ id: prompts.id })
+      .from(prompts)
+      .where(and(eq(prompts.common, false), used.length ? notInArray(prompts.id, used) : undefined));
+    if (!unused.length) throw new ApiError("CONFLICT", "There are no more questions to swap in.");
+    const next = unused[randomInt(unused.length)];
+    await tx
+      .update(playerPrompts)
+      .set({ promptId: next.id, answerText: null, updatedAt: new Date() })
+      .where(and(eq(playerPrompts.playerId, player.id), eq(playerPrompts.slot, slot)));
+    await tx.update(players).set({ readyAt: null }).where(eq(players.id, player.id));
+  });
+  return getQuestionnaire(db, player);
+}
+
+export async function setReady(db: DB, game: Game, player: Player, ready: boolean): Promise<void> {
+  await db.transaction(async (tx) => {
+    const g = await lockGameRow(tx, game.id);
+    assertEditable(g, player);
+    if (ready) {
+      const rows = await tx
+        .select({ answer: playerPrompts.answerText })
+        .from(playerPrompts)
+        .where(eq(playerPrompts.playerId, player.id));
+      const complete = rows.length === PROMPT_SLOTS && rows.every((r) => r.answer && validateAnswer(r.answer).ok);
+      if (!complete) throw new ApiError("NOT_READY", "Please answer all eight questions first.");
+    }
+    await tx.update(players).set({ readyAt: ready ? new Date() : null }).where(eq(players.id, player.id));
+  });
+  // Version bump outside the share lock so lobby screens refresh.
+  await db.update(games).set({ version: sql`${games.version} + 1` }).where(eq(games.id, game.id));
+}
+
+// ---------- Demo players (fictional sample data for solo testing) ----------
+
+const DEMO_NAMES = ["Sample Sam", "Demo Dana", "Test Taylor", "Bot Bailey", "Pretend Pat", "Mock Morgan", "Faux Frankie", "Robo Riley"];
+
+export async function addDemoPlayers(db: DB, code: string, count: number): Promise<number> {
+  const game = await findGame(db, code);
+  const existing = await db.select({ name: players.normalizedName }).from(players).where(eq(players.gameId, game.id));
+  const taken = new Set(existing.map((e) => e.name));
+  const names = DEMO_NAMES.filter((n) => !taken.has(normalizeName(n))).slice(0, count);
+  const bank = await db.select().from(prompts);
+  const fallback = new Map(bank.map((b) => [b.id, b.fallbackOptions]));
+  let added = 0;
+  for (const name of names) {
+    const { player } = await joinGame(db, code, name, null, { isBot: true });
+    const items = await getQuestionnaire(db, player);
+    const answers = items.map((it) => {
+      const opts = fallback.get(it.promptId) ?? ["Something fun"];
+      return { slot: it.slot, answer: opts[randomInt(opts.length)] };
+    });
+    await saveAnswers(db, game, player, answers);
+    await setReady(db, game, { ...player }, true);
+    added++;
+  }
+  return added;
+}
+
+export async function rosterFor(db: DB, gameId: string) {
+  return db
+    .select({
+      id: players.id,
+      name: players.displayName,
+      ready: sql<boolean>`${players.readyAt} is not null`,
+      active: players.active,
+      isBot: players.isBot,
+      answered: sql<number>`(select count(*)::int from ${playerPrompts} pp where pp.player_id = ${players.id} and coalesce(btrim(pp.answer_text), '') <> '')`,
+    })
+    .from(players)
+    .where(eq(players.gameId, gameId))
+    .orderBy(asc(players.joinedAt));
+}
+

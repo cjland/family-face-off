@@ -1,0 +1,131 @@
+/**
+ * Seed data for the personal-question bank. IDs are stable slugs so seeds are idempotent.
+ * `template` turns a prompt into a quiz question; `{name}` is replaced with the subject's name.
+ * `fallback` holds curated, family-friendly distractors used when other players' answers
+ * cannot supply three credible wrong choices.
+ */
+export type PromptSeed = {
+  id: string;
+  text: string;
+  template: string;
+  category: string;
+  common: boolean;
+  fallback: string[];
+};
+
+const p = (
+  id: string,
+  text: string,
+  template: string,
+  category: string,
+  fallback: string[],
+  common = false,
+): PromptSeed => ({ id, text, template, category, common, fallback });
+
+export const PROMPT_BANK: PromptSeed[] = [
+  // Common prompts: everyone answers these four.
+  p("favorite-food", "Favorite food?", "What is {name}'s favorite food?", "food",
+    ["Pizza", "Tacos", "Sushi", "Pasta", "Burgers", "Fried chicken", "Lasagna", "Steak"], true),
+  p("favorite-dessert", "Favorite dessert?", "What is {name}'s favorite dessert?", "food",
+    ["Brownies", "Cheesecake", "Ice cream", "Apple pie", "Cookies", "Chocolate cake", "Tiramisu", "Cupcakes"], true),
+  p("dream-vacation", "Dream vacation destination?", "What is {name}'s dream vacation destination?", "travel",
+    ["Hawaii", "Italy", "Japan", "Australia", "Alaska", "France", "Iceland", "Greece"], true),
+  p("superpower", "If you could have one superpower, what would it be?", "If {name} could have one superpower, what would it be?", "imagination",
+    ["Flying", "Invisibility", "Teleportation", "Super strength", "Underwater breathing", "Time travel", "Reading minds", "Super speed"], true),
+
+  // Random prompts.
+  p("favorite-animal", "Favorite animal?", "What is {name}'s favorite animal?", "nature",
+    ["Dog", "Cat", "Elephant", "Dolphin", "Horse", "Penguin", "Lion", "Owl"]),
+  p("favorite-season", "Favorite season?", "What is {name}'s favorite season?", "nature",
+    ["Spring", "Summer", "Fall", "Winter", "Early spring", "Late summer"]),
+  p("favorite-holiday", "Favorite holiday?", "What is {name}'s favorite holiday?", "celebrations",
+    ["Thanksgiving", "Christmas", "Halloween", "Fourth of July", "New Year's Eve", "Easter", "Valentine's Day", "Hanukkah"]),
+  p("favorite-ice-cream", "Favorite ice cream flavor?", "What is {name}'s favorite ice cream flavor?", "food",
+    ["Vanilla", "Chocolate", "Mint chip", "Cookie dough", "Strawberry", "Rocky road", "Butter pecan", "Cookies and cream"]),
+  p("favorite-pizza-topping", "Favorite pizza topping?", "What is {name}'s favorite pizza topping?", "food",
+    ["Pepperoni", "Mushrooms", "Sausage", "Pineapple", "Extra cheese", "Olives", "Bell peppers", "Bacon"]),
+  p("favorite-breakfast", "Favorite breakfast?", "What is {name}'s favorite breakfast?", "food",
+    ["Pancakes", "Waffles", "Bacon and eggs", "Cereal", "French toast", "Breakfast burrito", "Oatmeal", "Bagel"]),
+  p("favorite-snack", "Favorite snack?", "What is {name}'s favorite snack?", "food",
+    ["Popcorn", "Chips and salsa", "Pretzels", "Trail mix", "Cheese and crackers", "Apple slices", "Gummy bears", "Peanuts"]),
+  p("favorite-fruit", "Favorite fruit?", "What is {name}'s favorite fruit?", "food",
+    ["Strawberries", "Mango", "Watermelon", "Banana", "Pineapple", "Grapes", "Peaches", "Blueberries"]),
+  p("favorite-color", "Favorite color?", "What is {name}'s favorite color?", "personal",
+    ["Blue", "Green", "Red", "Purple", "Yellow", "Orange", "Pink", "Teal"]),
+  p("favorite-board-game", "Favorite board game?", "What is {name}'s favorite board game?", "games",
+    ["Monopoly", "Scrabble", "Clue", "Chess", "Checkers", "Catan", "Sorry!", "Ticket to Ride"]),
+  p("favorite-outdoor-activity", "Favorite outdoor activity?", "What is {name}'s favorite outdoor activity?", "activities",
+    ["Hiking", "Swimming", "Biking", "Camping", "Fishing", "Gardening", "Picnics", "Kayaking"]),
+  p("favorite-indoor-activity", "Favorite indoor activity?", "What is {name}'s favorite indoor activity?", "activities",
+    ["Reading", "Puzzles", "Board games", "Baking", "Watching movies", "Video games", "Crafts", "Napping"]),
+  p("favorite-sport-to-watch", "Favorite sport to watch?", "What is {name}'s favorite sport to watch?", "sports",
+    ["Football", "Basketball", "Baseball", "Soccer", "Hockey", "Tennis", "Golf", "Figure skating"]),
+  p("favorite-movie", "Favorite movie?", "What is {name}'s favorite movie?", "entertainment",
+    ["The Princess Bride", "Back to the Future", "The Wizard of Oz", "Jurassic Park", "Star Wars", "Home Alone", "Toy Story", "The Sound of Music"]),
+  p("favorite-fictional-character", "Favorite fictional character?", "Who is {name}'s favorite fictional character?", "entertainment",
+    ["Sherlock Holmes", "Harry Potter", "Winnie the Pooh", "Wonder Woman", "Frodo Baggins", "Mary Poppins", "Charlie Brown", "Spider-Man"]),
+  p("favorite-song", "Favorite song?", "What is {name}'s favorite song?", "music",
+    ["Bohemian Rhapsody", "Here Comes the Sun", "Don't Stop Believin'", "Dancing Queen", "Sweet Caroline", "Hey Jude", "Respect", "September"]),
+  p("favorite-instrument", "Favorite musical instrument?", "What is {name}'s favorite musical instrument?", "music",
+    ["Piano", "Guitar", "Drums", "Violin", "Saxophone", "Trumpet", "Ukulele", "Cello"]),
+  p("favorite-place-to-relax", "Favorite place to relax?", "What is {name}'s favorite place to relax?", "places",
+    ["The beach", "A hammock", "The couch", "A cozy cabin", "The backyard", "A bubble bath", "The park", "By the fireplace"]),
+  p("favorite-weather", "Favorite weather?", "What is {name}'s favorite weather?", "nature",
+    ["Sunny and warm", "Rainy", "Snowy", "Crisp and cool", "Thunderstorms", "Foggy mornings", "Breezy", "Overcast"]),
+  p("favorite-sandwich", "Favorite sandwich?", "What is {name}'s favorite sandwich?", "food",
+    ["Grilled cheese", "BLT", "Turkey club", "Peanut butter and jelly", "Reuben", "Philly cheesesteak", "Tuna melt", "Meatball sub"]),
+  p("favorite-cookie", "Favorite type of cookie?", "What is {name}'s favorite type of cookie?", "food",
+    ["Chocolate chip", "Oatmeal raisin", "Snickerdoodle", "Peanut butter", "Sugar cookie", "Gingerbread", "Shortbread", "Double chocolate"]),
+  p("weekend-activity", "Favorite thing to do on a weekend?", "What is {name}'s favorite thing to do on a weekend?", "activities",
+    ["Sleep in", "Go to brunch", "Watch movies", "Go hiking", "Visit family", "Do yard work", "Go shopping", "Play games"]),
+  p("beach-activity", "Favorite thing to do at the beach?", "What is {name}'s favorite thing to do at the beach?", "activities",
+    ["Build sandcastles", "Swim", "Read a book", "Collect seashells", "Surf", "Play volleyball", "Nap in the sun", "Look for crabs"]),
+  p("favorite-zoo-animal", "Favorite zoo animal?", "What is {name}'s favorite zoo animal?", "nature",
+    ["Giraffe", "Elephant", "Penguin", "Panda", "Gorilla", "Red panda", "Tiger", "Flamingo"]),
+  p("amusement-park-ride", "Favorite amusement park ride?", "What is {name}'s favorite amusement park ride?", "activities",
+    ["Roller coaster", "Ferris wheel", "Bumper cars", "Carousel", "Log flume", "Teacups", "Drop tower", "Haunted house"]),
+  p("school-subject", "Favorite school subject (past or present)?", "What is {name}'s favorite school subject?", "personal",
+    ["Math", "Science", "History", "Art", "Music", "Gym", "English", "Lunch"]),
+  p("skill-to-learn", "What skill would you like to learn?", "What skill would {name} like to learn?", "personal",
+    ["Playing piano", "Cooking", "Painting", "Juggling", "Speaking Spanish", "Woodworking", "Surfing", "Dancing"]),
+  p("language-to-speak", "What language would you like to speak?", "What language would {name} like to speak?", "personal",
+    ["Spanish", "French", "Japanese", "Italian", "German", "Mandarin", "Sign language", "Portuguese"]),
+  p("animal-for-a-day", "What animal would you be for a day?", "What animal would {name} be for a day?", "imagination",
+    ["Eagle", "Dolphin", "Cat", "Cheetah", "Sloth", "Owl", "Dog", "Butterfly"]),
+  p("pet-name", "What would you name a pet?", "What would {name} name a pet?", "imagination",
+    ["Biscuit", "Max", "Luna", "Pickles", "Waffles", "Daisy", "Captain", "Bella"]),
+  p("never-order", "What food would you never order?", "What food would {name} never order?", "food",
+    ["Liver and onions", "Anchovies", "Brussels sprouts", "Sardines", "Beets", "Blue cheese", "Olives", "Tofu"]),
+  p("avoid-chore", "What chore would you avoid?", "What chore would {name} avoid?", "home",
+    ["Doing dishes", "Folding laundry", "Vacuuming", "Cleaning the bathroom", "Taking out the trash", "Mowing the lawn", "Dusting", "Making the bed"]),
+  p("surprise-100", "What would you buy first with a surprise $100?", "What would {name} buy first with a surprise $100?", "imagination",
+    ["A nice dinner", "Books", "New shoes", "Concert tickets", "A video game", "Art supplies", "A plant", "Movie tickets"]),
+  p("picnic-item", "What would you bring to a picnic?", "What would {name} bring to a picnic?", "food",
+    ["Sandwiches", "Fruit salad", "Lemonade", "Potato salad", "Cookies", "Chips", "Watermelon", "Deviled eggs"]),
+  p("birthday-cake", "What would you choose for a birthday cake?", "What would {name} choose for a birthday cake?", "celebrations",
+    ["Chocolate cake", "Carrot cake", "Funfetti", "Red velvet", "Ice cream cake", "Lemon cake", "Strawberry shortcake", "Cheesecake"]),
+  p("ideal-saturday", "What would your ideal Saturday activity be?", "What would {name}'s ideal Saturday activity be?", "activities",
+    ["Farmers market", "Movie marathon", "Long hike", "Day at the beach", "Baking", "Road trip", "Sleeping in", "Family game night"]),
+  p("garden-grow", "What would you grow in a garden?", "What would {name} grow in a garden?", "nature",
+    ["Tomatoes", "Sunflowers", "Strawberries", "Roses", "Pumpkins", "Herbs", "Lettuce", "Peppers"]),
+  p("collect-for-fun", "What would you collect for fun?", "What would {name} collect for fun?", "hobbies",
+    ["Stamps", "Coins", "Seashells", "Postcards", "Rocks", "Trading cards", "Magnets", "Snow globes"]),
+  p("fictional-world", "What fictional world would you visit?", "What fictional world would {name} visit?", "imagination",
+    ["Hogwarts", "Narnia", "Middle-earth", "Wonderland", "Oz", "Neverland", "Willy Wonka's factory", "Pandora"]),
+  p("way-to-travel", "What is your favorite way to travel?", "What is {name}'s favorite way to travel?", "travel",
+    ["Road trip", "Airplane", "Train", "Cruise ship", "Bicycle", "Hot air balloon", "Motorcycle", "RV"]),
+  p("costume", "What would you choose as a costume?", "What would {name} choose as a costume?", "celebrations",
+    ["Pirate", "Astronaut", "Superhero", "Wizard", "Dinosaur", "Detective", "Robot", "Chef"]),
+  p("waffle-topping", "What would you put on a waffle?", "What would {name} put on a waffle?", "food",
+    ["Maple syrup", "Whipped cream", "Strawberries", "Butter", "Chocolate chips", "Peanut butter", "Bananas", "Fried chicken"]),
+  p("barbecue-food", "What would you eat at a barbecue?", "What would {name} eat at a barbecue?", "food",
+    ["Hot dogs", "Burgers", "Ribs", "Corn on the cob", "Brisket", "Potato salad", "Grilled chicken", "Baked beans"]),
+  p("rainy-day-game", "What game would you play on a rainy day?", "What game would {name} play on a rainy day?", "games",
+    ["Uno", "Monopoly", "Charades", "Jigsaw puzzle", "Go Fish", "Scrabble", "Hide and seek", "Video games"]),
+  p("thanksgiving-food", "What is your favorite Thanksgiving food?", "What is {name}'s favorite Thanksgiving food?", "celebrations",
+    ["Turkey", "Mashed potatoes", "Stuffing", "Pumpkin pie", "Cranberry sauce", "Green bean casserole", "Sweet potatoes", "Dinner rolls"]),
+  p("family-celebration-activity", "What is your favorite family celebration activity?", "What is {name}'s favorite family celebration activity?", "celebrations",
+    ["Playing games", "Eating together", "Telling stories", "Watching football", "Taking photos", "Dancing", "Going for a walk", "Cooking together"]),
+];
+
+export const COMMON_PROMPT_IDS = PROMPT_BANK.filter((x) => x.common).map((x) => x.id);
