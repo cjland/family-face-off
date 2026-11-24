@@ -7,10 +7,13 @@ const optionalString = z
   .transform((v) => (v && v.trim() ? v.trim() : undefined));
 
 const serverEnvSchema = z.object({
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  DATABASE_URL: z
+    .string({ error: "is missing" })
+    .min(1, "is missing")
+    .refine((v) => /^postgres(ql)?:\/\//.test(v.trim()), "should start with postgresql://"),
   DIRECT_DATABASE_URL: optionalString,
-  HOST_PASSWORD: z.string().min(8, "HOST_PASSWORD must be at least 8 characters"),
-  SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
+  HOST_PASSWORD: z.string({ error: "is missing" }).min(8, "must be at least 8 characters"),
+  SESSION_SECRET: z.string({ error: "is missing" }).min(32, "must be at least 32 characters"),
   NEXT_PUBLIC_APP_URL: optionalString,
   OPENROUTER_API_KEY: optionalString,
   OPENROUTER_MODEL: optionalString,
@@ -34,6 +37,16 @@ export function env(): ServerEnv {
   }
   cached = parsed.data;
   return cached;
+}
+
+/**
+ * Names of misconfigured variables with the rule they break. Never includes values,
+ * so it is safe to show on the health endpoint.
+ */
+export function envProblems(): string[] {
+  const parsed = serverEnvSchema.safeParse(process.env);
+  if (parsed.success) return [];
+  return parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
 }
 
 export function aiAvailable(): boolean {
