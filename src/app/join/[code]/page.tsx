@@ -3,52 +3,64 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Banner, Spinner, Stage, TitleMark } from "@/components/ui";
+import { Avatar, Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
 import type { GameStateDTO } from "@/lib/dto";
+import { PIECES } from "@/lib/pieces";
 import type { Theme } from "@/lib/settings";
+
+type Info = { title: string; familyName: string | null; theme: Theme; open: boolean; taken: string[] };
 
 export default function JoinPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = (params.code ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   const [checking, setChecking] = useState(true);
+  const [info, setInfo] = useState<Info | null>(null);
   const [name, setName] = useState("");
+  const [piece, setPiece] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
-  const [theme, setTheme] = useState<Theme>("classic");
 
   // Already joined on this device? Go straight back into the game.
   useEffect(() => {
     let alive = true;
     api<GameStateDTO>(`/api/games/${code}/state?view=player`)
-      .then((s) => {
-        if (alive) router.replace(`/play/${code}`);
-        return s;
-      })
-      .catch((err) => {
+      .then(() => alive && router.replace(`/play/${code}`))
+      .catch(async (err) => {
         if (!alive) return;
-        if (err instanceof ApiClientError && err.status === 404) setFatal(err.message);
-        setChecking(false);
+        if (err instanceof ApiClientError && err.status === 404) {
+          setFatal(err.message);
+        } else {
+          try {
+            const i = await api<Info>(`/api/games/${code}/info`);
+            if (!alive) return;
+            setInfo(i);
+            if (!i.open) setFatal("This game has already started, so new players can't join. Ask the host to start a new one!");
+          } catch (e) {
+            if (alive) setFatal(e instanceof Error ? e.message : "Couldn't find that game.");
+          }
+        }
+        if (alive) setChecking(false);
       });
     return () => {
       alive = false;
     };
   }, [code, router]);
 
+  // Keep "taken" pieces fresh while choosing.
   useEffect(() => {
-    try {
-      const t = window.localStorage.getItem("ffo_theme_hint");
-      if (t === "thanksgiving") {
-        const id = setTimeout(() => setTheme("thanksgiving"), 0);
-        return () => clearTimeout(id);
-      }
-    } catch {
-      /* storage unavailable */
-    }
-  }, []);
+    if (!info?.open) return;
+    const id = setInterval(() => {
+      api<Info>(`/api/games/${code}/info`)
+        .then((i) => setInfo(i))
+        .catch(() => {});
+    }, 4000);
+    return () => clearInterval(id);
+  }, [code, info?.open]);
 
+  const theme = info?.theme ?? "classic";
   if (checking) {
     return (
       <Stage theme={theme}>
@@ -57,10 +69,13 @@ export default function JoinPage() {
     );
   }
 
+  const taken = new Set(info?.taken ?? []);
+  const allTaken = PIECES.every((p) => taken.has(p.id));
+
   return (
     <Stage theme={theme}>
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-5 py-10">
-        <TitleMark title="Family Face-Off" theme={theme} size="md" />
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-4 py-8">
+        <TitleMark title={info?.title ?? "Family Face-Off"} family={info?.familyName} theme={theme} size="md" />
         {fatal ? (
           <div className="flex flex-col gap-4">
             <Banner kind="error">{fatal}</Banner>
@@ -70,17 +85,21 @@ export default function JoinPage() {
           </div>
         ) : (
           <form
-            className="panel p-6 flex flex-col gap-4"
+            className="panel p-5 flex flex-col gap-4"
             onSubmit={async (e) => {
               e.preventDefault();
               if (busy) return;
               setBusy(true);
               setError(null);
               try {
-                await api(`/api/games/${code}/join`, { method: "POST", body: { name } });
+                await api(`/api/games/${code}/join`, { method: "POST", body: { name, piece: piece ?? undefined } });
                 router.replace(`/play/${code}`);
               } catch (err) {
                 setError(err instanceof ApiClientError ? err.message : "Couldn't join. Please try again.");
+                if (err instanceof ApiClientError && err.code === "PIECE_TAKEN") {
+                  setPiece(null);
+                  api<Info>(`/api/games/${code}/info`).then(setInfo).catch(() => {});
+                }
                 setBusy(false);
               }
             }}
@@ -100,11 +119,34 @@ export default function JoinPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              aria-describedby="name-help"
             />
-            <p id="name-help" className="text-sm text-muted">
-              This shows on the TV. Use a name your family will recognise. No account or email needed.
-            </p>
+            <fieldset>
+              <legend className="font-display text-2xl font-semibold mb-2">Pick your game piece</legend>
+              <div className="grid grid-cols-5 gap-1.5 max-h-[46vh] overflow-y-auto pr-1" role="radiogroup" aria-label="Game pieces">
+                {PIECES.map((p) => {
+                  const isTaken = taken.has(p.id) && !allTaken;
+                  const selected = piece === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={`${p.label}${isTaken ? " (taken)" : ""}`}
+                      disabled={isTaken}
+                      onClick={() => setPiece(p.id)}
+                      className={`relative rounded-2xl p-1 flex flex-col items-center min-h-[72px] transition ${
+                        selected ? "bg-accent/30 ring-4 ring-accent scale-105" : "bg-black/20 hover:bg-white/10"
+                      } ${isTaken ? "opacity-30 grayscale" : ""}`}
+                    >
+                      <Avatar name={p.label} piece={p.id} size={50} />
+                      <span className="text-[11px] leading-tight mt-0.5">{isTaken ? "Taken" : p.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-sm text-muted mt-2">{piece ? "Great choice!" : "Skip it and we'll pick one for you."}</p>
+            </fieldset>
             {error && <Banner kind="error">{error}</Banner>}
             <button className="btn btn-primary" disabled={busy || !name.trim()}>
               {busy ? "Joining…" : "Let's play!"}

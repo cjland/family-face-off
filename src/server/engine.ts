@@ -14,7 +14,7 @@ import {
   type Round,
 } from "@/db/schema";
 import { ApiError } from "@/lib/errors";
-import { generateQuiz, type GenAnswer } from "@/lib/generator";
+import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
 import { hashString } from "@/lib/prng";
 import { pointsFor } from "@/lib/scoring";
 import { MIN_PLAYERS, parseSettings } from "@/lib/settings";
@@ -59,7 +59,7 @@ export type StartResult = { started: true; excluded: number };
 export async function startGame(
   db: DB,
   gameId: string,
-  opts: { excludeUnready: boolean },
+  opts: { excludeUnready: boolean; perPlayer?: number },
   prepareOpts?: PrepareOptions,
 ): Promise<StartResult> {
   const result = await db.transaction(async (tx) => {
@@ -81,7 +81,13 @@ export async function startGame(
     if (unready.length) {
       await tx.update(players).set({ active: false }).where(inArray(players.id, unready.map((p) => p.id)));
     }
-    await bumpGame(tx, game.id, { phase: "PREPARING", rosterLockedAt: sql`now()`, prepareError: null });
+    const settings = parseSettings(game.settings);
+    await bumpGame(tx, game.id, {
+      phase: "PREPARING",
+      rosterLockedAt: sql`now()`,
+      prepareError: null,
+      settings: { ...settings, perPlayer: opts.perPlayer ?? settings.perPlayer },
+    });
     return { started: true as const, excluded: unready.length };
   });
   await prepareRounds(db, gameId, prepareOpts);
@@ -133,22 +139,34 @@ export async function loadGenerationInput(db: DB, gameId: string) {
   return { roster, answers, fallbackByPrompt };
 }
 
-/** Runs the generator without writing anything (lobby "preview question count"). */
+/** Runs the generator without writing anything (lobby preview and the start dialog). */
 export async function previewRounds(db: DB, game: Game) {
   const settings = parseSettings(game.settings);
   const input = await loadGenerationInput(db, game.id);
   const readyIds = new Set(
-    (await db.select({ id: players.id }).from(players).where(and(eq(players.gameId, game.id), eq(players.active, true), sql`${players.readyAt} is not null`))).map((r) => r.id),
+    (
+      await db
+        .select({ id: players.id })
+        .from(players)
+        .where(and(eq(players.gameId, game.id), eq(players.active, true), sql`${players.readyAt} is not null`))
+    ).map((r) => r.id),
   );
   const roster = input.roster.filter((r) => readyIds.has(r.id));
-  const result = generateQuiz({
+  const base = {
     players: roster,
     answers: input.answers.filter((a) => readyIds.has(a.playerId)),
     fallbackByPrompt: input.fallbackByPrompt,
-    roundCount: settings.roundCount,
     seed: game.id,
-  });
-  return { readyPlayers: roster.length, requested: settings.roundCount, planned: result.rounds.length, achievable: result.achievable };
+  };
+  const maxPerPlayer = maxPerSubject(base);
+  const suggested = Math.max(1, Math.min(maxPerPlayer, roster.length >= 10 ? 2 : roster.length >= 6 ? 3 : 4));
+  return {
+    readyPlayers: roster.length,
+    totalPlayers: input.roster.length,
+    maxPerPlayer,
+    suggestedPerPlayer: suggested,
+    questionSeconds: settings.questionSeconds,
+  };
 }
 
 /**
@@ -183,6 +201,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
     fallbackByPrompt: input.fallbackByPrompt,
     extraDistractors,
     roundCount: settings.roundCount,
+    perSubject: settings.perPlayer,
     reserveCount: settings.replaceSkipped ? RESERVE_ROUNDS : 0,
     seed: opts.seed ?? `${gameId}:${Date.now()}`,
   });
@@ -217,8 +236,8 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
       })),
     );
     const note =
-      result.rounds.length < settings.roundCount
-        ? `Only ${result.rounds.length} unique questions could be built from everyone's answers (asked for ${settings.roundCount}).`
+      result.rounds.length < result.requested
+        ? `Only ${result.rounds.length} different questions could be built from everyone's answers (asked for ${result.requested}). No question is repeated.`
         : null;
     await bumpGame(tx, gameId, { prepareError: note });
   });

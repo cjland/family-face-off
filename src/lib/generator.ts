@@ -22,6 +22,8 @@ export type GenInput = {
   /** Optional extra distractors (e.g. from AI) keyed by player_prompt id. Never used as correct answers. */
   extraDistractors?: Record<string, string[]>;
   roundCount: number;
+  /** Questions about each person. When set, overrides roundCount (players x perSubject, max 80). */
+  perSubject?: number;
   reserveCount?: number;
   seed: number | string;
 };
@@ -133,6 +135,7 @@ export function generateQuiz(input: GenInput): GenResult {
   }
 
   const canUseWho = input.players.length >= 4;
+  const promptOf = new Map(answers.map((a) => [a.playerPromptId, a.promptId]));
   const candidates = new Map<string, GenRound[]>();
 
   for (const a of answers) {
@@ -195,43 +198,103 @@ export function generateQuiz(input: GenInput): GenResult {
     }
   }
 
-  // Per-player queues: "What is X's ...?" questions first, then "Who submitted ...?".
+  // How many players hold each question: rare questions are used first so shared ones
+  // (like the four everyone answers) remain available for others.
+  const holders = new Map<string, number>();
+  for (const list of candidates.values()) {
+    for (const r of list) {
+      const pid = promptOf.get(r.sourcePlayerPromptId)!;
+      holders.set(pid, (holders.get(pid) ?? 0) + 1);
+    }
+  }
   const queues = new Map<string, GenRound[]>();
   for (const [pid, list] of candidates) {
-    const a = shuffle(list.filter((r) => r.type === "WHAT_ANSWER"), rng);
-    const b = shuffle(list.filter((r) => r.type === "WHO_ANSWERED"), rng);
-    queues.set(pid, [...a, ...b]);
+    const shuffled = shuffle(list, rng);
+    shuffled.sort(
+      (x, y) =>
+        (x.type === "WHAT_ANSWER" ? 0 : 1) - (y.type === "WHAT_ANSWER" ? 0 : 1) ||
+        (holders.get(promptOf.get(x.sourcePlayerPromptId)!) ?? 0) - (holders.get(promptOf.get(y.sourcePlayerPromptId)!) ?? 0),
+    );
+    queues.set(pid, shuffled);
   }
 
-  const achievable = [...queues.values()].reduce((n, q) => n + q.length, 0);
-  const wanted = Math.min(achievable, input.roundCount + (input.reserveCount ?? 0));
-  const order = shuffle([...queues.keys()], rng);
-  const sequence: GenRound[] = [];
+  const cap = input.perSubject ?? Infinity;
+  const roundTarget = input.perSubject ? Math.min(80, input.perSubject * input.players.length) : input.roundCount;
+  const usedPrompts = new Set<string>();
+  const counts = new Map<string, number>();
+  const take = (pid: string, limit: number): GenRound | null => {
+    if ((counts.get(pid) ?? 0) >= limit) return null;
+    const q = queues.get(pid)!;
+    const idx = q.findIndex((r) => !usedPrompts.has(promptOf.get(r.sourcePlayerPromptId)!));
+    if (idx < 0) return null;
+    const [r] = q.splice(idx, 1);
+    usedPrompts.add(promptOf.get(r.sourcePlayerPromptId)!);
+    counts.set(pid, (counts.get(pid) ?? 0) + 1);
+    return r;
+  };
+  const remainingFor = (pid: string) =>
+    queues.get(pid)!.filter((r) => !usedPrompts.has(promptOf.get(r.sourcePlayerPromptId)!)).length;
 
-  // Round-robin across subjects keeps appearance counts within one of each other.
-  while (sequence.length < wanted) {
-    let cycle: GenRound[] = [];
-    for (const pid of order) {
-      const q = queues.get(pid)!;
-      if (q.length) cycle.push(q.shift()!);
+  // Round-robin across subjects (most constrained first) keeps everyone's count within one,
+  // and never asks the same question twice in a game.
+  const pickCycles = (target: number, limit: number, into: GenRound[][]) => {
+    let total = into.reduce((n, c) => n + c.length, 0);
+    while (total < target) {
+      const order = shuffle([...queues.keys()], rng).sort((a, b) => remainingFor(a) - remainingFor(b));
+      const cycle: GenRound[] = [];
+      for (const pid of order) {
+        if (total >= target) break;
+        const r = take(pid, limit);
+        if (r) {
+          cycle.push(r);
+          total++;
+        }
+      }
+      if (!cycle.length) break;
+      into.push(cycle);
     }
-    if (!cycle.length) break;
-    cycle = shuffle(cycle, rng);
-    const prev = sequence[sequence.length - 1];
-    if (prev && cycle.length > 1 && cycle[0].subjectPlayerId === prev.subjectPlayerId) {
-      [cycle[0], cycle[1]] = [cycle[1], cycle[0]];
-    }
-    for (const r of cycle) {
-      if (sequence.length < wanted) sequence.push(r);
-    }
-  }
+  };
 
-  const mainCount = Math.min(input.roundCount, sequence.length);
-  const rounds = sequence.slice(0, mainCount);
-  const reserves = sequence.slice(mainCount);
+  const mainCycles: GenRound[][] = [];
+  pickCycles(roundTarget, cap, mainCycles);
+  const reserveCycles: GenRound[][] = [];
+  if (input.reserveCount) pickCycles(input.reserveCount, Infinity, reserveCycles);
+
+  const arrange = (cycles: GenRound[][], prevLast?: GenRound) => {
+    const out: GenRound[] = [];
+    for (let cycle of cycles) {
+      cycle = shuffle(cycle, rng);
+      const prev = out[out.length - 1] ?? prevLast;
+      if (prev && cycle.length > 1 && cycle[0].subjectPlayerId === prev.subjectPlayerId) {
+        [cycle[0], cycle[1]] = [cycle[1], cycle[0]];
+      }
+      out.push(...cycle);
+    }
+    return out;
+  };
+  const sequence = arrange(mainCycles);
+  const reserveSeq = arrange(reserveCycles, sequence[sequence.length - 1]);
+  const achievable = new Set([...candidates.values()].flat().map((r) => promptOf.get(r.sourcePlayerPromptId)!)).size;
+
+  const rounds = sequence;
+  const reserves = reserveSeq.slice(0, input.reserveCount ?? 0);
   const subjectCounts: Record<string, number> = {};
   for (const pl of input.players) subjectCounts[pl.id] = 0;
   for (const r of rounds) subjectCounts[r.subjectPlayerId]++;
 
-  return { rounds, reserves, requested: input.roundCount, achievable, subjectCounts };
+  return { rounds, reserves, requested: roundTarget, achievable: Math.min(achievable, 80), subjectCounts };
+}
+
+/**
+ * Largest "questions per person" (1..8) for which every ready player can get that many
+ * questions without any question being asked twice.
+ */
+export function maxPerSubject(input: Omit<GenInput, "perSubject" | "roundCount">): number {
+  const n = input.players.length;
+  if (!n) return 0;
+  for (let k = Math.min(8, Math.floor(80 / n)); k >= 1; k--) {
+    const r = generateQuiz({ ...input, roundCount: 0, perSubject: k, reserveCount: 0 });
+    if (Object.values(r.subjectCounts).every((c) => c === k)) return k;
+  }
+  return 0;
 }

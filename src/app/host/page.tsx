@@ -7,7 +7,18 @@ import { DEFAULT_DRAFT, SettingsForm, type SettingsDraft } from "@/components/Se
 import { Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
 
-type GameRow = { code: string; title: string; phase: string; createdAt: string; expiresAt: string; playerCount: number; theme: string };
+type GameRow = {
+  code: string;
+  title: string;
+  phase: string;
+  createdAt: string;
+  expiresAt: string;
+  playerCount: number;
+  theme: string;
+  familyId: string;
+  familyName: string;
+};
+type FamilyRow = { id: string; name: string; gameCount: number };
 type Me = { host: true; aiAvailable: boolean; demoTools: boolean };
 
 const PHASE_LABEL: Record<string, string> = {
@@ -58,6 +69,10 @@ export default function HostDashboard() {
   const [me, setMe] = useState<Me | null>(null);
   const [checked, setChecked] = useState(false);
   const [gamesList, setGames] = useState<GameRow[]>([]);
+  const [familiesList, setFamilies] = useState<FamilyRow[]>([]);
+  const [familyId, setFamilyId] = useState<string>("");
+  const [newFamily, setNewFamily] = useState("");
+  const [filter, setFilter] = useState<string>("all");
   const [title, setTitle] = useState("Family Face-Off");
   const [draft, setDraft] = useState<SettingsDraft>(DEFAULT_DRAFT);
   const [busy, setBusy] = useState(false);
@@ -67,8 +82,10 @@ export default function HostDashboard() {
     try {
       const m = await api<Me>("/api/host/me");
       setMe(m);
-      const g = await api<{ games: GameRow[] }>("/api/games");
+      const [g, f] = await Promise.all([api<{ games: GameRow[] }>("/api/games"), api<{ families: FamilyRow[] }>("/api/families")]);
       setGames(g.games);
+      setFamilies(f.families);
+      setFamilyId((cur) => cur || (f.families.find((x) => x.name === "Land") ?? f.families[0])?.id || "");
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 401) setMe(null);
       else setMessage({ kind: "error", text: err instanceof Error ? err.message : "Could not load games." });
@@ -121,6 +138,44 @@ export default function HostDashboard() {
               <h2 id="new-game" className="font-display text-3xl font-bold">
                 New game
               </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1">
+                  <span className="font-semibold">Family</span>
+                  <select className="input" value={familyId} onChange={(e) => setFamilyId(e.target.value)}>
+                    {familiesList.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        The {f.name} Family
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <form
+                  className="flex flex-col gap-1"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!newFamily.trim()) return;
+                    try {
+                      const r = await api<{ family: { id: string; name: string } }>("/api/families", { method: "POST", body: { name: newFamily } });
+                      setNewFamily("");
+                      setFamilyId(r.family.id);
+                      setMessage({ kind: "success", text: `Added the ${r.family.name} family.` });
+                      void load();
+                    } catch (err) {
+                      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Couldn't add that family." });
+                    }
+                  }}
+                >
+                  <label htmlFor="newFamily" className="font-semibold">
+                    Add a family
+                  </label>
+                  <div className="flex gap-2">
+                    <input id="newFamily" className="input" maxLength={40} placeholder="e.g. Rodriguez" value={newFamily} onChange={(e) => setNewFamily(e.target.value)} />
+                    <button className="btn btn-ghost !text-base" type="submit" disabled={!newFamily.trim()}>
+                      Add
+                    </button>
+                  </div>
+                </form>
+              </div>
               <label className="flex flex-col gap-1">
                 <span className="font-semibold">Title</span>
                 <input className="input" maxLength={60} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -133,7 +188,7 @@ export default function HostDashboard() {
                   setBusy(true);
                   setMessage(null);
                   try {
-                    const res = await api<{ code: string }>("/api/games", { method: "POST", body: { title, settings: draft } });
+                    const res = await api<{ code: string }>("/api/games", { method: "POST", body: { title, settings: draft, familyId: familyId || undefined } });
                     router.push(`/host/${res.code}`);
                   } catch (err) {
                     setMessage({ kind: "error", text: err instanceof Error ? err.message : "Could not create the game." });
@@ -162,15 +217,32 @@ export default function HostDashboard() {
                 </button>
               </div>
               <p className="text-sm text-muted">Games and everyone&apos;s answers are kept for 7 days, or until you delete them here.</p>
+              {familiesList.length > 1 && (
+                <div className="flex gap-2 flex-wrap" role="group" aria-label="Filter by family">
+                  {[{ id: "all", name: "All families" }, ...familiesList].map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className={`btn ${filter === f.id ? "btn-primary" : "btn-ghost"} !text-sm !min-h-[40px]`}
+                      aria-pressed={filter === f.id}
+                      onClick={() => setFilter(f.id)}
+                    >
+                      {f.id === "all" ? f.name : `The ${f.name} Family`}
+                    </button>
+                  ))}
+                </div>
+              )}
               {gamesList.length === 0 ? (
                 <p className="text-muted">No games yet.</p>
               ) : (
                 <ul className="flex flex-col gap-2">
-                  {gamesList.map((g) => (
+                  {gamesList.filter((g) => filter === "all" || g.familyId === filter).map((g) => (
                     <li key={g.code} className="flex items-center gap-3 rounded-xl bg-black/25 px-4 py-3 flex-wrap">
                       <span className="font-display text-2xl font-bold tracking-widest">{g.code}</span>
                       <span className="flex-1 min-w-[10ch]">
-                        <span className="block font-semibold">{g.title}</span>
+                        <span className="block font-semibold">
+                          {g.title} <span className="text-accent-2 font-normal">· The {g.familyName} Family</span>
+                        </span>
                         <span className="text-sm text-muted">
                           {PHASE_LABEL[g.phase] ?? g.phase} · {g.playerCount} players · {new Date(g.createdAt).toLocaleString()}
                         </span>

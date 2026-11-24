@@ -7,6 +7,7 @@ import { Questionnaire } from "@/components/Questionnaire";
 import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Spinner, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { api, ApiClientError } from "@/lib/client/api";
+import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
 import { ordinalLabel } from "@/lib/scoring";
 
@@ -55,7 +56,7 @@ export default function PlayPage() {
       <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-4 py-5">
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <Avatar name={me.name} size={40} />
+            <Avatar name={me.name} piece={me.piece} size={44} />
             <span className="font-semibold truncate">{me.name}</span>
           </div>
           <span className="panel px-3 py-1 font-display text-lg tabular-nums" aria-label={`Your score: ${me.points} points`}>
@@ -126,7 +127,8 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
         </p>
         <ul className="flex flex-wrap gap-2">
           {state.lobby?.map((p) => (
-            <li key={p.id} className={`rounded-full px-3 py-1 text-sm ${p.ready ? "bg-good/25" : "bg-black/25 text-muted"}`}>
+            <li key={p.id} className={`flex items-center gap-1 rounded-full pl-1 pr-3 py-0.5 text-sm ${p.ready ? "bg-good/25" : "bg-black/25 text-muted"}`}>
+              <Avatar name={p.name} piece={p.piece} size={28} />
               {p.ready ? "✔ " : ""}
               {p.name}
             </li>
@@ -172,6 +174,16 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
     if (!selected || submitting || locked) return;
     setSubmitting(true);
     setError(null);
+    // The tap is a user gesture, so a short "pop" is allowed here.
+    try {
+      const fx = new Sfx();
+      if (fx.enable()) {
+        fx.lockIn(4);
+        setTimeout(() => fx.disable(), 500);
+      }
+    } catch {
+      /* sound is optional */
+    }
     try {
       await api(`/api/games/${code}/guess`, { method: "POST", body: { roundId: round.id, optionId: selected } });
     } catch (err) {
@@ -265,6 +277,23 @@ function RevealScreen({ state }: { state: GameStateDTO }) {
           You&apos;re in <strong className="font-display text-accent-2 text-2xl">{ordinalLabel(me.rank)}</strong> place
         </p>
       )}
+      {reveal.guesses.length > 0 && (
+        <div className="panel p-4">
+          <p className="font-semibold mb-2">How everyone answered</p>
+          <ul className="flex flex-col gap-1.5">
+            {reveal.guesses.map((g) => (
+              <li key={g.playerId} className="flex items-center gap-2">
+                <Avatar name={g.name} piece={g.piece} size={32} />
+                <span className="font-semibold truncate">{g.name}</span>
+                <span className="text-muted truncate flex-1 text-right">{round.options.find((o) => o.id === g.optionId)?.label}</span>
+                <span aria-label={g.correct ? "correct" : "wrong"} className={g.correct ? "text-good" : "text-muted"}>
+                  {g.correct ? "✓" : "✗"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {state.standings && <Leaderboard standings={state.standings} highlightId={me.id} pageSize={5} />}
     </section>
   );
@@ -284,6 +313,21 @@ function FinalScreen({ state }: { state: GameStateDTO }) {
         )}
         <p className="text-muted">Thanks for playing. Everyone&apos;s a winner at this table!</p>
       </div>
+      {state.stats && state.stats.awards.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {state.stats.awards.map((a) => (
+            <div key={a.key} className="panel p-3 flex flex-col items-center text-center gap-1">
+              <span className="text-2xl" aria-hidden="true">
+                {a.emoji}
+              </span>
+              <span className="text-sm text-accent-2 font-semibold">{a.title}</span>
+              <Avatar name={a.name} piece={a.piece} size={44} />
+              <span className="font-display font-bold">{a.name}</span>
+              <span className="text-xs text-muted">{a.detail}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {state.standings && <Leaderboard standings={state.standings} highlightId={me.id} pageSize={5} />}
     </section>
   );

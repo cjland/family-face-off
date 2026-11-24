@@ -159,6 +159,30 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0002_families_pieces (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795496432670) THEN
+    EXECUTE $stmt$CREATE TABLE "families" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"normalized_name" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "families_name_len" CHECK (char_length("families"."name") between 1 and 40)
+)$stmt$;
+    EXECUTE $stmt$CREATE UNIQUE INDEX "families_name_uq" ON "families" USING btree ("normalized_name")$stmt$;
+    EXECUTE $stmt$INSERT INTO "families" ("name", "normalized_name") VALUES ('Land', 'land') ON CONFLICT DO NOTHING$stmt$;
+    EXECUTE $stmt$ALTER TABLE "games" ADD COLUMN "family_id" uuid$stmt$;
+    EXECUTE $stmt$UPDATE "games" SET "family_id" = (SELECT "id" FROM "families" WHERE "normalized_name" = 'land') WHERE "family_id" IS NULL$stmt$;
+    EXECUTE $stmt$ALTER TABLE "games" ALTER COLUMN "family_id" SET NOT NULL$stmt$;
+    EXECUTE $stmt$ALTER TABLE "players" ADD COLUMN "piece" text$stmt$;
+    EXECUTE $stmt$ALTER TABLE "games" ADD CONSTRAINT "games_family_id_families_id_fk" FOREIGN KEY ("family_id") REFERENCES "public"."families"("id") ON DELETE restrict ON UPDATE no action$stmt$;
+    EXECUTE $stmt$CREATE INDEX "games_family_idx" ON "games" USING btree ("family_id")$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('bb9f5d1575978f0afc9bbe4625c7d5e5fc4d6ca9ad11ae8b875e2b2a076eeade', 1795496432670);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true}]'::jsonb, true, NULL),

@@ -248,8 +248,8 @@ body {
   transform: scale(1.02);
 }
 .tile[data-state="dim"] {
-  opacity: 0.38;
-  filter: saturate(0.5);
+  opacity: 0.6;
+  filter: saturate(0.45) brightness(0.8);
 }
 .tile:disabled {
   cursor: default;

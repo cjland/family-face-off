@@ -7,6 +7,7 @@ export type ErrorCode =
   | "GAME_CLOSED"
   | "GAME_FULL"
   | "NAME_TAKEN"
+  | "PIECE_TAKEN"
   | "CONFLICT"
   | "VERSION_CONFLICT"
   | "WRONG_PHASE"
@@ -31,6 +32,7 @@ const STATUS: Record<ErrorCode, number> = {
   GAME_CLOSED: 409,
   GAME_FULL: 409,
   NAME_TAKEN: 409,
+  PIECE_TAKEN: 409,
   CONFLICT: 409,
   VERSION_CONFLICT: 409,
   WRONG_PHASE: 409,

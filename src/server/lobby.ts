@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import type { DB } from "@/db/client";
-import { games, playerPrompts, players, prompts, type Game, type Player } from "@/db/schema";
+import { families, games, playerPrompts, players, prompts, type Game, type Player } from "@/db/schema";
+import { PIECES, isPiece } from "@/lib/pieces";
 import { hashToken, newGameCode, newToken } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { ApiError } from "@/lib/errors";
@@ -25,19 +26,49 @@ function randomPick<T>(items: T[], n: number): T[] {
   return a.slice(0, n);
 }
 
+// ---------- Families ----------
+
+export async function listFamilies(db: DB) {
+  return db
+    .select({
+      id: families.id,
+      name: families.name,
+      gameCount: sql<number>`(select count(*)::int from ${games} g where g.family_id = ${families.id} and g.expires_at > now())`,
+    })
+    .from(families)
+    .orderBy(asc(families.name));
+}
+
+export async function getOrCreateFamily(db: DB, rawName: string) {
+  const name = cleanText(rawName).replace(/^the\s+/i, "").replace(/\s+family$/i, "").slice(0, 40);
+  if (!name) throw new ApiError("VALIDATION", "Please enter a family name.");
+  const normalized = normalizeName(name);
+  await db.insert(families).values({ name, normalizedName: normalized }).onConflictDoNothing({ target: families.normalizedName });
+  const [row] = await db.select().from(families).where(eq(families.normalizedName, normalized));
+  return row;
+}
+
 // ---------- Games ----------
 
 export async function createGame(
   db: DB,
-  input: { title?: string; settings?: Partial<GameSettings> },
+  input: { title?: string; settings?: Partial<GameSettings>; familyId?: string; familyName?: string },
 ): Promise<Game> {
   const settings = settingsSchema.parse(input.settings ?? {});
   const title = cleanText(input.title ?? "").slice(0, 60) || "Family Face-Off";
+  let familyId = input.familyId;
+  if (familyId) {
+    const [f] = await db.select({ id: families.id }).from(families).where(eq(families.id, familyId));
+    if (!f) throw new ApiError("VALIDATION", "That family doesn't exist.");
+  } else {
+    familyId = (await getOrCreateFamily(db, input.familyName ?? "Land")).id;
+  }
   for (let attempt = 0; attempt < 8; attempt++) {
     const rows = await db
       .insert(games)
       .values({
         code: newGameCode(),
+        familyId,
         title,
         settings,
         expiresAt: new Date(Date.now() + RETENTION_DAYS * 86400_000),
@@ -57,10 +88,13 @@ export async function listGames(db: DB) {
       phase: games.phase,
       createdAt: games.createdAt,
       expiresAt: games.expiresAt,
+      familyId: games.familyId,
+      familyName: families.name,
       settings: games.settings,
       playerCount: sql<number>`(select count(*)::int from ${players} p where p.game_id = ${games.id} and p.active)`,
     })
     .from(games)
+    .innerJoin(families, eq(families.id, games.familyId))
     .where(gt(games.expiresAt, new Date()))
     .orderBy(desc(games.createdAt))
     .limit(50);
@@ -114,7 +148,7 @@ export async function joinGame(
   code: string,
   rawName: string,
   existingToken: string | null,
-  opts: { isBot?: boolean } = {},
+  opts: { isBot?: boolean; piece?: string | null } = {},
 ): Promise<JoinResult> {
   const name = validateDisplayName(rawName);
   if (!name.ok) throw new ApiError("VALIDATION", name.reason);
@@ -146,6 +180,24 @@ export async function joinGame(
       .where(and(eq(players.gameId, game.id), eq(players.active, true)));
     if (n >= settings.maxPlayers) throw new ApiError("GAME_FULL", "This game is full.");
 
+    // Game piece: the requested one if free, otherwise any free piece (duplicates only once all 20 are taken).
+    const takenRows = await tx
+      .select({ piece: players.piece })
+      .from(players)
+      .where(and(eq(players.gameId, game.id), eq(players.active, true)));
+    const taken = new Set(takenRows.map((r) => r.piece).filter(Boolean));
+    const free = PIECES.map((p) => p.id).filter((id) => !taken.has(id));
+    let piece: string;
+    if (opts.piece && isPiece(opts.piece)) {
+      if (taken.has(opts.piece) && free.length) {
+        throw new ApiError("PIECE_TAKEN", "Someone just grabbed that piece. Pick another one!");
+      }
+      piece = opts.piece;
+    } else {
+      const pool = free.length ? free : PIECES.map((p) => p.id);
+      piece = pool[randomInt(pool.length)];
+    }
+
     const token = newToken();
     const inserted = await tx
       .insert(players)
@@ -155,6 +207,7 @@ export async function joinGame(
         normalizedName: normalizeName(name.value),
         tokenHash: hashToken(token, secret),
         isBot: opts.isBot ?? false,
+        piece,
       })
       .onConflictDoNothing({ target: [players.gameId, players.normalizedName] })
       .returning();
@@ -169,7 +222,16 @@ export async function joinGame(
         .orderBy(asc(prompts.sortOrder))
     ).filter((b) => seasonMatchesTheme(b.seasonal, settings.theme));
     const common = bank.filter((b) => b.common).slice(0, COMMON_SLOTS);
-    const random = randomPick(bank.filter((b) => !b.common), PROMPT_SLOTS - common.length);
+    // Spread random questions across the room: prefer ones fewer players already have,
+    // so more distinct questions are available (no question is asked twice in a game).
+    const usage = await tx
+      .select({ promptId: playerPrompts.promptId, n: sql<number>`count(*)::int` })
+      .from(playerPrompts)
+      .where(eq(playerPrompts.gameId, game.id))
+      .groupBy(playerPrompts.promptId);
+    const used = new Map(usage.map((u) => [u.promptId, u.n]));
+    const pool = randomPick(bank.filter((b) => !b.common), bank.length).sort((a, b) => (used.get(a.id) ?? 0) - (used.get(b.id) ?? 0));
+    const random = pool.slice(0, PROMPT_SLOTS - common.length);
     const chosen = [...common, ...random];
     if (chosen.length < PROMPT_SLOTS) throw new ApiError("INTERNAL", "The question bank is not seeded. Run npm run db:seed.");
     await tx.insert(playerPrompts).values(
@@ -194,6 +256,23 @@ export async function removePlayer(db: DB, code: string, playerId: string): Prom
     if (!rows[0]) throw new ApiError("NOT_FOUND", "That player isn't in this game.");
     await tx.update(games).set({ version: sql`${games.version} + 1`, updatedAt: new Date() }).where(eq(games.id, game.id));
   });
+}
+
+/** Minimal public info for the join page: no names, only which pieces are taken. */
+export async function joinInfo(db: DB, code: string) {
+  const game = await findGame(db, code);
+  const [fam] = await db.select({ name: families.name }).from(families).where(eq(families.id, game.familyId));
+  const taken = await db
+    .select({ piece: players.piece })
+    .from(players)
+    .where(and(eq(players.gameId, game.id), eq(players.active, true)));
+  return {
+    title: game.title,
+    familyName: fam?.name ?? null,
+    theme: parseSettings(game.settings).theme,
+    open: game.phase === "LOBBY" && !game.rosterLockedAt,
+    taken: taken.map((t) => t.piece).filter((p): p is string => Boolean(p)),
+  };
 }
 
 // ---------- Questionnaire ----------
@@ -367,6 +446,7 @@ export async function rosterFor(db: DB, gameId: string) {
     .select({
       id: players.id,
       name: players.displayName,
+      piece: players.piece,
       ready: sql<boolean>`${players.readyAt} is not null`,
       active: players.active,
       isBot: players.isBot,

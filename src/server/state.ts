@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { DB } from "@/db/client";
-import { games, guesses, players, rounds, scoreEvents, type Game, type Player, type Round } from "@/db/schema";
+import { families, games, guesses, players, rounds, scoreEvents, type Game, type Player, type Round } from "@/db/schema";
 import { displayKey } from "@/lib/crypto";
 import type { GameStateDTO, RoundDTO, StandingDTO, View } from "@/lib/dto";
 import { ApiError } from "@/lib/errors";
@@ -8,6 +8,7 @@ import { rankStandings, remainingActiveMs } from "@/lib/scoring";
 import { parseSettings } from "@/lib/settings";
 import { tick } from "./engine";
 import { rosterFor } from "./lobby";
+import { computeStats } from "./stats";
 
 export type StateAuth = {
   view: View;
@@ -36,6 +37,7 @@ export async function computeStandings(db: DB, gameId: string, includeInactive =
     .select({
       playerId: players.id,
       name: players.displayName,
+      piece: players.piece,
       points: sql<number>`coalesce(sum(${scoreEvents.points}) filter (where ${rounds.status} = 'REVEALED'), 0)::int`,
       correct: sql<number>`count(*) filter (where ${scoreEvents.isCorrect} and ${rounds.status} = 'REVEALED')::int`,
       eligible: sql<number>`count(${scoreEvents.id}) filter (where ${rounds.status} = 'REVEALED')::int`,
@@ -44,7 +46,7 @@ export async function computeStandings(db: DB, gameId: string, includeInactive =
     .leftJoin(scoreEvents, eq(scoreEvents.playerId, players.id))
     .leftJoin(rounds, eq(rounds.id, scoreEvents.roundId))
     .where(and(eq(players.gameId, gameId), includeInactive ? undefined : eq(players.active, true)))
-    .groupBy(players.id, players.displayName);
+    .groupBy(players.id, players.displayName, players.piece);
   return rankStandings(rows);
 }
 
@@ -85,8 +87,9 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   }
 
   const settings = parseSettings(game.settings);
+  const [fam] = await db.select({ name: families.name }).from(families).where(eq(families.id, game.familyId));
   const activePlayers = await db
-    .select({ id: players.id, name: players.displayName, readyAt: players.readyAt })
+    .select({ id: players.id, name: players.displayName, readyAt: players.readyAt, piece: players.piece })
     .from(players)
     .where(and(eq(players.gameId, game.id), eq(players.active, true)))
     .orderBy(asc(players.joinedAt));
@@ -94,7 +97,10 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   const state: GameStateDTO = {
     code: game.code,
     title: game.title,
+    familyName: fam?.name ?? "",
     theme: settings.theme,
+    music: settings.music,
+    taunts: settings.taunts,
     phase: game.phase,
     version: game.version,
     serverNow: now.toISOString(),
@@ -106,9 +112,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       autoNext: settings.autoNext,
       revealSeconds: settings.revealSeconds,
       roundCount: settings.roundCount,
+      perPlayer: settings.perPlayer ?? null,
     },
     counts: { players: activePlayers.length, ready: activePlayers.filter((p) => p.readyAt).length },
     lobby: null,
+    players: null,
+    stats: null,
     round: null,
     reveal: null,
     standings: null,
@@ -117,7 +126,11 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   };
 
   if (game.phase === "LOBBY" || game.phase === "PREPARING") {
-    state.lobby = activePlayers.map((p) => ({ id: p.id, name: p.name, ready: Boolean(p.readyAt) }));
+    state.lobby = activePlayers.map((p) => ({ id: p.id, name: p.name, ready: Boolean(p.readyAt), piece: p.piece }));
+  }
+  const privileged = auth.view !== "player";
+  if (privileged) {
+    state.players = activePlayers.map((p) => ({ id: p.id, name: p.name, ready: Boolean(p.readyAt), piece: p.piece }));
   }
 
   const me = auth.view === "player" ? auth.player : null;
@@ -146,30 +159,56 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       answeredCount,
       eligibleCount,
     };
+    if (privileged) {
+      const locked = await db.select({ playerId: guesses.playerId }).from(guesses).where(eq(guesses.roundId, round.id));
+      dto.lockedPlayerIds = locked.map((l) => l.playerId);
+      dto.subjectPlayerId = round.subjectPlayerId;
+    }
     state.round = dto;
 
     if (game.phase === "REVEAL" && round.status === "REVEALED") {
       const roundGuesses = await db
-        .select({ playerId: guesses.playerId, optionId: guesses.optionId, name: players.displayName })
+        .select({
+          playerId: guesses.playerId,
+          optionId: guesses.optionId,
+          elapsedMs: guesses.elapsedMs,
+          name: players.displayName,
+          piece: players.piece,
+        })
         .from(guesses)
         .innerJoin(players, eq(players.id, guesses.playerId))
         .where(and(eq(guesses.roundId, round.id), eq(players.active, true)));
       const distribution: Record<string, number> = {};
       for (const o of round.options) distribution[o.id] = 0;
       for (const g of roundGuesses) distribution[g.optionId] = (distribution[g.optionId] ?? 0) + 1;
-      const [subject] = await db.select({ name: players.displayName }).from(players).where(eq(players.id, round.subjectPlayerId));
+      const [subject] = await db
+        .select({ name: players.displayName, piece: players.piece })
+        .from(players)
+        .where(eq(players.id, round.subjectPlayerId));
+      const g2 = roundGuesses.map((g) => ({ ...g, correct: g.optionId === round!.correctOptionId }));
+      const right = g2.filter((g) => g.correct).sort((a, b) => a.elapsedMs - b.elapsedMs);
+      const wrong = g2.filter((g) => !g.correct).sort((a, b) => b.elapsedMs - a.elapsedMs);
+      const eligibleNow = activePlayers.filter((p) => !round!.excludedPlayerIds.includes(p.id));
+      const guessed = new Set(g2.map((g) => g.playerId));
+      const missed = eligibleNow.filter((p) => !guessed.has(p.id));
       state.reveal = {
         correctOptionId: round.correctOptionId,
         answerText: round.answerText,
         subjectName: subject?.name ?? "",
+        subjectPiece: subject?.piece ?? null,
         distribution,
-        ...(auth.view !== "player"
-          ? {
-              guesses: roundGuesses
-                .map((g) => ({ name: g.name, optionId: g.optionId, correct: g.optionId === round!.correctOptionId }))
-                .sort((a, b) => a.name.localeCompare(b.name)),
-            }
-          : {}),
+        guesses: g2.sort((a, b) => a.name.localeCompare(b.name)),
+        roundStats: {
+          correct: right.length,
+          answered: g2.length,
+          eligible: eligibleNow.length,
+          winner: right[0] ? { name: right[0].name, piece: right[0].piece, elapsedMs: right[0].elapsedMs } : null,
+          loser: wrong[0]
+            ? { name: wrong[0].name, piece: wrong[0].piece, reason: "wrong" }
+            : missed[0]
+              ? { name: missed[0].name, piece: missed[0].piece, reason: "missed" }
+              : null,
+        },
       };
     }
   }
@@ -179,6 +218,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   if (showStandings || me) standings = await computeStandings(db, game.id);
   if (showStandings && standings) {
     state.standings = auth.view === "player" ? standings.slice(0, 5) : standings;
+    if (privileged || game.phase === "FINISHED") state.stats = await computeStats(db, game.id, standings);
   }
 
   if (me) {
@@ -204,6 +244,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
     state.me = {
       id: me.id,
       name: me.displayName,
+      piece: me.piece,
       active: me.active,
       ready: Boolean(me.readyAt),
       eligible: me.active && !isSubject,

@@ -46,3 +46,13 @@ Status of the MVP against `CLAUDE.md`. ✅ done · ⚙️ optional/partial · �
 - ✅ Load smoke script (25 players)
 - ⬜ Real-device test on physical phones/TV (see README checklist)
 - ⬜ Deployment to Vercel/Neon (requires owner's accounts)
+
+## Round 2 requests (owner)
+- ✅ Families (label under one host login); existing games backfilled to "Land" (migration 0002)
+- ✅ Questions per person chosen at start; capped so no question is ever repeated within a game
+- ✅ Reveal shows how everyone answered (TV and phones)
+- ✅ 40 game pieces (owner-supplied art), picker on join, shown everywhere
+- ✅ Round winner / round loser before the next round; leader and last place in the stats carousel
+- ✅ Lock-in strip with pieces, pop sounds, playful taunts for slow players (toggle per game)
+- ✅ Background music styles (synthesized), lock-in sound on phones
+- ✅ Stats: question stats, leader & accuracy, running fun awards, final awards screen

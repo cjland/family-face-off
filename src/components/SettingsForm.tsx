@@ -1,10 +1,10 @@
 "use client";
 
-import type { GameSettings } from "@/lib/settings";
+import type { GameSettings, MusicStyle } from "@/lib/settings";
 
 export type SettingsDraft = Pick<
   GameSettings,
-  "theme" | "roundCount" | "questionSeconds" | "speedBonus" | "autoReveal" | "autoNext" | "aiDistractors"
+  "theme" | "roundCount" | "questionSeconds" | "speedBonus" | "autoReveal" | "autoNext" | "aiDistractors" | "music" | "taunts"
 >;
 
 export const DEFAULT_DRAFT: SettingsDraft = {
@@ -15,7 +15,16 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   autoReveal: false,
   autoNext: false,
   aiDistractors: false,
+  music: "gameshow",
+  taunts: true,
 };
+
+const MUSIC_LABELS: [MusicStyle, string][] = [
+  ["gameshow", "Game show"],
+  ["suspense", "Tick-tock suspense"],
+  ["lounge", "Lounge jazz"],
+  ["off", "No music"],
+];
 
 function Toggle({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -58,7 +67,7 @@ export function SettingsForm({
         </div>
       </fieldset>
       <label className="flex flex-col gap-1">
-        <span className="font-semibold">Questions</span>
+        <span className="font-semibold">Questions (if not set at start)</span>
         <input
           className="input"
           type="number"
@@ -95,7 +104,26 @@ export function SettingsForm({
           Correct answers score 1,000. A speed bonus adds extra points for answering quickly.
         </span>
       </label>
+      <fieldset className="sm:col-span-2">
+        <legend className="font-semibold mb-2">Music while people choose</legend>
+        <div className="flex gap-2 flex-wrap">
+          {MUSIC_LABELS.map(([m, label]) => (
+            <label key={m} className={`btn ${value.music === m ? "btn-primary" : "btn-ghost"} !text-base`}>
+              <input type="radio" name="music" value={m} checked={value.music === m} onChange={() => set("music", m)} className="sr-only" />
+              {label}
+            </label>
+          ))}
+        </div>
+        <span className="text-sm text-muted">Plays on the TV after you press &quot;Enable sound&quot; there.</span>
+      </fieldset>
       <div className="sm:col-span-2 grid gap-1">
+        <Toggle
+          id="taunts"
+          label="Tease slowpokes"
+          hint="The TV playfully calls out whoever hasn't locked in yet (&quot;Hurry up, Ben!&quot;)."
+          checked={value.taunts}
+          onChange={(v) => set("taunts", v)}
+        />
         <Toggle id="autoReveal" label="Auto reveal" hint="Reveal when everyone has answered or time runs out." checked={value.autoReveal} onChange={(v) => set("autoReveal", v)} />
         <Toggle id="autoNext" label="Auto next question" hint="Move on 8 seconds after each reveal." checked={value.autoNext} onChange={(v) => set("autoNext", v)} />
         {aiAvailable && (

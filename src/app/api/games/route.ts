@@ -6,6 +6,8 @@ import { createGame, listGames } from "@/server/lobby";
 
 const body = z.object({
   title: z.string().max(60).optional(),
+  familyId: z.string().uuid().optional(),
+  familyName: z.string().max(60).optional(),
   settings: settingsSchema.partial().optional(),
 });
 

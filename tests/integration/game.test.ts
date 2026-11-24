@@ -4,7 +4,12 @@ import type { DB } from "@/db/client";
 import { guesses, players, rounds, scoreEvents, type Player } from "@/db/schema";
 import { ApiError } from "@/lib/errors";
 import { performAction, startGame, submitGuess } from "@/server/engine";
+import { previewRounds } from "@/server/engine";
 import {
+  getOrCreateFamily,
+  joinInfo,
+  listFamilies,
+  listGames,
   createGame,
   findGame,
   getQuestionnaire,
@@ -241,7 +246,10 @@ describe("game loop", () => {
 
     const me = await getGameState(db, game.code, auth("player", guessers[0].player));
     expect(me.me?.lastResult).toEqual({ correct: true, points: 1000, answered: true });
-    expect(me.reveal?.guesses).toBeUndefined();
+    // After the reveal, phones can see how everyone answered.
+    expect(me.reveal?.guesses).toHaveLength(2);
+    expect(me.reveal?.roundStats.correct).toBe(1);
+    expect(me.reveal?.roundStats.winner?.name).toBe(guessers[0].player.displayName);
 
     g = await findGame(db, game.code);
     await performAction(db, game.id, "next", g.version);
@@ -351,5 +359,77 @@ describe("game loop", () => {
     await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
     const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
     expect(ev.filter((e) => e.points === 1000)).toHaveLength(24);
+  });
+});
+
+describe("families, pieces, questions per person, stats", () => {
+  it("files games under a family (defaulting to Land) and de-duplicates family names", async () => {
+    const land = await createGame(db, {});
+    const rod = await getOrCreateFamily(db, "The Rodriguez Family");
+    expect(rod.name).toBe("Rodriguez");
+    expect((await getOrCreateFamily(db, "rodriguez")).id).toBe(rod.id);
+    await createGame(db, { familyId: rod.id });
+    const list = await listGames(db);
+    expect(list.find((g) => g.code === land.code)?.familyName).toBe("Land");
+    expect(list.filter((g) => g.familyName === "Rodriguez")).toHaveLength(1);
+    const fams = await listFamilies(db);
+    expect(fams.map((f) => f.name)).toEqual(expect.arrayContaining(["Land", "Rodriguez"]));
+    const state = await getGameState(db, land.code, auth("display"));
+    expect(state.familyName).toBe("Land");
+  });
+
+  it("gives each player a game piece, and blocks taking someone else's", async () => {
+    const game = await createGame(db, {});
+    const a = await joinGame(db, game.code, "Ann", null, { piece: "dragon" });
+    expect(a.player.piece).toBe("dragon");
+    await expectApiError(joinGame(db, game.code, "Ben", null, { piece: "dragon" }), "PIECE_TAKEN");
+    const b = await joinGame(db, game.code, "Ben", null);
+    expect(b.player.piece).toBeTruthy();
+    expect(b.player.piece).not.toBe("dragon");
+    const info = await joinInfo(db, game.code);
+    expect(info.taken).toEqual(expect.arrayContaining(["dragon", b.player.piece]));
+    expect(JSON.stringify(info)).not.toContain("Ann");
+  });
+
+  it("starts with N questions per person, never repeating a question", async () => {
+    const { game } = await setupGame(6);
+    const preview = await previewRounds(db, game);
+    expect(preview.readyPlayers).toBe(6);
+    expect(preview.maxPerPlayer).toBeGreaterThanOrEqual(2);
+    await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
+    const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
+    const main = rs.filter((r) => r.status === "PENDING");
+    expect(main).toHaveLength(12);
+    const per = new Map<string, number>();
+    for (const r of main) per.set(r.subjectPlayerId, (per.get(r.subjectPlayerId) ?? 0) + 1);
+    expect([...per.values()].every((n) => n === 2)).toBe(true);
+    // No question (prompt) asked twice, reserves included.
+    expect(new Set(rs.map((r) => r.promptText)).size).toBe(rs.length);
+    const st = await getGameState(db, game.code, auth("display"));
+    expect(st.settings.perPlayer).toBe(2);
+  });
+
+  it("shows lock-ins (not choices) during a question, and awards after reveals", async () => {
+    const { game, ps } = await setupGame(4, { roundCount: 4 });
+    await startGame(db, game.id, { excludeUnready: false });
+    for (let q = 0; q < 3; q++) {
+      if (q === 0) await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+      const { r } = await current(game.code);
+      const guessers = ps.filter((p) => p.player.id !== r.subjectPlayerId);
+      await submitGuess(db, game.id, guessers[0].player, r.id, r.correctOptionId);
+      await submitGuess(db, game.id, guessers[1].player, r.id, r.options.find((o) => o.id !== r.correctOptionId)!.id);
+      const live = await getGameState(db, game.code, auth("display"));
+      expect(live.round?.lockedPlayerIds).toHaveLength(2);
+      expect(JSON.stringify(live)).not.toContain("correctOptionId");
+      const phone = await getGameState(db, game.code, auth("player", guessers[2].player));
+      expect(phone.round?.lockedPlayerIds).toBeUndefined();
+      await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+      const rv = await getGameState(db, game.code, auth("display"));
+      expect(rv.reveal?.roundStats.loser).toBeTruthy();
+      expect(rv.stats?.leader.length).toBeGreaterThan(0);
+      if (q < 2) await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+    }
+    const end = await getGameState(db, game.code, auth("display"));
+    expect(end.stats?.awards.map((a) => a.key)).toEqual(expect.arrayContaining(["knows-best"]));
   });
 });

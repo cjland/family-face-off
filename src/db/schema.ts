@@ -36,11 +36,28 @@ export const roundType = pgEnum("round_type", ["WHAT_ANSWER", "WHO_ANSWERED"]);
 
 export type OptionDTO = { id: string; label: string };
 
+export const families = pgTable(
+  "families",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("families_name_uq").on(t.normalizedName),
+    check("families_name_len", sql`char_length(${t.name}) between 1 and 40`),
+  ],
+);
+
 export const games = pgTable(
   "games",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     code: text("code").notNull(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "restrict" }),
     title: text("title").notNull(),
     phase: gamePhase("phase").notNull().default("LOBBY"),
     settings: jsonb("settings").notNull(),
@@ -56,6 +73,7 @@ export const games = pgTable(
   (t) => [
     uniqueIndex("games_code_uq").on(t.code),
     index("games_expires_idx").on(t.expiresAt),
+    index("games_family_idx").on(t.familyId),
     check("games_code_format", sql`${t.code} ~ '^[A-Z0-9]{6}$'`),
     check("games_version_nonneg", sql`${t.version} >= 0`),
   ],
@@ -74,6 +92,8 @@ export const players = pgTable(
     readyAt: ts("ready_at"),
     active: boolean("active").notNull().default(true),
     isBot: boolean("is_bot").notNull().default(false),
+    /** Game piece id (see src/lib/pieces.ts). */
+    piece: text("piece"),
     joinedAt: ts("joined_at").notNull().defaultNow(),
   },
   (t) => [
@@ -233,6 +253,7 @@ export const rateLimits = pgTable(
   (t) => [index("rate_limits_window_idx").on(t.windowStart)],
 );
 
+export type Family = typeof families.$inferSelect;
 export type Game = typeof games.$inferSelect;
 export type Player = typeof players.$inferSelect;
 export type Round = typeof rounds.$inferSelect;

@@ -25,6 +25,10 @@ export class Sfx {
     return this.ctx !== null;
   }
 
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+
   private tone(freq: number, start: number, dur: number, type: OscillatorType = "sine", gain = 0.15) {
     if (!this.ctx) return;
     const t0 = this.ctx.currentTime + start;
@@ -38,6 +42,24 @@ export class Sfx {
     osc.connect(g).connect(this.ctx.destination);
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
+  }
+
+  /** Bubbly pop when someone locks in; pitch climbs as more people lock. */
+  lockIn(step = 0) {
+    if (!this.ctx) return;
+    const base = 520 * Math.pow(2, (step % 12) / 12);
+    const t0 = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(base, t0);
+    osc.frequency.exponentialRampToValueAtTime(base * 2, t0 + 0.08);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+    osc.connect(g).connect(this.ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.2);
   }
 
   tick() {

@@ -3,6 +3,9 @@ import { z } from "zod";
 export const THEMES = ["classic", "thanksgiving"] as const;
 export type Theme = (typeof THEMES)[number];
 
+export const MUSIC = ["gameshow", "suspense", "lounge", "off"] as const;
+export type MusicStyle = (typeof MUSIC)[number];
+
 export const settingsSchema = z
   .object({
     theme: z.enum(THEMES).default("classic"),
@@ -16,6 +19,12 @@ export const settingsSchema = z
     replaceSkipped: z.boolean().default(true),
     aiDistractors: z.boolean().default(false),
     maxPlayers: z.number().int().min(3).max(50).default(50),
+    /** Background music on the TV while people choose (needs "Enable sound" on the TV). */
+    music: z.enum(MUSIC).default("gameshow"),
+    /** Playful on-screen nudges for players who are slow to lock in. */
+    taunts: z.boolean().default(true),
+    /** Questions about each person, chosen by the host at start. Overrides roundCount. */
+    perPlayer: z.number().int().min(1).max(8).optional(),
   })
   .strict();
 

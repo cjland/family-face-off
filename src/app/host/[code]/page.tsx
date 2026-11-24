@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { SettingsForm, type SettingsDraft } from "@/components/SettingsForm";
-import { AnswerTile, Banner, CountdownRing, Leaderboard, QrCode, Spinner, Stage, TitleMark } from "@/components/ui";
+import { AnswerTile, Avatar, Banner, CountdownRing, Leaderboard, QrCode, Spinner, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import type { GameStateDTO } from "@/lib/dto";
 
-type Preview = { readyPlayers: number; requested: number; planned: number; achievable: number };
+type Preview = { readyPlayers: number; totalPlayers: number; maxPerPlayer: number; suggestedPerPlayer: number; questionSeconds: number };
 
 export default function HostConsole() {
   const params = useParams<{ code: string }>();
@@ -70,7 +70,7 @@ export default function HostConsole() {
             <Link href="/host" className="btn btn-ghost !text-base" aria-label="Back to dashboard">
               ‹ Games
             </Link>
-            <TitleMark title={state.title} theme={state.theme} size="sm" />
+            <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <span className="panel px-4 py-2 font-display text-2xl tracking-[0.3em]" aria-label={`Game code ${code}`}>
@@ -152,7 +152,6 @@ function LobbyControls({
   act: (fn: () => Promise<unknown>, ok?: string) => Promise<void>;
 }) {
   const joinUrl = useMemo(() => joinUrlFor(code), [code]);
-  const [preview, setPreview] = useState<Preview | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<SettingsDraft>({
     theme: state.theme,
@@ -162,26 +161,28 @@ function LobbyControls({
     autoReveal: state.settings.autoReveal,
     autoNext: state.settings.autoNext,
     aiDistractors: state.host?.aiDistractors ?? false,
+    music: state.music,
+    taunts: state.taunts,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;
   const unready = roster.length - ready;
 
-  const start = async () => {
-    try {
-      await api(`/api/games/${code}/start`, { method: "POST", body: { excludeUnready: false } });
-    } catch (err) {
-      if (err instanceof ApiClientError && err.code === "UNREADY_PLAYERS") {
-        const names = (err.details?.names as string[] | undefined)?.join(", ") ?? "";
-        if (window.confirm(`${err.message}\n\nNot finished: ${names}\n\nThey'll watch instead of play.`)) {
-          await api(`/api/games/${code}/start`, { method: "POST", body: { excludeUnready: true } });
-          return;
-        }
-        return;
-      }
-      throw err;
-    }
-  };
+  const [startDialog, setStartDialog] = useState<Preview | null>(null);
+  const [perPlayer, setPerPlayer] = useState(2);
+
+  const openStart = () =>
+    act(async () => {
+      const p = await api<Preview>(`/api/games/${code}/preview`);
+      setPerPlayer(p.suggestedPerPlayer);
+      setStartDialog(p);
+    });
+
+  const confirmStart = () =>
+    act(async () => {
+      await api(`/api/games/${code}/start`, { method: "POST", body: { excludeUnready: unready > 0, perPlayer } });
+      setStartDialog(null);
+    });
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
@@ -212,6 +213,7 @@ function LobbyControls({
           <ul className="flex flex-col gap-2 max-h-[420px] overflow-auto pr-1">
             {roster.map((p) => (
               <li key={p.id} className="flex items-center gap-3 rounded-xl bg-black/25 px-3 py-2">
+                <Avatar name={p.name} piece={p.piece} size={40} />
                 <span className={`text-xl ${p.ready ? "text-good" : "text-muted"}`} aria-hidden="true">
                   {p.ready ? "✔" : "…"}
                 </span>
@@ -237,19 +239,8 @@ function LobbyControls({
         )}
 
         <div className="flex gap-3 flex-wrap items-center">
-          <button className="btn btn-primary" disabled={busy || ready < 3} onClick={() => act(start)}>
-            Start game
-          </button>
-          <button
-            className="btn btn-ghost !text-base"
-            disabled={busy}
-            onClick={() =>
-              act(async () => {
-                setPreview(await api<Preview>(`/api/games/${code}/preview`));
-              })
-            }
-          >
-            Preview question count
+          <button className="btn btn-primary" disabled={busy || ready < 3} onClick={openStart}>
+            Start game…
           </button>
           {state.host?.demoTools && (
             <button
@@ -262,11 +253,52 @@ function LobbyControls({
           )}
         </div>
         {ready < 3 && <p className="text-sm text-muted">You need at least 3 ready players to start.</p>}
-        {preview && (
-          <Banner kind="info">
-            {preview.readyPlayers} ready players → {preview.planned} of {preview.requested} questions possible
-            {preview.achievable > preview.planned ? ` (up to ${preview.achievable} available)` : ""}.
-          </Banner>
+        {startDialog && (
+          <div className="panel-strong p-5 flex flex-col gap-4 pop-in" role="dialog" aria-labelledby="start-title">
+            <h3 id="start-title" className="font-display text-2xl font-bold">
+              {startDialog.readyPlayers} players are ready. How many questions about each person?
+            </h3>
+            {unready > 0 && (
+              <Banner kind="info">
+                {unready} {unready === 1 ? "person is" : "people are"} still answering and will watch instead of play.
+              </Banner>
+            )}
+            {startDialog.maxPerPlayer === 0 ? (
+              <Banner kind="error">Not enough different questions yet. Wait for more answers.</Banner>
+            ) : (
+              <>
+                <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Questions per person">
+                  {Array.from({ length: startDialog.maxPerPlayer }, (_, i) => i + 1).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={perPlayer === k}
+                      className={`btn ${perPlayer === k ? "btn-primary" : "btn-ghost"} !min-w-[56px]`}
+                      onClick={() => setPerPlayer(k)}
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-lg">
+                  {perPlayer} × {startDialog.readyPlayers} people = <strong>{perPlayer * startDialog.readyPlayers} questions</strong>, about{" "}
+                  {Math.max(1, Math.round((perPlayer * startDialog.readyPlayers * (startDialog.questionSeconds + 12)) / 60))} minutes.
+                </p>
+                <p className="text-sm text-muted">
+                  Up to {startDialog.maxPerPlayer} per person is possible without ever repeating a question.
+                </p>
+              </>
+            )}
+            <div className="flex gap-3">
+              <button className="btn btn-primary" disabled={busy || startDialog.maxPerPlayer === 0} onClick={confirmStart}>
+                Lock roster & start
+              </button>
+              <button className="btn btn-ghost" disabled={busy} onClick={() => setStartDialog(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
 
         <details open={editing} onToggle={(e) => setEditing((e.target as HTMLDetailsElement).open)} className="rounded-xl bg-black/20 p-4">
@@ -380,7 +412,7 @@ function RoundControls({
         ) : (
           <p className="text-muted">Standings update after each reveal.</p>
         )}
-        {reveal?.guesses && reveal.guesses.length > 0 && (
+        {reveal && reveal.guesses.length > 0 && (
           <details className="rounded-xl bg-black/20 p-3">
             <summary className="cursor-pointer font-semibold">Who guessed what</summary>
             <ul className="mt-2 text-sm flex flex-col gap-1">

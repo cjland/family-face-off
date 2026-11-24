@@ -1,5 +1,5 @@
 /** DTOs shared between API routes and client components. Never raw DB rows. */
-import type { Theme } from "./settings";
+import type { MusicStyle, Theme } from "./settings";
 
 export type Phase = "LOBBY" | "PREPARING" | "QUESTION" | "REVEAL" | "FINISHED" | "CANCELLED";
 export type View = "player" | "display" | "host";
@@ -9,6 +9,7 @@ export type OptionDTO = { id: string; label: string };
 export type StandingDTO = {
   playerId: string;
   name: string;
+  piece?: string | null;
   points: number;
   rank: number;
   correct: number;
@@ -32,6 +33,10 @@ export type RoundDTO = {
   remainingMs: number;
   answeredCount: number;
   eligibleCount: number;
+  /** Display/host only: who has locked in (not what they chose). */
+  lockedPlayerIds?: string[];
+  /** Display/host only: who sits this one out. */
+  subjectPlayerId?: string;
 };
 
 export type RevealDTO = {
@@ -39,8 +44,32 @@ export type RevealDTO = {
   answerText: string;
   subjectName: string;
   distribution: Record<string, number>;
-  /** Display/host only. */
-  guesses?: { name: string; optionId: string; correct: boolean }[];
+  guesses: { playerId: string; name: string; piece: string | null; optionId: string; correct: boolean; elapsedMs: number }[];
+  subjectPiece: string | null;
+  roundStats: {
+    correct: number;
+    answered: number;
+    eligible: number;
+    winner: { name: string; piece: string | null; elapsedMs: number } | null;
+    loser: { name: string; piece: string | null; reason: "wrong" | "missed" } | null;
+  };
+};
+
+export type AwardDTO = {
+  key: string;
+  emoji: string;
+  title: string;
+  name: string;
+  piece: string | null;
+  detail: string;
+};
+
+export type StatsDTO = {
+  leader: { name: string; piece: string | null; points: number }[];
+  last: { name: string; piece: string | null; points: number }[];
+  awards: AwardDTO[];
+  hardest: { questionText: string; answerText: string; pctCorrect: number } | null;
+  roundsPlayed: number;
 };
 
 export type MeDTO = {
@@ -56,7 +85,7 @@ export type MeDTO = {
   lastResult: { correct: boolean; points: number; answered: boolean } | null;
 };
 
-export type LobbyPlayerDTO = { id: string; name: string; ready: boolean };
+export type LobbyPlayerDTO = { id: string; name: string; ready: boolean; piece: string | null };
 
 export type HostRosterDTO = {
   id: string;
@@ -64,13 +93,17 @@ export type HostRosterDTO = {
   ready: boolean;
   active: boolean;
   isBot: boolean;
+  piece: string | null;
   answered: number;
 };
 
 export type GameStateDTO = {
   code: string;
   title: string;
+  familyName: string;
   theme: Theme;
+  music: MusicStyle;
+  taunts: boolean;
   phase: Phase;
   version: number;
   serverNow: string;
@@ -82,13 +115,17 @@ export type GameStateDTO = {
     autoNext: boolean;
     revealSeconds: number;
     roundCount: number;
+    perPlayer: number | null;
   };
   counts: { players: number; ready: number };
   lobby: LobbyPlayerDTO[] | null;
+  /** Display/host: active players with pieces (for lock-in strips and reveals). */
+  players: LobbyPlayerDTO[] | null;
+  stats: StatsDTO | null;
   round: RoundDTO | null;
   reveal: RevealDTO | null;
   standings: StandingDTO[] | null;
-  me: MeDTO | null;
+  me: (MeDTO & { piece: string | null }) | null;
   host: {
     roster: HostRosterDTO[];
     displayKey: string;

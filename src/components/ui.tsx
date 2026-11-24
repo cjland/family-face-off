@@ -3,6 +3,7 @@
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import type { OptionDTO, StandingDTO } from "@/lib/dto";
+import { pieceSrc } from "@/lib/pieces";
 import type { Theme } from "@/lib/settings";
 
 // ---------- Stage / theme ----------
@@ -55,13 +56,25 @@ export function Stage({
   );
 }
 
-export function TitleMark({ title, theme, size = "md" }: { title: string; theme: Theme; size?: "sm" | "md" | "lg" | "xl" }) {
+export function TitleMark({
+  title,
+  theme,
+  size = "md",
+  family,
+}: {
+  title: string;
+  theme: Theme;
+  size?: "sm" | "md" | "lg" | "xl";
+  family?: string | null;
+}) {
   const cls = { sm: "text-2xl", md: "text-4xl", lg: "text-6xl", xl: "text-7xl" }[size];
+  const sub = { sm: "text-xs", md: "text-sm", lg: "text-2xl", xl: "text-3xl" }[size];
   return (
     <div className="flex flex-col items-center">
       {theme === "thanksgiving" && (
         <span className="font-display text-accent-2 tracking-[0.3em] uppercase text-sm mb-1">Thanksgiving Edition</span>
       )}
+      {family && <span className={`font-display text-ink/90 mb-1 ${sub}`}>The {family} Family</span>}
       <h1 className={`font-display font-bold gold-text leading-none text-center ${cls}`}>{title}</h1>
     </div>
   );
@@ -205,7 +218,22 @@ function hash(s: string) {
   return h;
 }
 
-export function Avatar({ name, size = 48 }: { name: string; size?: number }) {
+export function Avatar({ name, size = 48, piece }: { name: string; size?: number; piece?: string | null }) {
+  if (piece) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={pieceSrc(piece)}
+        alt=""
+        aria-hidden="true"
+        width={size}
+        height={size}
+        className="flex-none object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]"
+        style={{ width: size, height: size }}
+        draggable={false}
+      />
+    );
+  }
   const color = AVATAR_COLORS[hash(name) % AVATAR_COLORS.length];
   const initials = name
     .split(/\s+/)
@@ -265,11 +293,12 @@ export function Leaderboard({
             <span className="font-display font-bold w-[2.2em] text-center text-accent-2" aria-label={`Rank ${s.rank}`}>
               {s.rank}
             </span>
-            <Avatar name={s.name} size={av} />
+            <Avatar name={s.name} size={av} piece={s.piece} />
             <span className="flex-1 min-w-0 truncate font-semibold">{s.name}</span>
             {showAccuracy && (
               <span className="text-muted text-[0.75em] whitespace-nowrap" title="Correct answers / questions answered">
                 {s.correct}/{s.eligible}
+                {s.eligible > 0 && <span className="opacity-80"> · {Math.round(s.accuracy * 100)}%</span>}
               </span>
             )}
             <span className="font-display font-bold tabular-nums">{s.points.toLocaleString()}</span>
@@ -308,7 +337,7 @@ export function Podium({ standings, size = "md" }: { standings: StandingDTO[]; s
     <div className="flex items-end justify-center gap-4" aria-label="Podium">
       {order.map((s, i) => (
         <div key={s.playerId} className="flex flex-col items-center rise" style={{ animationDelay: `${(2 - i) * 250 + 200}ms` }}>
-          <Avatar name={s.name} size={size === "tv" ? 112 : 64} />
+          <Avatar name={s.name} size={size === "tv" ? 150 : 72} piece={s.piece} />
           <div className={`font-display font-bold mt-2 text-center max-w-[12ch] truncate ${size === "tv" ? "text-4xl" : "text-xl"}`}>
             {s.name}
           </div>
