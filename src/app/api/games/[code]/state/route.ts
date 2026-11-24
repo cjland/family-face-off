@@ -16,7 +16,7 @@ export const GET = route<Ctx>(async (req, ctx, db) => {
 
   let host = false;
   let player = null;
-  if (view === "host") host = await isHost(db, req);
+  if (view === "host" || view === "display") host = await isHost(db, req);
   if (view === "display" && !(await canViewDisplay(db, req, game))) {
     throw new ApiError("FORBIDDEN", "Open the TV display from the host screen to get a valid link.");
   }

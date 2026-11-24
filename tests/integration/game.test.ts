@@ -250,13 +250,22 @@ describe("game loop", () => {
     expect(me.reveal?.guesses).toHaveLength(2);
     expect(me.reveal?.roundStats.correct).toBe(1);
     expect(me.reveal?.roundStats.winner?.name).toBe(guessers[0].player.displayName);
+    // There is always a loser: the slowest wrong answer, or a non-answer (counted as slowest).
+    expect(me.reveal?.roundStats.loser?.reason).toBe("missed");
+    expect(me.reveal?.roundStats.loser?.name).toBe(guessers[2].player.displayName);
 
     g = await findGame(db, game.code);
     await performAction(db, game.id, "next", g.version);
-    expect((await findGame(db, game.code)).phase).toBe("QUESTION");
+    // Reveal -> full-screen leaderboard -> next question.
+    expect((await findGame(db, game.code)).phase).toBe("LEADERBOARD");
+    const lb = await getGameState(db, game.code, auth("display"));
+    expect(lb.standings?.find((x) => x.playerId === guessers[0].player.id)?.lastRound).toBe(1000);
     // A stale "next" (same old version) is a no-op, not a double advance.
     const stale = await performAction(db, game.id, "next", g.version);
     expect(stale.noop).toBe(true);
+    expect((await findGame(db, game.code)).phase).toBe("LEADERBOARD");
+    await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+    expect((await findGame(db, game.code)).phase).toBe("QUESTION");
   });
 
   it("rejects guesses after the deadline even before reveal runs", async () => {
@@ -317,8 +326,11 @@ describe("game loop", () => {
     expect(s2.phase).toBe("REVEAL");
     await db.update(rounds).set({ revealedAt: sql`now() - interval '10 seconds'` }).where(eq(rounds.id, r.id));
     const s3 = await getGameState(db, game.code, auth("display"));
-    expect(s3.phase).toBe("QUESTION");
-    expect(s3.round?.number).toBe(2);
+    expect(s3.phase).toBe("LEADERBOARD");
+    await db.execute(sql`update games set updated_at = now() - interval '10 seconds' where id = ${game.id}`);
+    const s4 = await getGameState(db, game.code, auth("display"));
+    expect(s4.phase).toBe("QUESTION");
+    expect(s4.round?.number).toBe(2);
   });
 
   it("end game finishes and standings share ranks on ties", async () => {
@@ -427,9 +439,27 @@ describe("families, pieces, questions per person, stats", () => {
       const rv = await getGameState(db, game.code, auth("display"));
       expect(rv.reveal?.roundStats.loser).toBeTruthy();
       expect(rv.stats?.leader.length).toBeGreaterThan(0);
-      if (q < 2) await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+      if (q < 2) {
+        await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+        await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+      }
     }
     const end = await getGameState(db, game.code, auth("display"));
     expect(end.stats?.awards.map((a) => a.key)).toEqual(expect.arrayContaining(["knows-best"]));
+  });
+});
+
+describe("round loser", () => {
+  it("is the slowest right answer when everyone got it right", async () => {
+    const { game, ps } = await setupGame(4);
+    await startGame(db, game.id, { excludeUnready: false });
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    const { r } = await current(game.code);
+    const guessers = ps.filter((p) => p.player.id !== r.subjectPlayerId);
+    for (const g of guessers) await submitGuess(db, game.id, g.player, r.id, r.correctOptionId);
+    await db.execute(sql`update guesses set elapsed_ms = 9000 where round_id = ${r.id} and player_id = ${guessers[1].player.id}`);
+    await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+    const s = await getGameState(db, game.code, auth("display"));
+    expect(s.reveal?.roundStats.loser).toMatchObject({ reason: "slowest", name: guessers[1].player.displayName, elapsedMs: 9000 });
   });
 });

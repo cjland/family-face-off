@@ -183,6 +183,16 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0003_leaderboard_phase (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795562992327) THEN
+    EXECUTE $stmt$ALTER TYPE "public"."game_phase" ADD VALUE 'LEADERBOARD' BEFORE 'FINISHED'$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('81647874e833e82d27b13a6dfd6c8502479c8c15f91852caa366101a4abb7ff0', 1795562992327);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true}]'::jsonb, true, NULL),

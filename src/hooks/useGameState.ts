@@ -9,6 +9,7 @@ function intervalFor(phase: Phase | undefined, hidden: boolean): number {
   switch (phase) {
     case "QUESTION":
     case "REVEAL":
+    case "LEADERBOARD":
     case "PREPARING":
       return 1500;
     case "FINISHED":

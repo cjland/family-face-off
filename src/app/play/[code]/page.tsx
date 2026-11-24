@@ -94,6 +94,22 @@ function PlayBody({ state, code, offsetMs, refresh }: { state: GameStateDTO; cod
       return <QuestionScreen key={state.round?.id} state={state} code={code} offsetMs={offsetMs} refresh={refresh} />;
     case "REVEAL":
       return <RevealScreen state={state} />;
+    case "LEADERBOARD":
+      return (
+        <section className="flex flex-col gap-5 pop-in">
+          <div className="text-center flex flex-col gap-1 py-2">
+            <h1 className="font-display text-4xl font-bold">Leaderboard</h1>
+            <p className="text-muted">Check the TV! The next question is coming up.</p>
+          </div>
+          {state.me?.rank && (
+            <p className="text-center text-2xl">
+              You&apos;re in <strong className="font-display text-accent-2 text-3xl">{ordinalLabel(state.me.rank)}</strong> place with{" "}
+              {state.me.points.toLocaleString()} points
+            </p>
+          )}
+          {state.standings && <Leaderboard standings={state.standings} highlightId={state.me?.id} pageSize={5} />}
+        </section>
+      );
     case "FINISHED":
       return <FinalScreen state={state} />;
     default:

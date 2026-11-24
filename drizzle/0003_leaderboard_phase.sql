@@ -1,0 +1,1 @@
+ALTER TYPE "public"."game_phase" ADD VALUE 'LEADERBOARD' BEFORE 'FINISHED';

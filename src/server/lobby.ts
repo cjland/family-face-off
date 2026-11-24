@@ -418,13 +418,30 @@ export async function setReady(db: DB, game: Game, player: Player, ready: boolea
 
 // ---------- Demo players (fictional sample data for solo testing) ----------
 
-const DEMO_NAMES = ["Sample Sam", "Demo Dana", "Test Taylor", "Bot Bailey", "Pretend Pat", "Mock Morgan", "Faux Frankie", "Robo Riley"];
+const DEMO_NAMES = [
+  "Sample Sam",
+  "Demo Dana",
+  "Test Taylor",
+  "Bot Bailey",
+  "Pretend Pat",
+  "Mock Morgan",
+  "Faux Frankie",
+  "Robo Riley",
+  "Practice Pia",
+  "Dummy Drew",
+  "Pixel Parker",
+  "Beta Billie",
+];
+export const MAX_DEMO_PLAYERS = DEMO_NAMES.length;
 
 export async function addDemoPlayers(db: DB, code: string, count: number): Promise<number> {
   const game = await findGame(db, code);
   const existing = await db.select({ name: players.normalizedName }).from(players).where(eq(players.gameId, game.id));
   const taken = new Set(existing.map((e) => e.name));
-  const names = DEMO_NAMES.filter((n) => !taken.has(normalizeName(n))).slice(0, count);
+  const bots = await db.select({ id: players.id }).from(players).where(and(eq(players.gameId, game.id), eq(players.isBot, true)));
+  const room = Math.max(0, MAX_DEMO_PLAYERS - bots.length);
+  if (!room) throw new ApiError("CONFLICT", `That's the maximum of ${MAX_DEMO_PLAYERS} demo players.`);
+  const names = DEMO_NAMES.filter((n) => !taken.has(normalizeName(n))).slice(0, Math.min(count, room));
   let added = 0;
   for (const name of names) {
     const { player } = await joinGame(db, code, name, null, { isBot: true });

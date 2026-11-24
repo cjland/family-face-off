@@ -2,10 +2,11 @@
 
 import confetti from "canvas-confetti";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnswerTile, Avatar, Banner, CountdownRing, Leaderboard, Podium, QrCode, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
-import { joinUrlFor, prettyUrl } from "@/lib/client/api";
+import { GuessList } from "@/components/RoundPanels";
+import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import { MusicPlayer } from "@/lib/client/music";
 import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
@@ -259,12 +260,15 @@ function TvScreen({
           <p className="text-4xl text-muted">
             {state.settings.perPlayer ? `${state.settings.perPlayer} questions about each person · ` : ""}the first question is coming up
           </p>
+          <TvFooter state={state} />
         </div>
       );
     case "QUESTION":
       return <TvQuestion key={state.round?.id} state={state} offsetMs={offsetMs} sfx={sfx} />;
     case "REVEAL":
       return <TvReveal key={state.round?.id} state={state} />;
+    case "LEADERBOARD":
+      return <TvLeaderboard state={state} />;
     case "FINISHED":
       return <TvFinal state={state} reduced={reduced} />;
     default:
@@ -274,12 +278,77 @@ function TvScreen({
 
 function TvHeader({ state, center }: { state: GameStateDTO; center?: React.ReactNode }) {
   return (
-    <div className="absolute top-0 inset-x-0 h-[110px] px-14 flex items-center justify-between">
-      <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
-      <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div className="text-2xl text-muted">
-        Join: <span className="font-display text-ink tracking-[0.25em] text-3xl">{state.code}</span>
+    <div className="absolute top-0 inset-x-0 h-[110px] px-14 grid grid-cols-[1fr_auto_1fr] items-center">
+      <div className="justify-self-start">
+        <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
       </div>
+      <div className="font-display text-4xl text-accent-2">{center}</div>
+      <div />
+    </div>
+  );
+}
+
+/** Footer band kept clear of the screen edge: info on the left, the host's "next" arrow on the right. */
+function TvFooter({ state, children }: { state: GameStateDTO; children?: React.ReactNode }) {
+  return (
+    <div className="absolute inset-x-14 bottom-12 h-[96px] flex items-center gap-6">
+      <div className="flex-1 min-w-0 flex items-center gap-6">{children}</div>
+      <NextArrow state={state} />
+    </div>
+  );
+}
+
+const NEXT_LABEL: Partial<Record<GameStateDTO["phase"], string>> = {
+  PREPARING: "Start",
+  QUESTION: "Reveal",
+  REVEAL: "Leaderboard",
+  LEADERBOARD: "Next question",
+};
+
+/** Shown only when this browser is signed in as host. Also works with →, Space or a presentation clicker. */
+function NextArrow({ state }: { state: GameStateDTO }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const round = state.round;
+  let label = NEXT_LABEL[state.phase];
+  if (state.phase === "LEADERBOARD" && round && round.number >= round.total) label = "Final results";
+  const action = state.phase === "QUESTION" ? "reveal" : state.phase === "PREPARING" ? "open" : "next";
+  const enabled = state.canControl && Boolean(label);
+  const go = useCallback(() => {
+    if (!enabled || busy) return;
+    setBusy(true);
+    setErr(null);
+    api(`/api/games/${state.code}/action`, { method: "POST", body: { action, expectedVersion: state.version } })
+      .catch((e) => {
+        if (!(e instanceof ApiClientError && e.code === "VERSION_CONFLICT")) setErr(e instanceof Error ? e.message : "Couldn't advance");
+      })
+      .finally(() => setTimeout(() => setBusy(false), 600));
+  }, [enabled, busy, state.code, state.version, action]);
+  useEffect(() => {
+    if (!enabled) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+      if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) {
+        e.preventDefault();
+        go();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [enabled, go]);
+  if (!enabled) return null;
+  return (
+    <div className="flex items-center gap-3">
+      {err && <span className="text-xl text-bad max-w-[360px] truncate">{err}</span>}
+      <button
+        type="button"
+        onClick={go}
+        disabled={busy}
+        className="btn btn-primary !min-h-[84px] !px-10 !text-4xl"
+        aria-label={`${label} (or press the right arrow key)`}
+      >
+        {label} <span aria-hidden="true">➜</span>
+      </button>
     </div>
   );
 }
@@ -290,7 +359,7 @@ function TvLobby({ state }: { state: GameStateDTO }) {
   const many = players.length > 15;
   const cols = players.length > 24 ? 7 : players.length > 15 ? 6 : 5;
   return (
-    <div className="h-full grid grid-cols-[700px_1fr] gap-12 px-16 py-12">
+    <div className="h-full grid grid-cols-[700px_1fr] gap-12 px-16 pt-12 pb-16 overflow-hidden">
       <div className="flex flex-col items-center justify-center gap-6 text-center">
         <div className="marquee">
           <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="lg" />
@@ -415,7 +484,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   return (
     <div className="h-full">
       <TvHeader state={state} center={`Question ${round.number} of ${round.total}`} />
-      <div className="absolute top-[110px] inset-x-14 bottom-[20px] flex flex-col gap-5">
+      <div className="absolute top-[110px] inset-x-14 bottom-[160px] flex flex-col gap-5">
         <div className="flex-1 flex items-center gap-10 min-h-0">
           <div className="flex-1">
             <h2 className="font-display font-bold leading-[1.05] text-[4.6rem]" style={{ textWrap: "balance" }}>
@@ -426,6 +495,13 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
                 “{round.clue}” <span className="text-3xl text-muted font-sans align-middle">for “{round.promptText}”</span>
               </p>
             )}
+            <div className="h-[84px] mt-4 flex items-center">
+              {taunt && (
+                <div key={taunt} className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block">
+                  <span className="font-display text-5xl font-bold text-accent-2 whitespace-nowrap">{taunt}</span>
+                </div>
+              )}
+            </div>
           </div>
           <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={220} />
         </div>
@@ -434,45 +510,36 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             <AnswerTile key={o.id} index={i} option={o} size="tv" />
           ))}
         </div>
-        <div className="flex items-end gap-6 min-h-[150px]">
-          <div className="flex-1 flex flex-wrap items-end gap-x-3 gap-y-1" aria-label="Who has locked in">
-            {guessers.map((p) => {
-              const isIn = locked.has(p.id);
-              return (
-                <div key={p.id} className="flex flex-col items-center w-[96px]" title={p.name}>
-                  <div className={`relative transition-all duration-300 ${isIn ? "pop-in" : "opacity-35 grayscale"}`}>
-                    <Avatar name={p.name} piece={p.piece} size={size} />
-                    {isIn && (
-                      <span className="absolute -bottom-1 -right-1 grid place-items-center rounded-full w-8 h-8 bg-good text-black text-lg font-bold">
-                        🔒
-                      </span>
-                    )}
-                  </div>
-                  <span className={`text-lg truncate max-w-full ${isIn ? "text-ink" : "text-muted"}`}>{p.name}</span>
+        <div className="flex flex-wrap items-end gap-x-3 gap-y-1 min-h-[124px]" aria-label="Who has locked in">
+          {guessers.map((p) => {
+            const isIn = locked.has(p.id);
+            return (
+              <div key={p.id} className="flex flex-col items-center w-[96px]" title={p.name}>
+                <div className={`relative transition-all duration-300 ${isIn ? "pop-in" : "opacity-35 grayscale"}`}>
+                  <Avatar name={p.name} piece={p.piece} size={size} />
+                  {isIn && (
+                    <span className="absolute -bottom-1 -right-1 grid place-items-center rounded-full w-8 h-8 bg-good text-black text-lg font-bold">
+                      🔒
+                    </span>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-          <div className="flex flex-col items-end gap-2 w-[420px]">
-            {subject && (
-              <div className="flex items-center gap-2 text-2xl text-muted">
-                <Avatar name={subject.name} piece={subject.piece} size={52} />
-                <span>{subject.name} sits this one out</span>
+                <span className={`text-lg truncate max-w-full ${isIn ? "text-ink" : "text-muted"}`}>{p.name}</span>
               </div>
-            )}
-            <span className="font-display text-4xl whitespace-nowrap" aria-live="polite">
-              {round.answeredCount} of {round.eligibleCount} locked in
-            </span>
-          </div>
+            );
+          })}
         </div>
       </div>
-      {taunt && (
-        <div key={taunt} className="absolute left-1/2 top-[40%] -translate-x-1/2 -rotate-2 pop-in z-20">
-          <div className="panel-strong px-10 py-5 border-4 !border-accent shadow-2xl">
-            <span className="font-display text-5xl font-bold text-accent-2 whitespace-nowrap">{taunt}</span>
-          </div>
-        </div>
-      )}
+      <TvFooter state={state}>
+        <span className="font-display text-4xl whitespace-nowrap" aria-live="polite">
+          {round.answeredCount} of {round.eligibleCount} locked in
+        </span>
+        {subject && (
+          <span className="flex items-center gap-2 text-2xl text-muted min-w-0">
+            <Avatar name={subject.name} piece={subject.piece} size={52} />
+            <span className="truncate">{subject.name} sits this one out</span>
+          </span>
+        )}
+      </TvFooter>
       {round.paused && (
         <div className="absolute inset-0 bg-black/60 grid place-items-center z-30">
           <span className="font-display text-9xl font-bold">Paused</span>
@@ -484,7 +551,14 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
 
 // ---------- Reveal: who answered what, round winner/loser, stats ----------
 
-function PieceChip({ name, piece }: { name: string; piece: string | null }) {
+function PieceChip({ name, piece, compact }: { name: string; piece: string | null; compact?: boolean }) {
+  if (compact) {
+    return (
+      <span title={name} aria-label={name}>
+        <Avatar name={name} piece={piece} size={52} />
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-black/30 pr-3 pl-1 py-0.5 text-xl font-sans font-semibold">
       <Avatar name={name} piece={piece} size={40} />
@@ -528,22 +602,22 @@ function StatCarousel({ state }: { state: GameStateDTO }) {
   if (!cards.length) return null;
   const c = cards[i % cards.length];
   return (
-    <div key={i} className="panel p-5 pop-in flex items-center gap-4 min-h-[140px]">
-      <span className="text-6xl" aria-hidden="true">
+    <div key={i} className="panel px-5 py-2 pop-in flex items-center gap-4 h-[96px] overflow-hidden">
+      <span className="text-5xl" aria-hidden="true">
         {c.emoji}
       </span>
-      <div className="flex-1 min-w-0">
-        <p className="font-display text-2xl text-accent-2">{c.title}</p>
+      <div className="flex-1 min-w-0 flex items-center gap-4">
+        <p className="font-display text-3xl text-accent-2 whitespace-nowrap">{c.title}</p>
         {c.who && (
           <div className="flex items-center gap-3 flex-wrap">
             {c.who.slice(0, 2).map((w) => (
-              <span key={w.name} className="flex items-center gap-1 font-display text-3xl font-bold">
-                <Avatar name={w.name} piece={w.piece} size={48} /> {w.name}
+              <span key={w.name} className="flex items-center gap-1 font-display text-3xl font-bold whitespace-nowrap">
+                <Avatar name={w.name} piece={w.piece} size={56} /> {w.name}
               </span>
             ))}
           </div>
         )}
-        <p className="text-xl text-muted">{c.detail}</p>
+        <p className="text-2xl text-muted truncate">{c.detail}</p>
       </div>
     </div>
   );
@@ -560,6 +634,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
   if (!reveal) return null;
   const correct = round.options.find((o) => o.id === reveal.correctOptionId);
   const rs = reveal.roundStats;
+  const compactChips = reveal.guesses.length > 6;
   const loserPick = rs.loser?.reason === "wrong" ? reveal.guesses.find((g) => g.name === rs.loser!.name) : null;
   const loserLabel = loserPick ? round.options.find((o) => o.id === loserPick.optionId)?.label : null;
   const statLine =
@@ -574,7 +649,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
   return (
     <div className="h-full">
       <TvHeader state={state} center={`Question ${round.number} of ${round.total}`} />
-      <div className="absolute top-[115px] left-14 w-[1150px] bottom-10 flex flex-col gap-4">
+      <div className="absolute top-[115px] left-14 w-[1150px] bottom-[160px] flex flex-col gap-4 overflow-hidden">
         <p className="text-3xl text-muted leading-tight">{round.questionText}</p>
         <div className="panel-strong px-7 py-5 pop-in flex items-center gap-6">
           <Avatar name={reveal.subjectName} piece={reveal.subjectPiece} size={120} />
@@ -584,7 +659,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
             <p className="font-display text-3xl mt-1">{reveal.subjectName} submitted this!</p>
           </div>
         </div>
-        <p className="font-display text-3xl text-accent-2">How everyone answered · {statLine}</p>
+        <p className="font-display text-3xl text-accent-2">How everyone answered</p>
         <div className="grid grid-cols-2 gap-4 flex-1 content-start">
           {round.options.map((o, i) => {
             const who = byOption[o.id] ?? [];
@@ -599,10 +674,12 @@ function TvReveal({ state }: { state: GameStateDTO }) {
                 footer={
                   who.length > 0 ? (
                     <span className="flex flex-wrap gap-1.5 mt-2">
-                      {who.slice(0, 8).map((w) => (
-                        <PieceChip key={w.name} name={w.name} piece={w.piece} />
+                      {who.slice(0, compactChips ? 12 : 4).map((w) => (
+                        <PieceChip key={w.name} name={w.name} piece={w.piece} compact={compactChips} />
                       ))}
-                      {who.length > 8 && <span className="text-xl self-center">+{who.length - 8}</span>}
+                      {who.length > (compactChips ? 12 : 4) && (
+                        <span className="text-xl self-center">+{who.length - (compactChips ? 12 : 4)}</span>
+                      )}
                     </span>
                   ) : null
                 }
@@ -611,7 +688,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
           })}
         </div>
       </div>
-      <div className="absolute top-[115px] right-14 w-[620px] bottom-10 flex flex-col gap-4">
+      <div className="absolute top-[115px] right-14 w-[620px] bottom-[160px] flex flex-col gap-4 overflow-hidden">
         <div className="grid grid-cols-2 gap-3">
           <div className="panel p-4 flex flex-col items-center text-center gap-1">
             <span className="font-display text-2xl text-good">🏆 Round winner</span>
@@ -632,7 +709,11 @@ function TvReveal({ state }: { state: GameStateDTO }) {
                 <Avatar name={rs.loser.name} piece={rs.loser.piece} size={84} />
                 <span className="font-display text-3xl font-bold truncate max-w-full">{rs.loser.name}</span>
                 <span className="text-lg text-muted truncate max-w-full">
-                  {rs.loser.reason === "missed" ? "Didn't even answer!" : `Went with “${loserLabel ?? "?"}”`}
+                  {rs.loser.reason === "missed"
+                    ? "Didn't even answer!"
+                    : rs.loser.reason === "slowest"
+                      ? `Slowest right answer · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`
+                      : `Went with “${loserLabel ?? "?"}” · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`}
                 </span>
               </>
             ) : (
@@ -640,12 +721,79 @@ function TvReveal({ state }: { state: GameStateDTO }) {
             )}
           </div>
         </div>
-        <div className="panel p-5 flex flex-col gap-3 flex-1 min-h-0">
-          <h3 className="font-display text-3xl font-bold">Leaderboard</h3>
-          {state.standings && <Leaderboard standings={state.standings} size="tv" pageSize={4} autoPageMs={5000} showAccuracy />}
+        <div className="panel p-4 flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
+          <h3 className="font-display text-3xl font-bold">Who guessed what</h3>
+          <GuessList state={state} size="tv" />
         </div>
-        <StatCarousel state={state} />
       </div>
+      <TvFooter state={state}>
+        <span className="font-display text-4xl text-accent-2 truncate">{statLine}</span>
+      </TvFooter>
+    </div>
+  );
+}
+
+// ---------- Full-screen leaderboard (between questions) ----------
+
+function TvLeaderboard({ state }: { state: GameStateDTO }) {
+  const standings = state.standings ?? [];
+  const round = state.round;
+  const perPage = 16;
+  const pages = Math.max(1, Math.ceil(standings.length / perPage));
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    if (pages <= 1) return;
+    const id = setInterval(() => setPage((p) => (p + 1) % pages), 6000);
+    return () => clearInterval(id);
+  }, [pages]);
+  const rows = standings.slice((page % pages) * perPage, (page % pages) * perPage + perPage);
+  const twoCols = standings.length > 8;
+  const half = twoCols ? Math.ceil(rows.length / 2) : rows.length;
+  const cols = twoCols ? [rows.slice(0, half), rows.slice(half)] : [rows];
+  const big = !twoCols;
+  return (
+    <div className="h-full">
+      <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
+      <div className="absolute top-[120px] inset-x-14 bottom-[160px] flex flex-col gap-5 overflow-hidden">
+        <h2 className="font-display text-7xl font-bold gold-text text-center">Leaderboard</h2>
+        <div className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
+          {cols.map((col, ci) => (
+            <ol key={ci} className="flex flex-col gap-3">
+              {col.map((s) => (
+                <li
+                  key={s.playerId}
+                  className={`flex items-center gap-4 rounded-2xl px-5 ${big ? "py-3 text-4xl" : "py-2 text-3xl"} ${
+                    s.rank === 1 ? "bg-accent/25 ring-2 ring-accent" : "bg-black/30"
+                  } pop-in`}
+                >
+                  <span className="font-display font-bold w-[2.2ch] text-center text-accent-2">{s.rank}</span>
+                  <Avatar name={s.name} piece={s.piece} size={big ? 76 : 60} />
+                  <span className="flex-1 min-w-0 truncate font-display font-semibold">{s.name}</span>
+                  {s.lastRound !== undefined && s.lastRound !== null && (
+                    <span className={`text-2xl tabular-nums ${s.lastRound > 0 ? "text-good" : "text-muted"}`}>
+                      {s.lastRound > 0 ? `+${s.lastRound.toLocaleString()}` : "+0"}
+                    </span>
+                  )}
+                  <span className="text-2xl text-muted tabular-nums whitespace-nowrap">
+                    {s.eligible ? `${Math.round(s.accuracy * 100)}%` : "–"}
+                  </span>
+                  <span className="font-display font-bold tabular-nums w-[5ch] text-right">{s.points.toLocaleString()}</span>
+                </li>
+              ))}
+            </ol>
+          ))}
+        </div>
+        {pages > 1 && (
+          <p className="text-center text-2xl text-muted">
+            Page {(page % pages) + 1} of {pages}
+          </p>
+        )}
+      </div>
+      <TvFooter state={state}>
+        <div className="flex-1 min-w-0">
+          <StatCarousel state={state} />
+        </div>
+      </TvFooter>
     </div>
   );
 }
@@ -683,7 +831,7 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
 
   if (!showPodium) {
     return (
-      <div className="h-full flex flex-col px-16 py-12 gap-10">
+      <div className="h-full flex flex-col px-16 pt-10 pb-16 gap-8 overflow-hidden">
         <div className="text-center">
           <p className="font-display text-4xl text-accent-2">Before we crown a winner…</p>
           <h2 className="font-display text-8xl font-bold gold-text">The Awards</h2>
@@ -706,7 +854,7 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
   }
 
   return (
-    <div className="h-full flex flex-col px-14 py-10 gap-6">
+    <div className="h-full flex flex-col px-14 pt-10 pb-16 gap-6 overflow-hidden">
       <div className="text-center">
         <p className="font-display text-4xl text-accent-2">Final results</p>
         <h2 className="font-display text-8xl font-bold gold-text leading-tight">

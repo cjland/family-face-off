@@ -20,6 +20,7 @@ export const gamePhase = pgEnum("game_phase", [
   "PREPARING",
   "QUESTION",
   "REVEAL",
+  "LEADERBOARD",
   "FINISHED",
   "CANCELLED",
 ]);

@@ -313,7 +313,7 @@ function alreadyDone(action: GameAction, game: Game, round: Round | null): boole
       return game.phase === "FINISHED";
     case "open":
     case "next":
-      return game.phase === "QUESTION" || game.phase === "FINISHED";
+      return game.phase === "QUESTION" || game.phase === "LEADERBOARD" || game.phase === "FINISHED";
     default:
       return false;
   }
@@ -365,7 +365,9 @@ async function applyAction(tx: DB, game: Game, round: Round | null, action: Game
         if (n === 0) throw new ApiError("GENERATION_FAILED", "No questions are ready yet. Try preparing again.");
         return openNextRound(tx, game, now);
       }
-      if (game.phase === "REVEAL") return openNextRound(tx, game, now);
+      // Reveal -> full-screen leaderboard -> next question.
+      if (game.phase === "REVEAL") return bumpGame(tx, game.id, { phase: "LEADERBOARD" });
+      if (game.phase === "LEADERBOARD") return openNextRound(tx, game, now);
       throw new ApiError("WRONG_PHASE", "There is no question to move on from right now.");
     }
     case "reveal": {
@@ -491,6 +493,12 @@ export async function tick(db: DB, ctx: TickContext): Promise<boolean> {
 
   if (game.phase === "REVEAL" && settings.autoNext && round?.revealedAt) {
     if (now.getTime() >= round.revealedAt.getTime() + settings.revealSeconds * 1000) {
+      return (await guardedAction(db, game, "next")) || changed;
+    }
+  }
+  // The leaderboard step started when the game row was last updated.
+  if (game.phase === "LEADERBOARD" && settings.autoNext) {
+    if (now.getTime() >= game.updatedAt.getTime() + settings.revealSeconds * 1000) {
       return (await guardedAction(db, game, "next")) || changed;
     }
   }

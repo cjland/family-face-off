@@ -144,13 +144,16 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
 
     await hostAction(host, "Reveal answer");
     await expect(tv.getByText("Correct answer")).toBeVisible();
-    await expect(tv.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
+    await expect(tv.getByRole("heading", { name: "Who guessed what" })).toBeVisible();
     for (const p of players) await expect(p.getByText(/Correct answer|That was about you/).first()).toBeVisible();
     if (q === 1) {
       await shot(tv, "tv-reveal");
       await shot(p1, "phone-reveal");
     }
-    await hostAction(host, q === 3 ? "Show final results" : "Next question");
+    await hostAction(host, "Show leaderboard ➜");
+    await expect(tv.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
+    if (q === 1) await shot(tv, "tv-leaderboard");
+    await hostAction(host, q === 3 ? "Show final results ➜" : "Next question ➜");
   }
 
   await expect(tv.getByText("The Awards")).toBeVisible();
@@ -202,8 +205,11 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   await shot(tv, "tv-reveal-thanksgiving");
   await expect(tv.getByText(/Question 2 of 4/)).toBeVisible({ timeout: 30_000 });
   await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
-  host.on("dialog", (d) => void d.accept());
-  await hostAction(host, "End game");
+  await hostAction(host, "End game early…");
+  await expect(host.getByText("Are you sure you want to end the game?")).toBeVisible();
+  await expect(host.getByRole("button", { name: "Yes, end the game" })).toBeDisabled();
+  await host.getByLabel("Type END to confirm").fill("end");
+  await hostAction(host, "Yes, end the game");
   await expect(tv.getByText(/The Awards|Final results/).first()).toBeVisible();
   await expect(tv.getByText("Final results")).toBeVisible({ timeout: 20_000 });
   await tv.waitForTimeout(1500);

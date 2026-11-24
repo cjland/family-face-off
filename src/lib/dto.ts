@@ -1,7 +1,7 @@
 /** DTOs shared between API routes and client components. Never raw DB rows. */
 import type { MusicStyle, Theme } from "./settings";
 
-export type Phase = "LOBBY" | "PREPARING" | "QUESTION" | "REVEAL" | "FINISHED" | "CANCELLED";
+export type Phase = "LOBBY" | "PREPARING" | "QUESTION" | "REVEAL" | "LEADERBOARD" | "FINISHED" | "CANCELLED";
 export type View = "player" | "display" | "host";
 
 export type OptionDTO = { id: string; label: string };
@@ -15,6 +15,8 @@ export type StandingDTO = {
   correct: number;
   eligible: number;
   accuracy: number;
+  /** Points from the round just revealed (null when the player sat it out). */
+  lastRound?: number | null;
 };
 
 export type RoundDTO = {
@@ -51,7 +53,7 @@ export type RevealDTO = {
     answered: number;
     eligible: number;
     winner: { name: string; piece: string | null; elapsedMs: number } | null;
-    loser: { name: string; piece: string | null; reason: "wrong" | "missed" } | null;
+    loser: { name: string; piece: string | null; reason: "wrong" | "missed" | "slowest"; elapsedMs: number } | null;
   };
 };
 
@@ -126,6 +128,8 @@ export type GameStateDTO = {
   reveal: RevealDTO | null;
   standings: StandingDTO[] | null;
   me: (MeDTO & { piece: string | null }) | null;
+  /** True when this browser is signed in as host (TV can show the "next" arrow). */
+  canControl: boolean;
   host: {
     roster: HostRosterDTO[];
     displayKey: string;

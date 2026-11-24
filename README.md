@@ -25,7 +25,11 @@ No player accounts, emails or app installs. AI is optional and off by default.
 2. Players scan the QR code, enter a name, pick one of 40 game pieces and answer 8 private questions by tapping one of six choices (or "Something else…" to type their own). They can swap any question they'd rather not answer.
 3. When at least 3 players are ready, press **Start game…** and choose how many questions about each person (the app shows the most possible without ever repeating a question). This locks the roster and answers and builds the questions.
 4. Press **Start first question**. Players lock in A–D on their phones; the TV shows everyone's piece lighting up as they lock in (with a pop sound), and playfully teases whoever is slow ("Hurry up, Ben!"). Whoever the question is about sits that one out.
-5. **Reveal answer** shows the correct answer, how everyone answered, the round winner (fastest right answer) and round loser, the leaderboard with accuracy, and rotating stats. **Next question** continues.
+5. **Reveal answer** shows the correct answer, how everyone answered (who picked what, and how fast), the round winner (fastest right answer) and the round loser (there's always one: the slowest wrong answer or no answer, or the slowest right answer if everyone got it). Next comes a **full-screen leaderboard** with everyone and the points they just earned, then the next question.
+
+   **The arrow:** if the TV tab is opened from the host console in the same browser (so it's signed in as host), a big ➜ button appears at the bottom of the TV to move to the next step. The right-arrow key, space bar or a presentation clicker work too. On any other screen, the TV stays view-only.
+
+   **Ending early:** "End game early…" sits apart from the other buttons and asks you to type END to confirm.
 6. The finale shows award cards (Knows the family best, Biggest mystery, Open book, Fastest finger, Slowpoke), then the podium and confetti.
 
 **Families:** every game belongs to a family (existing games belong to "Land"). Add families on the host dashboard; the TV shows "The Land Family". All families share your one host password.
@@ -38,7 +42,7 @@ No player accounts, emails or app installs. AI is optional and off by default.
 
 ### Testing without your whole family
 
-In the host lobby, press **+ Add 4 demo players**. This adds clearly-labelled fictional bot players with pre-filled answers. During questions the bots answer on their own, so one person with a phone (or just the TV and host screen) can play a full game. Demo tools are on automatically in development; set `ENABLE_DEMO_TOOLS=true` to show them in production.
+In the host lobby, press **+ Add 4 demo players** (up to 12). This adds clearly-labelled fictional bot players with pre-filled answers. During questions the bots answer on their own, so one person with a phone (or just the TV and host screen) can play a full game. Demo tools are on automatically in development; set `ENABLE_DEMO_TOOLS=true` to show them in production.
 
 ---
 

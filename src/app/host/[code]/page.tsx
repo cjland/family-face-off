@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+import { GuessList, LockInList } from "@/components/RoundPanels";
 import { SettingsForm, type SettingsDraft } from "@/components/SettingsForm";
 import { AnswerTile, Avatar, Banner, CountdownRing, Leaderboard, QrCode, Spinner, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
@@ -109,7 +110,7 @@ export default function HostConsole() {
             </div>
           </section>
         )}
-        {(state.phase === "QUESTION" || state.phase === "REVEAL") && state.round && (
+        {(state.phase === "QUESTION" || state.phase === "REVEAL" || state.phase === "LEADERBOARD") && state.round && (
           <RoundControls state={state} offsetMs={offsetMs} busy={busy} action={action} />
         )}
         {state.phase === "FINISHED" && (
@@ -126,17 +127,61 @@ export default function HostConsole() {
   );
 }
 
+/**
+ * Ending the game is deliberately hard to do by accident: a small, separate link opens a
+ * confirmation that requires typing END.
+ */
 function EndButton({ busy, onEnd }: { busy: boolean; onEnd: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="ml-auto text-sm text-muted underline underline-offset-4 min-h-[44px] px-2 hover:text-bad"
+        disabled={busy}
+        onClick={() => setOpen(true)}
+      >
+        End game early…
+      </button>
+    );
+  }
+  const ok = typed.trim().toUpperCase() === "END";
   return (
-    <button
-      className="btn btn-danger"
-      disabled={busy}
-      onClick={() => {
-        if (window.confirm("End the game now and show final standings?")) onEnd();
-      }}
-    >
-      End game
-    </button>
+    <div className="basis-full panel-strong !border-bad p-4 flex flex-col gap-3 pop-in" role="alertdialog" aria-labelledby="end-title">
+      <p id="end-title" className="font-display text-xl font-bold text-bad">Are you sure you want to end the game?</p>
+      <p className="text-sm text-muted">This ends it for everyone and jumps straight to the final results. It can&apos;t be undone.</p>
+      <label className="flex flex-col gap-1">
+        <span className="text-sm">
+          Type <strong>END</strong> to confirm
+        </span>
+        <input className="input !min-h-[44px] max-w-[200px] uppercase" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
+      </label>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          className="btn btn-danger !text-base"
+          disabled={!ok || busy}
+          onClick={() => {
+            onEnd();
+            setOpen(false);
+            setTyped("");
+          }}
+        >
+          Yes, end the game
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost !text-base"
+          onClick={() => {
+            setOpen(false);
+            setTyped("");
+          }}
+        >
+          Keep playing
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -245,10 +290,11 @@ function LobbyControls({
           {state.host?.demoTools && (
             <button
               className="btn btn-ghost !text-base"
-              disabled={busy}
+              disabled={busy || roster.filter((p) => p.isBot).length >= 12}
+              title="Up to 12 fictional demo players"
               onClick={() => act(() => api(`/api/games/${code}/demo-players`, { method: "POST", body: { count: 4 } }), "Added demo players.")}
             >
-              + Add 4 demo players
+              + Add 4 demo players ({roster.filter((p) => p.isBot).length}/12)
             </button>
           )}
         </div>
@@ -394,7 +440,7 @@ function RoundControls({
             </>
           ) : (
             <button className="btn btn-primary" disabled={busy} onClick={() => action("next")}>
-              {round.number >= round.total ? "Show final results" : "Next question"}
+              {state.phase === "REVEAL" ? "Show leaderboard ➜" : round.number >= round.total ? "Show final results ➜" : "Next question ➜"}
             </button>
           )}
           <EndButton busy={busy} onEnd={() => action("end")} />
@@ -406,23 +452,25 @@ function RoundControls({
         </p>
       </section>
       <section className="panel p-6 flex flex-col gap-4">
-        <h2 className="font-display text-2xl font-bold">Standings</h2>
-        {state.standings ? (
-          <Leaderboard standings={state.standings} pageSize={10} showAccuracy />
-        ) : (
-          <p className="text-muted">Standings update after each reveal.</p>
+        {state.phase === "QUESTION" && (
+          <>
+            <h2 className="font-display text-2xl font-bold">
+              Locking in · {round.answeredCount}/{round.eligibleCount}
+            </h2>
+            <LockInList state={state} />
+          </>
         )}
-        {reveal && reveal.guesses.length > 0 && (
-          <details className="rounded-xl bg-black/20 p-3">
-            <summary className="cursor-pointer font-semibold">Who guessed what</summary>
-            <ul className="mt-2 text-sm flex flex-col gap-1">
-              {reveal.guesses.map((g) => (
-                <li key={g.name}>
-                  {g.correct ? "✓" : "·"} {g.name}: {round.options.find((o) => o.id === g.optionId)?.label}
-                </li>
-              ))}
-            </ul>
-          </details>
+        {state.phase === "REVEAL" && (
+          <>
+            <h2 className="font-display text-2xl font-bold">Who guessed what</h2>
+            <GuessList state={state} />
+          </>
+        )}
+        {state.phase === "LEADERBOARD" && state.standings && (
+          <>
+            <h2 className="font-display text-2xl font-bold">Leaderboard</h2>
+            <Leaderboard standings={state.standings} pageSize={12} showAccuracy />
+          </>
         )}
       </section>
     </div>

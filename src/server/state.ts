@@ -70,7 +70,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   // Automatic transitions (auto reveal / auto next / demo bots), evaluated only when due.
   const settings0 = parseSettings(game.settings);
   const needsTick =
-    (game.phase === "QUESTION" || game.phase === "REVEAL") &&
+    (game.phase === "QUESTION" || game.phase === "REVEAL" || game.phase === "LEADERBOARD") &&
     (settings0.autoReveal || settings0.autoNext || (auth.demoTools && auth.view !== "player"));
   if (needsTick && game.currentRoundId) {
     const round = (await db.select().from(rounds).where(eq(rounds.id, game.currentRoundId)))[0] ?? null;
@@ -123,6 +123,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
     standings: null,
     me: null,
     host: null,
+    canControl: auth.isHost,
   };
 
   if (game.phase === "LOBBY" || game.phase === "PREPARING") {
@@ -135,7 +136,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
 
   const me = auth.view === "player" ? auth.player : null;
   let round: Round | null = null;
-  if ((game.phase === "QUESTION" || game.phase === "REVEAL") && game.currentRoundId) {
+  if ((game.phase === "QUESTION" || game.phase === "REVEAL" || game.phase === "LEADERBOARD") && game.currentRoundId) {
     round = (await db.select().from(rounds).where(and(eq(rounds.id, game.currentRoundId), eq(rounds.gameId, game.id))))[0] ?? null;
   }
 
@@ -187,10 +188,18 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
         .where(eq(players.id, round.subjectPlayerId));
       const g2 = roundGuesses.map((g) => ({ ...g, correct: g.optionId === round!.correctOptionId }));
       const right = g2.filter((g) => g.correct).sort((a, b) => a.elapsedMs - b.elapsedMs);
-      const wrong = g2.filter((g) => !g.correct).sort((a, b) => b.elapsedMs - a.elapsedMs);
       const eligibleNow = activePlayers.filter((p) => !round!.excludedPlayerIds.includes(p.id));
       const guessed = new Set(g2.map((g) => g.playerId));
-      const missed = eligibleNow.filter((p) => !guessed.has(p.id));
+      // There is always a loser: no answer counts as the slowest wrong answer; among wrong
+      // answers the slowest loses; if everyone was right, the slowest right answer loses.
+      const wrongOrMissed = [
+        ...g2.filter((g) => !g.correct).map((g) => ({ name: g.name, piece: g.piece, elapsedMs: g.elapsedMs, reason: "wrong" as const })),
+        ...eligibleNow
+          .filter((p) => !guessed.has(p.id))
+          .map((p) => ({ name: p.name, piece: p.piece, elapsedMs: round!.durationMs, reason: "missed" as const })),
+      ].sort((a, b) => b.elapsedMs - a.elapsedMs);
+      const slowestRight = right.length > 1 ? right[right.length - 1] : null;
+      const loser = wrongOrMissed[0] ?? (slowestRight ? { ...slowestRight, reason: "slowest" as const } : null);
       state.reveal = {
         correctOptionId: round.correctOptionId,
         answerText: round.answerText,
@@ -203,19 +212,23 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
           answered: g2.length,
           eligible: eligibleNow.length,
           winner: right[0] ? { name: right[0].name, piece: right[0].piece, elapsedMs: right[0].elapsedMs } : null,
-          loser: wrong[0]
-            ? { name: wrong[0].name, piece: wrong[0].piece, reason: "wrong" }
-            : missed[0]
-              ? { name: missed[0].name, piece: missed[0].piece, reason: "missed" }
-              : null,
+          loser: loser ? { name: loser.name, piece: loser.piece, reason: loser.reason, elapsedMs: loser.elapsedMs } : null,
         },
       };
     }
   }
 
-  const showStandings = game.phase === "REVEAL" || game.phase === "FINISHED";
+  const showStandings = game.phase === "REVEAL" || game.phase === "LEADERBOARD" || game.phase === "FINISHED";
   let standings: StandingDTO[] | null = null;
   if (showStandings || me) standings = await computeStandings(db, game.id);
+  if (showStandings && standings && round && round.status === "REVEALED") {
+    const evs = await db
+      .select({ playerId: scoreEvents.playerId, points: scoreEvents.points })
+      .from(scoreEvents)
+      .where(eq(scoreEvents.roundId, round.id));
+    const pts = new Map(evs.map((e) => [e.playerId, e.points]));
+    standings = standings.map((s) => ({ ...s, lastRound: pts.has(s.playerId) ? pts.get(s.playerId)! : null }));
+  }
   if (showStandings && standings) {
     state.standings = auth.view === "player" ? standings.slice(0, 5) : standings;
     if (privileged || game.phase === "FINISHED") state.stats = await computeStats(db, game.id, standings);
