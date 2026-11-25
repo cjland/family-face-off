@@ -381,7 +381,13 @@ function NextArrow({ state }: { state: GameStateDTO }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [enabled, go, startOpen]);
-  if (!enabled) return null;
+  // Someone walked away? Once time is up, a small arrow lets the host reveal without them.
+  // It takes two taps (and no keyboard shortcut) so it can't happen by accident.
+  if (!enabled) {
+    const timeUp = state.phase === "QUESTION" && round && !round.paused && round.remainingMs <= 0;
+    if (state.canControl && timeUp && !allIn) return <RevealAnyway state={state} />;
+    return null;
+  }
   return (
     <div className="flex items-center gap-3">
       {startOpen && <TvStartDialog state={state} onClose={() => setStartOpen(false)} />}
@@ -396,6 +402,43 @@ function NextArrow({ state }: { state: GameStateDTO }) {
         {label} <span aria-hidden="true">➜</span>
       </button>
     </div>
+  );
+}
+
+function RevealAnyway({ state }: { state: GameStateDTO }) {
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 5000);
+    return () => clearTimeout(id);
+  }, [armed]);
+  const missing = (state.players ?? []).filter(
+    (p) => p.id !== state.round?.subjectPlayerId && !(state.round?.lockedPlayerIds ?? []).includes(p.id),
+  );
+  const who = missing.length === 1 ? missing[0].name : `${missing.length} players`;
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={(e) => {
+        e.currentTarget.blur();
+        if (!armed) return setArmed(true);
+        setBusy(true);
+        api(`/api/games/${state.code}/action`, { method: "POST", body: { action: "reveal", expectedVersion: state.version } })
+          .catch(() => undefined)
+          .finally(() => setTimeout(() => setBusy(false), 600));
+      }}
+      className={
+        armed
+          ? "btn btn-primary flex-none !min-h-[64px] !px-6 !text-2xl whitespace-nowrap"
+          : "flex-none rounded-full border-2 font-display bg-black/40 text-ink border-white/40 w-[64px] h-[64px] text-3xl grid place-items-center hover:bg-white/15"
+      }
+      aria-label={armed ? `Reveal without ${who}` : "Reveal without waiting (tap twice)"}
+      title="Reveal without waiting"
+    >
+      {armed ? <>Reveal without {who}? ➜</> : <span aria-hidden="true">⏭</span>}
+    </button>
   );
 }
 
@@ -658,6 +701,16 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
     }
   }
   const size = guessers.length > 24 ? 56 : guessers.length > 14 ? 72 : 92;
+  // Lock-in strip: people slide left into the order they locked in (1st on the far left),
+  // with everyone still thinking after them. Mystery rounds keep the roster order.
+  const stripOrder = secret
+    ? players
+    : [
+        ...guessers.filter((p) => order.has(p.id)).sort((a, b) => order.get(a.id)! - order.get(b.id)!),
+        ...guessers.filter((p) => !order.has(p.id)),
+      ];
+  const stripRowH = size + 32;
+  const stripRows = Math.max(1, Math.ceil(stripOrder.length / STRIP_PER_ROW));
 
   return (
     <div className="h-full">
@@ -715,12 +768,17 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             <AnswerTile key={o.id} index={i} option={o} size="tv" />
           ))}
         </div>
-        <div className="flex flex-wrap items-end gap-x-3 gap-y-1 min-h-[124px]" aria-label="Who has locked in">
-          {(secret ? players : guessers).map((p) => {
+        <div className="relative" style={{ height: stripRows * stripRowH }} aria-label="Who has locked in">
+          {stripOrder.map((p, i) => {
             // On mystery rounds the subject is shown like everyone else (as locked in) so nobody can tell.
             const isIn = locked.has(p.id) || (secret && p.id === round.subjectPlayerId);
             return (
-              <div key={p.id} className="flex flex-col items-center w-[96px]" title={p.name}>
+              <div
+                key={p.id}
+                className="absolute flex flex-col items-center w-[96px] transition-[left,top] duration-500 ease-out"
+                style={{ left: (i % STRIP_PER_ROW) * STRIP_SLOT, top: Math.floor(i / STRIP_PER_ROW) * stripRowH }}
+                title={p.name}
+              >
                 <div className={`relative transition-all duration-300 ${isIn ? "pop-in" : overtime ? "shame-wobble" : "opacity-35 grayscale"}`}>
                   <Avatar name={p.name} piece={p.piece} size={size} />
                   {isIn &&
@@ -787,6 +845,9 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
     </div>
   );
 }
+
+const STRIP_SLOT = 108; // 96px item + 12px gap
+const STRIP_PER_ROW = 16;
 
 const ORDINAL_BG: Record<number, string> = { 0: "bg-[#ffd54a]", 1: "bg-[#d9dee8]", 2: "bg-[#e0a066]" };
 
