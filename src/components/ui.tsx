@@ -132,7 +132,6 @@ export function CountdownRing({
 // ---------- Answer tiles ----------
 
 export const LETTERS = ["A", "B", "C", "D"] as const;
-const SHAPES = ["▲", "◆", "●", "■"];
 const TILE_BG = ["bg-tile-a", "bg-tile-b", "bg-tile-c", "bg-tile-d"];
 
 export type TileState = "idle" | "selected" | "correct" | "dim";
@@ -157,7 +156,7 @@ export function AnswerTile({
   count?: number;
 }) {
   const pad = { md: "p-3 text-xl min-h-[76px]", lg: "p-4 text-2xl min-h-[96px]", xl: "p-5 text-[2.3rem] min-h-[150px]", tv: "p-6 text-[2.6rem] min-h-[150px]" }[size];
-  const badge = { md: "w-12 h-12 text-2xl", lg: "w-14 h-14 text-3xl", xl: "w-20 h-20 text-4xl", tv: "w-24 h-24 text-5xl" }[size];
+  const badge = { md: "w-12 h-12 text-4xl", lg: "w-14 h-14 text-[2.75rem]", xl: "w-20 h-20 text-6xl", tv: "w-24 h-24 text-[4.5rem]" }[size];
   const label =
     `${LETTERS[index]}: ${option.label}` +
     (state === "correct" ? " (correct answer)" : "") +
@@ -166,10 +165,7 @@ export function AnswerTile({
   const content = (
     <>
       <span className={`tile-badge ${badge}`} aria-hidden="true">
-        <span className="flex flex-col items-center">
-          <span>{LETTERS[index]}</span>
-          <span className="text-[0.45em] opacity-80 mt-0.5">{SHAPES[index]}</span>
-        </span>
+        <span className="leading-none">{LETTERS[index]}</span>
       </span>
       <span className="flex-1 min-w-0">
         <span className="block break-words leading-tight">{option.label}</span>
