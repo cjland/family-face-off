@@ -96,6 +96,9 @@ export const players = pgTable(
     isBot: boolean("is_bot").notNull().default(false),
     /** Game piece id (see src/lib/pieces.ts). */
     piece: text("piece"),
+    /** Catchphrases for winning / losing a round (null = one is picked for them). */
+    winSlogan: text("win_slogan"),
+    loseSlogan: text("lose_slogan"),
     joinedAt: ts("joined_at").notNull().defaultNow(),
   },
   (t) => [
@@ -103,6 +106,7 @@ export const players = pgTable(
     uniqueIndex("players_token_uq").on(t.tokenHash),
     index("players_game_idx").on(t.gameId),
     check("players_name_len", sql`char_length(${t.displayName}) between 1 and 24`),
+    check("players_slogan_len", sql`char_length(coalesce(${t.winSlogan}, '')) <= 60 and char_length(coalesce(${t.loseSlogan}, '')) <= 60`),
   ],
 );
 

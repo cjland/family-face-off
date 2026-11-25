@@ -112,6 +112,16 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
     await p.getByRole("button", { name: "I'm ready!" }).click();
     await expect(p.getByRole("heading", { name: "You're ready!" })).toBeVisible();
   }
+  // Catchphrases: pick a winning one, write a losing one.
+  await p1.getByRole("button", { name: "Never doubt me!" }).click();
+  await expect(p1.getByText("“Never doubt me!”")).toBeVisible();
+  await p1.getByRole("button", { name: "✏️ Write my own" }).nth(1).click();
+  await p1.getByLabel("Write your own").fill("Rosie demands a recount");
+  await p1.getByRole("button", { name: "Save" }).click();
+  await expect(p1.getByText("“Rosie demands a recount”")).toBeVisible();
+  await p1.getByText("Your catchphrases").scrollIntoViewIfNeeded();
+  await shot(p1, "phone-catchphrases");
+
   // Refresh recovery: session survives reload.
   await p2.reload();
   await expect(p2.getByRole("heading", { name: "You're ready!" })).toBeVisible();
@@ -180,6 +190,8 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
     await hostAction(host, "Reveal answer");
     await expect(tv.getByText("Correct answer")).toBeVisible();
     await expect(tv.getByRole("heading", { name: "Who guessed what" })).toBeVisible();
+    // The round loser's catchphrase pops up on the TV (there's always a loser).
+    await expect(tv.locator(".slogan-pop").first()).toBeVisible();
     for (const p of players) await expect(p.getByText(/Correct answer|That was about you/).first()).toBeVisible();
     if (q === 1) {
       await shot(tv, "tv-reveal");

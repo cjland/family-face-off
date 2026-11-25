@@ -6,6 +6,7 @@ import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PhotoPicker } from "@/components/PhotoButton";
+import { SloganPicker } from "@/components/SloganPicker";
 import { Questionnaire } from "@/components/Questionnaire";
 import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Spinner, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
@@ -220,6 +221,7 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
         </div>
       )}
       {photoError && <Banner kind="error">{photoError}</Banner>}
+      <SloganPicker code={code} me={state.me!} onSaved={refresh} />
       <button
         className="btn btn-ghost"
         disabled={busy}

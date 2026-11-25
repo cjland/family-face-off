@@ -9,6 +9,7 @@ import { parseSettings } from "@/lib/settings";
 import { tick } from "./engine";
 import { rosterFor } from "./lobby";
 import { computeStats } from "./stats";
+import { sloganFor } from "@/lib/slogans";
 
 export type StateAuth = {
   view: View;
@@ -89,10 +90,20 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   const settings = parseSettings(game.settings);
   const [fam] = await db.select({ name: families.name }).from(families).where(eq(families.id, game.familyId));
   const activePlayers = await db
-    .select({ id: players.id, name: players.displayName, readyAt: players.readyAt, piece: players.piece })
+    .select({
+      id: players.id,
+      name: players.displayName,
+      readyAt: players.readyAt,
+      piece: players.piece,
+      winSlogan: players.winSlogan,
+      loseSlogan: players.loseSlogan,
+    })
     .from(players)
     .where(and(eq(players.gameId, game.id), eq(players.active, true)))
     .orderBy(asc(players.joinedAt));
+  const sloganOf = new Map(
+    activePlayers.map((p) => [p.id, { win: sloganFor(p.id, "win", p.winSlogan), lose: sloganFor(p.id, "lose", p.loseSlogan) }]),
+  );
 
   const state: GameStateDTO = {
     code: game.code,
@@ -132,7 +143,14 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   }
   const privileged = auth.view !== "player";
   if (privileged) {
-    state.players = activePlayers.map((p) => ({ id: p.id, name: p.name, ready: Boolean(p.readyAt), piece: p.piece }));
+    state.players = activePlayers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      ready: Boolean(p.readyAt),
+      piece: p.piece,
+      winSlogan: sloganOf.get(p.id)!.win,
+      loseSlogan: sloganOf.get(p.id)!.lose,
+    }));
   }
 
   const me = auth.view === "player" ? auth.player : null;
@@ -200,10 +218,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       // There is always a loser: no answer counts as the slowest wrong answer; among wrong
       // answers the slowest loses; if everyone was right, the slowest right answer loses.
       const wrongOrMissed = [
-        ...g2.filter((g) => !g.correct).map((g) => ({ name: g.name, piece: g.piece, elapsedMs: g.elapsedMs, reason: "wrong" as const })),
+        ...g2
+          .filter((g) => !g.correct)
+          .map((g) => ({ playerId: g.playerId, name: g.name, piece: g.piece, elapsedMs: g.elapsedMs, reason: "wrong" as const })),
         ...eligibleNow
           .filter((p) => !guessed.has(p.id))
-          .map((p) => ({ name: p.name, piece: p.piece, elapsedMs: round!.durationMs, reason: "missed" as const })),
+          .map((p) => ({ playerId: p.id, name: p.name, piece: p.piece, elapsedMs: round!.durationMs, reason: "missed" as const })),
       ].sort((a, b) => b.elapsedMs - a.elapsedMs);
       const slowestRight = right.length > 1 ? right[right.length - 1] : null;
       const loser = wrongOrMissed[0] ?? (slowestRight ? { ...slowestRight, reason: "slowest" as const } : null);
@@ -218,8 +238,18 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
           correct: right.length,
           answered: g2.length,
           eligible: eligibleNow.length,
-          winner: right[0] ? { name: right[0].name, piece: right[0].piece, elapsedMs: right[0].elapsedMs } : null,
-          loser: loser ? { name: loser.name, piece: loser.piece, reason: loser.reason, elapsedMs: loser.elapsedMs } : null,
+          winner: right[0]
+            ? { name: right[0].name, piece: right[0].piece, elapsedMs: right[0].elapsedMs, slogan: sloganOf.get(right[0].playerId)?.win ?? "" }
+            : null,
+          loser: loser
+            ? {
+                name: loser.name,
+                piece: loser.piece,
+                reason: loser.reason,
+                elapsedMs: loser.elapsedMs,
+                slogan: sloganOf.get(loser.playerId)?.lose ?? "",
+              }
+            : null,
         },
       };
     }
@@ -264,6 +294,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
     state.me = {
       id: me.id,
       name: me.displayName,
+      slogans: {
+        win: sloganFor(me.id, "win", me.winSlogan),
+        lose: sloganFor(me.id, "lose", me.loseSlogan),
+        customWin: Boolean(me.winSlogan),
+        customLose: Boolean(me.loseSlogan),
+      },
       piece: me.piece,
       active: me.active,
       ready: Boolean(me.readyAt),

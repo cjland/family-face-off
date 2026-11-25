@@ -54,8 +54,8 @@ export type RevealDTO = {
     correct: number;
     answered: number;
     eligible: number;
-    winner: { name: string; piece: string | null; elapsedMs: number } | null;
-    loser: { name: string; piece: string | null; reason: "wrong" | "missed" | "slowest"; elapsedMs: number } | null;
+    winner: { name: string; piece: string | null; elapsedMs: number; slogan: string } | null;
+    loser: { name: string; piece: string | null; reason: "wrong" | "missed" | "slowest"; elapsedMs: number; slogan: string } | null;
   };
 };
 
@@ -129,6 +129,8 @@ export type LeaderRunDTO = {
 export type MeDTO = {
   id: string;
   name: string;
+  /** Catchphrases as they'll appear, and whether the player chose them (false = picked for them). */
+  slogans: { win: string; lose: string; customWin: boolean; customLose: boolean };
   active: boolean;
   ready: boolean;
   eligible: boolean;
@@ -139,7 +141,15 @@ export type MeDTO = {
   lastResult: { correct: boolean; points: number; answered: boolean } | null;
 };
 
-export type LobbyPlayerDTO = { id: string; name: string; ready: boolean; piece: string | null };
+export type LobbyPlayerDTO = {
+  id: string;
+  name: string;
+  ready: boolean;
+  piece: string | null;
+  /** TV/host only: catchphrases (picked-for-you ones filled in). */
+  winSlogan?: string;
+  loseSlogan?: string;
+};
 
 export type HostRosterDTO = {
   id: string;

@@ -82,3 +82,20 @@ describe("splitQuestion", () => {
     expect(splitQuestion("Who submitted this answer?")).toEqual({ lead: null, question: "Who submitted this answer?" });
   });
 });
+
+describe("catchphrases", () => {
+  it("validates length and family-friendliness; empty means picked-for-you", async () => {
+    const { validateSlogan, sloganFor, WIN_SLOGANS, LOSE_SLOGANS, SLOGAN_MAX } = await import("@/lib/slogans");
+    expect(validateSlogan("  Never   doubt me! ")).toEqual({ ok: true, value: "Never doubt me!" });
+    expect(validateSlogan("")).toEqual({ ok: true, value: null });
+    expect(validateSlogan("x".repeat(SLOGAN_MAX + 1)).ok).toBe(false);
+    expect(validateSlogan("what the fuck").ok).toBe(false);
+    expect(validateSlogan("!!!").ok).toBe(false);
+    // Picked-for-you is stable per player and comes from the right list.
+    expect(sloganFor("p1", "win", null)).toBe(sloganFor("p1", "win", null));
+    expect(WIN_SLOGANS).toContain(sloganFor("p1", "win", null));
+    expect(LOSE_SLOGANS).toContain(sloganFor("p1", "lose", undefined));
+    expect(sloganFor("p1", "win", "Mine!")).toBe("Mine!");
+    for (const s of [...WIN_SLOGANS, ...LOSE_SLOGANS]) expect(validateSlogan(s).ok).toBe(true);
+  });
+});

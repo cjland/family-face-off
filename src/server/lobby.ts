@@ -15,6 +15,7 @@ import {
   type GameSettings,
 } from "@/lib/settings";
 import { seasonMatchesTheme } from "@/lib/promptBank";
+import { validateSlogan } from "@/lib/slogans";
 import { cleanText, normalizeName, validateAnswer, validateDisplayName } from "@/lib/text";
 
 function randomPick<T>(items: T[], n: number): T[] {
@@ -474,3 +475,18 @@ export async function rosterFor(db: DB, gameId: string) {
     .orderBy(asc(players.joinedAt));
 }
 
+
+/** Saves a player's win/lose catchphrases. Empty means "pick one for me". */
+export async function setSlogans(db: DB, game: Game, player: Player, input: { win?: string | null; lose?: string | null }) {
+  if (game.phase === "FINISHED") throw new ApiError("WRONG_PHASE", "This game has ended.");
+  const set: { winSlogan?: string | null; loseSlogan?: string | null } = {};
+  for (const [key, col] of [["win", "winSlogan"], ["lose", "loseSlogan"]] as const) {
+    if (input[key] === undefined) continue;
+    const check = validateSlogan(input[key]);
+    if (!check.ok) throw new ApiError("VALIDATION", check.reason);
+    set[col] = check.value;
+  }
+  if (Object.keys(set).length) {
+    await db.update(players).set(set).where(and(eq(players.id, player.id), eq(players.gameId, game.id)));
+  }
+}

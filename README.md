@@ -8,7 +8,7 @@
 - **Nothing to install.** Players scan a QR code on the TV. No accounts, no emails, no app.
 - **You need:** a TV or big screen (a laptop plugged into the TV works), everyone's phones, and a second screen for the host (your phone or laptop).
 - **150 built-in questions**, each with six tap-to-answer choices (four normal, two silly), or players type their own answer.
-- **Fun extras:** 40 game pieces or your own face on a costume, a 5-4-3-2-1 countdown, lock-in order, taunts and a 🚨 SHAME ALERT for slowpokes, ten rotating leaderboard pages, awards, a podium and confetti. There's a classic game-show look and a Thanksgiving theme.
+- **Fun extras:** 40 game pieces or your own face on a costume, your own win/lose catchphrases, a 5-4-3-2-1 countdown, lock-in order, taunts and a 🚨 SHAME ALERT for slowpokes, ten rotating leaderboard pages, awards, a podium and confetti. There's a classic game-show look and a Thanksgiving theme.
 
 **Contents:** [How a game works](#how-a-game-works) · [Running game night](#running-game-night) · [Settings](#game-settings) · [Troubleshooting](#troubleshooting) · [Setting it up (Neon + Vercel)](#setting-it-up-on-neon--vercel) · [Local development](#local-development) · [For developers](#for-developers)
 
@@ -177,6 +177,10 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 
 Instead of a game piece, players can tap **📷 Use my own photo**, then drag and pinch to center their face in the circle. Their face appears on one of 20 cartoon costumes (superhero, astronaut, chef, wizard, king, rock star…) everywhere in the game. The phone shrinks the photo and strips its location data before uploading. Photos are deleted with the game, and the host can remove anyone's photo from the lobby.
 
+### Catchphrases
+
+Every player has a **winning catchphrase** and a **losing catchphrase** ("Never doubt me!", "I demand a recount!"). They're set on the phone's **You're ready!** screen: pick one of 12 ideas each or write your own (up to 40 characters, family-friendly). Anyone who doesn't choose gets one picked for them. They pop up in a speech bubble on the TV under the **round winner** and **round loser**, and the champion's catchphrase appears big on the final podium.
+
 ### Families
 
 Every game belongs to a family ("The Land Family" on the TV). Add families on the host dashboard. All families share your one host password.
@@ -207,7 +211,7 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | The TV has no ➜ button | Open the TV from **Open TV display** in the same browser where you signed in as host. Other screens are view-only on purpose. |
 | No sound on the TV | Click **Enable sound** once; browsers block sound until someone clicks. |
 | Nothing moves on the TV | Check the **✨** button at the top right isn't turned off. |
-| A player's photo didn't appear | Run the latest `neon-setup.sql` (`/api/health` will say if the database is out of date). |
+| A player's photo or catchphrase didn't save | Run the latest `neon-setup.sql` (`/api/health` will say if the database is out of date). |
 | "This game has already started" | New players can't join after the start. Someone who was already playing can rejoin on the same phone and browser. |
 | A player says their name is taken | Names are unique per game, ignoring capitals ("Rosie" and "rosie" count as the same). |
 

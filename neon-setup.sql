@@ -211,6 +211,18 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0005_player_slogans (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795621583006) THEN
+    EXECUTE $stmt$ALTER TABLE "players" ADD COLUMN "win_slogan" text$stmt$;
+    EXECUTE $stmt$ALTER TABLE "players" ADD COLUMN "lose_slogan" text$stmt$;
+    EXECUTE $stmt$ALTER TABLE "players" ADD CONSTRAINT "players_slogan_len" CHECK (char_length(coalesce("players"."win_slogan", '')) <= 60 and char_length(coalesce("players"."lose_slogan", '')) <= 60)$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('736658785b92a17d524573b2075facc01d17baca1543d881c7ef14836d1545cc', 1795621583006);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true}]'::jsonb, true, NULL),

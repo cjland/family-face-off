@@ -944,6 +944,25 @@ function ordinal(n: number) {
   return `${n}${s}`;
 }
 
+/** A winner's or loser's catchphrase, as a speech bubble that pops in after the card. */
+function SloganBubble({ text, kind }: { text: string; kind: "win" | "lose" }) {
+  if (!text) return null;
+  return (
+    <span
+      className={`slogan-pop relative mt-2 max-w-full rounded-2xl px-4 py-1.5 font-display text-2xl font-bold leading-tight ${
+        kind === "win" ? "bg-accent text-black" : "bg-bad/80 text-white"
+      }`}
+      style={{ animationDelay: "0.9s" }}
+    >
+      <span
+        aria-hidden="true"
+        className={`absolute left-1/2 -top-2 -translate-x-1/2 w-4 h-4 rotate-45 ${kind === "win" ? "bg-accent" : "bg-bad/80"}`}
+      />
+      <span className="relative line-clamp-2">“{text}”</span>
+    </span>
+  );
+}
+
 // ---------- Reveal: who answered what, round winner/loser, stats ----------
 
 function PieceChip({ name, piece, compact }: { name: string; piece: string | null; compact?: boolean }) {
@@ -1090,9 +1109,10 @@ function TvReveal({ state }: { state: GameStateDTO }) {
             <span className="font-display text-2xl text-good">🏆 Round winner</span>
             {rs.winner ? (
               <>
-                <Avatar name={rs.winner.name} piece={rs.winner.piece} size={84} />
+                <Avatar name={rs.winner.name} piece={rs.winner.piece} size={68} />
                 <span className="font-display text-3xl font-bold truncate max-w-full">{rs.winner.name}</span>
                 <span className="text-lg text-muted">Fastest right answer · {(rs.winner.elapsedMs / 1000).toFixed(1)}s</span>
+                <SloganBubble text={rs.winner.slogan} kind="win" />
               </>
             ) : (
               <span className="text-xl text-muted py-6">Nobody this time!</span>
@@ -1102,7 +1122,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
             <span className="font-display text-2xl text-bad">😬 Round loser</span>
             {rs.loser ? (
               <>
-                <Avatar name={rs.loser.name} piece={rs.loser.piece} size={84} />
+                <Avatar name={rs.loser.name} piece={rs.loser.piece} size={68} />
                 <span className="font-display text-3xl font-bold truncate max-w-full">{rs.loser.name}</span>
                 <span className="text-lg text-muted truncate max-w-full">
                   {rs.loser.reason === "missed"
@@ -1111,6 +1131,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
                       ? `Slowest right answer · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`
                       : `Went with “${loserLabel ?? "?"}” · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`}
                 </span>
+                <SloganBubble text={rs.loser.slogan} kind="lose" />
               </>
             ) : (
               <span className="text-xl text-muted py-6">No losers this round!</span>
@@ -1831,6 +1852,21 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
                 ? `${winners[0].name} wins!`
                 : "Thanks for playing!"}
         </h2>
+        {winners.length > 0 && winners.length <= 2 && (
+          <div className="flex justify-center gap-10 mt-3">
+            {winners.map((w) => {
+              const slogan = state.players?.find((p) => p.id === w.playerId)?.winSlogan;
+              return slogan ? (
+                <p key={w.playerId} className="font-display text-5xl font-bold slogan-pop" style={{ animationDelay: "0.6s" }}>
+                  <span className="text-accent-2">“</span>
+                  {slogan}
+                  <span className="text-accent-2">”</span>
+                  {winners.length > 1 && <span className="text-3xl text-muted font-sans font-normal"> {w.name}</span>}
+                </p>
+              ) : null;
+            })}
+          </div>
+        )}
       </div>
       <div className="flex-1 grid grid-cols-[1fr_620px] gap-10 min-h-0">
         <div className="flex flex-col justify-end items-center gap-6">

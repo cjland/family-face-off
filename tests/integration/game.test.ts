@@ -18,6 +18,7 @@ import {
   replacePrompt,
   saveAnswers,
   setReady,
+  setSlogans,
 } from "@/server/lobby";
 import { getGameState, type StateAuth } from "@/server/state";
 import { decodePhoto, getPhoto, removePhoto, setPhoto, setPhotoBody } from "@/server/photos";
@@ -286,6 +287,35 @@ describe("game loop", () => {
     // Once the countdown is over, answers count from zero.
     await db.update(rounds).set({ openedAt: new Date(Date.now() - 1000), deadlineAt: new Date(Date.now() - 1000 + r.durationMs) }).where(eq(rounds.id, r.id));
     await submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId);
+  });
+
+  it("shows each player's catchphrase on the TV when they win or lose a round", async () => {
+    const { game, ps } = await setupGame(4);
+    const g0 = await findGame(db, game.code);
+    for (const p of ps) await setSlogans(db, g0, p.player, { win: `${p.player.displayName} rules!`, lose: `${p.player.displayName} was robbed` });
+    await expectApiError(setSlogans(db, g0, ps[0].player, { win: "x".repeat(41) }), "VALIDATION");
+    // Players see their own; empty resets to a picked-for-you one.
+    await setSlogans(db, g0, ps[3].player, { lose: "" });
+    const mine = await getGameState(db, game.code, auth("player", await refreshPlayer(ps[3].player.id)));
+    expect(mine.me!.slogans.customLose).toBe(false);
+    expect(mine.me!.slogans.lose.length).toBeGreaterThan(0);
+
+    await startGame(db, game.id, { excludeUnready: false });
+    let g = await findGame(db, game.code);
+    await performAction(db, game.id, "open", g.version);
+    const { r } = await current(game.code);
+    const guessers = ps.filter((p) => p.player.id !== r.subjectPlayerId);
+    const wrong = r.options.find((o) => o.id !== r.correctOptionId)!;
+    await submitGuess(db, game.id, guessers[0].player, r.id, r.correctOptionId);
+    await submitGuess(db, game.id, guessers[1].player, r.id, wrong.id);
+    await submitGuess(db, game.id, guessers[2].player, r.id, wrong.id);
+    g = await findGame(db, game.code);
+    await performAction(db, game.id, "reveal", g.version);
+    const tv = await getGameState(db, game.code, auth("display"));
+    const rs = tv.reveal!.roundStats;
+    expect(rs.winner!.slogan).toBe(`${guessers[0].player.displayName} rules!`);
+    expect(rs.loser!.slogan).toBe(tv.players!.find((p) => p.name === rs.loser!.name)!.loseSlogan);
+    expect(tv.players!.find((p) => p.id === guessers[0].player.id)!.winSlogan).toBe(`${guessers[0].player.displayName} rules!`);
   });
 
   it("accepts late answers after the timer (for shaming), scored without a speed bonus", async () => {
