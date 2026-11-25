@@ -71,3 +71,14 @@ describe("settings", () => {
     expect(parseSettings({ roundCount: "x" })).toEqual(DEFAULT_SETTINGS);
   });
 });
+
+describe("splitQuestion", () => {
+  it("separates the lead-in from the quoted question", async () => {
+    const { splitQuestion } = await import("@/lib/questionText");
+    expect(splitQuestion("How did Mock Morgan answer: “What would you most like to drink?”")).toEqual({
+      lead: "How did Mock Morgan answer:",
+      question: "What would you most like to drink?",
+    });
+    expect(splitQuestion("Who submitted this answer?")).toEqual({ lead: null, question: "Who submitted this answer?" });
+  });
+});

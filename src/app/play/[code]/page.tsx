@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { splitQuestion } from "@/lib/questionText";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PhotoPicker } from "@/components/PhotoButton";
@@ -288,7 +289,17 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
         )}
         <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={72} />
       </div>
-      <h1 className="font-display text-2xl font-bold leading-snug">{round.questionText}</h1>
+      {(() => {
+        const q = splitQuestion(round.questionText);
+        return q.lead ? (
+          <h1 className="font-display font-bold">
+            <span className="block text-lg text-accent-2 leading-tight">{q.lead}</span>
+            <span className="block text-[1.7rem] leading-snug mt-1">{q.question}</span>
+          </h1>
+        ) : (
+          <h1 className="font-display text-2xl font-bold leading-snug">{round.questionText}</h1>
+        );
+      })()}
       {round.clue && (
         <p className="panel px-4 py-3 text-xl font-display">
           “{round.clue}” <span className="block text-sm text-muted font-sans">answer to: {round.promptText}</span>

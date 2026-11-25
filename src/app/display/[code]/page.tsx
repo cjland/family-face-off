@@ -7,6 +7,7 @@ import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Podium
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { GuessList } from "@/components/RoundPanels";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
+import { splitQuestion } from "@/lib/questionText";
 import { MusicPlayer } from "@/lib/client/music";
 import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
@@ -679,9 +680,21 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             )
           )}
           <div className="flex-1">
-            <h2 className="font-display font-bold leading-[1.05] text-[4.6rem]" style={{ textWrap: "balance" }}>
-              {round.questionText}
-            </h2>
+            {(() => {
+              const q = splitQuestion(round.questionText);
+              return q.lead ? (
+                <h2 className="font-display font-bold">
+                  <span className="block text-5xl text-accent-2 truncate leading-tight">{q.lead}</span>
+                  <span className="block leading-[1.05] text-[5.4rem] mt-2" style={{ textWrap: "balance" }}>
+                    {q.question}
+                  </span>
+                </h2>
+              ) : (
+                <h2 className="font-display font-bold leading-[1.05] text-[4.6rem]" style={{ textWrap: "balance" }}>
+                  {round.questionText}
+                </h2>
+              );
+            })()}
             {round.clue && (
               <p className="mt-5 panel-strong inline-block px-8 py-4 font-display text-6xl">
                 “{round.clue}” <span className="text-3xl text-muted font-sans align-middle">for “{round.promptText}”</span>
