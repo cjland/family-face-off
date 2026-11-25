@@ -219,26 +219,53 @@ function hash(s: string) {
   return h;
 }
 
-/** A face photo shown through a costume's face hole (photo behind, costume art on top). */
+/** How much bigger the player's face is than the costume's own face hole ("bobblehead" style). */
+export const HEAD_SCALE = 3;
+
+/**
+ * A face photo on a costume body, bobblehead style: the costume is shrunk and the face sits on top
+ * at HEAD_SCALE times the size of the costume's face hole, chin resting where the hole's chin was.
+ * Everything is fitted into a size x size box, bottom-aligned and centered.
+ */
 export function FaceOnBody({ src, body, size }: { src: string; body: BodyId; size: number }) {
   const f = bodyFace(body);
+  // Work in "body image" units (the costume art is square, 1 x 1).
+  const d = f.r * 2 * HEAD_SCALE; // face diameter
+  const faceLeft = f.cx - d / 2;
+  const faceTop = f.cy + f.r - d; // chin stays at the bottom of the original hole
+  const minX = Math.min(0, faceLeft);
+  const maxX = Math.max(1, faceLeft + d);
+  const minY = Math.min(0, faceTop);
+  const w = maxX - minX;
+  const h = 1 - minY;
+  const unit = size / Math.max(w, h); // px per body unit
+  const offX = (size - w * unit) / 2 - minX * unit;
+  const offY = size - 1 * unit; // body bottom on the box bottom
+  const ring = Math.max(1.5, size / 40);
   return (
     <span aria-hidden="true" className="relative inline-block flex-none drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]" style={{ width: size, height: size }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/bodies/${body}.webp`}
+        alt=""
+        draggable={false}
+        className="absolute"
+        style={{ left: offX, top: offY, width: unit, height: unit }}
+      />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt=""
         draggable={false}
-        className="absolute rounded-full object-cover"
+        className="absolute rounded-full object-cover bg-white"
         style={{
-          left: `${(f.cx - f.r) * 100}%`,
-          top: `${(f.cy - f.r) * 100}%`,
-          width: `${f.r * 200}%`,
-          height: `${f.r * 200}%`,
+          left: offX + faceLeft * unit,
+          top: offY + faceTop * unit,
+          width: d * unit,
+          height: d * unit,
+          boxShadow: `0 0 0 ${ring}px #fff, 0 0 0 ${ring * 2}px rgba(0,0,0,0.55)`,
         }}
       />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/bodies/${body}.webp`} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
     </span>
   );
 }
