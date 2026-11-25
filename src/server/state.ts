@@ -162,7 +162,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       eligibleCount,
     };
     if (privileged) {
-      const locked = await db.select({ playerId: guesses.playerId }).from(guesses).where(eq(guesses.roundId, round.id));
+      // Ordered by lock-in time so the TV can show 1st, 2nd, 3rd…
+      const locked = await db
+        .select({ playerId: guesses.playerId })
+        .from(guesses)
+        .where(eq(guesses.roundId, round.id))
+        .orderBy(asc(guesses.submittedAt), asc(guesses.id));
       dto.lockedPlayerIds = locked.map((l) => l.playerId);
       dto.subjectPlayerId = round.subjectPlayerId;
     }

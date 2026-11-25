@@ -281,6 +281,11 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
         <span className="font-display text-accent-2">
           Q{round.number} of {round.total}
         </span>
+        {timeUp && !locked && (
+          <span role="status" className="shame-alert rounded-full border-2 border-white px-3 py-1 text-sm font-semibold text-white text-center">
+            🚨 Time&apos;s up! Late answers still count
+          </span>
+        )}
         <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={72} />
       </div>
       <h1 className="font-display text-2xl font-bold leading-snug">{round.questionText}</h1>
@@ -314,12 +319,6 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
         </div>
       ) : (
         <>
-          {timeUp && (
-            <div role="alert" className="shame-alert rounded-2xl border-4 border-white px-4 py-3 text-center text-white">
-              <p className="font-display text-2xl font-bold">🚨 Time&apos;s up! 🚨</p>
-              <p>You can still answer… but the whole family can see you&apos;re late.</p>
-            </div>
-          )}
           <button className="btn btn-primary text-xl" disabled={!selected || disabled} onClick={lock}>
             {submitting ? "Locking…" : selected ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}` : "Pick an answer"}
           </button>

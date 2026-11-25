@@ -11,7 +11,7 @@ import { MusicPlayer } from "@/lib/client/music";
 import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
 import { hashString } from "@/lib/prng";
-import { MUSIC, type MusicStyle } from "@/lib/settings";
+import type { MusicStyle } from "@/lib/settings";
 
 const W = 1920;
 const H = 1080;
@@ -90,13 +90,6 @@ function RosterGrid({ players, maxCols, size }: { players: { id: string; name: s
   );
 }
 
-const MUSIC_LABEL: Record<MusicStyle, string> = {
-  gameshow: "Game show",
-  suspense: "Suspense",
-  lounge: "Lounge",
-  off: "No music",
-};
-
 export default function DisplayPage() {
   return (
     <Suspense fallback={null}>
@@ -114,7 +107,6 @@ function Display() {
   const sfx = useRef<Sfx | null>(null);
   const music = useRef<MusicPlayer | null>(null);
   const [soundOn, setSoundOn] = useState(false);
-  const [musicChoice, setMusicChoice] = useState<MusicStyle | null>(null);
   const [isFull, setIsFull] = useState(false);
   const reduced = usePrefersReducedMotion();
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -177,7 +169,7 @@ function Display() {
   }, [state]);
 
   // Background music while people choose.
-  const style: MusicStyle = musicChoice ?? state?.music ?? "gameshow";
+  const style: MusicStyle = state?.music ?? "gameshow";
   const shouldPlay = soundOn && state?.phase === "QUESTION" && !state.round?.paused && style !== "off";
   useEffect(() => {
     const ctx = sfx.current?.context;
@@ -233,23 +225,6 @@ function Display() {
         >
           {soundOn ? "🔊 Sound on" : "🔇 Enable sound"}
         </button>
-        {soundOn && (
-          <label className="btn btn-ghost !min-h-[56px] !text-xl">
-            <span aria-hidden="true">🎵</span>
-            <select
-              className="bg-transparent outline-none"
-              value={style}
-              onChange={(e) => setMusicChoice(e.target.value as MusicStyle)}
-              aria-label="Music style"
-            >
-              {MUSIC.map((m) => (
-                <option key={m} value={m} className="text-black">
-                  {MUSIC_LABEL[m]}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         <button
           type="button"
           className="btn btn-ghost !min-h-[56px] !text-xl"
@@ -324,7 +299,7 @@ function TvHeader({ state, center, right }: { state: GameStateDTO; center?: Reac
         <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
       </div>
       <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[420px]">{right}</div>
+      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[520px]">{right}</div>
     </div>
   );
 }
@@ -345,11 +320,11 @@ function RejoinQr({ code }: { code: string }) {
   const url = useMemo(() => joinUrlFor(code), [code]);
   return (
     <div className="flex-none flex items-center gap-3">
-      <QrCode url={url} size={104} label={`QR code to rejoin game ${code}`} />
+      <QrCode url={url} size={76} label={`QR code to rejoin game ${code}`} />
       <div className="leading-tight text-muted">
-        <div className="text-xl">Lost your spot?</div>
-        <div className="text-xl">Scan to rejoin</div>
-        <div className="font-display text-2xl text-accent-2 tracking-wider">{code}</div>
+        <div className="text-lg">Lost your spot?</div>
+        <div className="text-lg">Scan to rejoin</div>
+        <div className="font-display text-xl text-accent-2 tracking-wider">{code}</div>
       </div>
     </div>
   );
@@ -640,6 +615,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
 
   const players = state.players ?? [];
   const locked = new Set(round.lockedPlayerIds ?? []);
+  const order = new Map((round.lockedPlayerIds ?? []).map((id, i) => [id, i]));
   const subject = players.find((p) => p.id === round.subjectPlayerId);
   // "Who submitted this answer?" rounds must not reveal who the subject is.
   const secret = round.type === "WHO_ANSWERED";
@@ -685,7 +661,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   return (
     <div className="h-full">
       <TvHeader state={state} right={`Question ${round.number} of ${round.total}`} />
-      <div className="absolute top-[110px] inset-x-14 bottom-[160px] flex flex-col gap-5">
+      <div className="absolute top-[110px] inset-x-14 bottom-[180px] flex flex-col gap-5">
         <div className="flex-1 flex items-center gap-10 min-h-0">
           {secret ? (
             <div
@@ -734,11 +710,21 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               <div key={p.id} className="flex flex-col items-center w-[96px]" title={p.name}>
                 <div className={`relative transition-all duration-300 ${isIn ? "pop-in" : overtime ? "shame-wobble" : "opacity-35 grayscale"}`}>
                   <Avatar name={p.name} piece={p.piece} size={size} />
-                  {isIn && (
-                    <span className="absolute -bottom-1 -right-1 grid place-items-center rounded-full w-8 h-8 bg-good text-black text-lg font-bold">
-                      🔒
-                    </span>
-                  )}
+                  {isIn &&
+                    (order.has(p.id) && !secret ? (
+                      <span
+                        className={`absolute -bottom-1 -right-2 rounded-full px-2 h-8 grid place-items-center font-display text-lg font-bold text-black shadow-lg ${
+                          ORDINAL_BG[order.get(p.id)!] ?? "bg-good"
+                        }`}
+                        aria-label={`Locked in ${ordinal(order.get(p.id)! + 1)}`}
+                      >
+                        {ordinal(order.get(p.id)! + 1)}
+                      </span>
+                    ) : (
+                      <span className="absolute -bottom-1 -right-1 grid place-items-center rounded-full w-8 h-8 bg-good text-black text-lg font-bold">
+                        🔒
+                      </span>
+                    ))}
                 </div>
                 <span className={`text-lg truncate max-w-full ${isIn ? "text-ink" : "text-muted"}`}>{p.name}</span>
               </div>
@@ -787,6 +773,13 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
       )}
     </div>
   );
+}
+
+const ORDINAL_BG: Record<number, string> = { 0: "bg-[#ffd54a]", 1: "bg-[#d9dee8]", 2: "bg-[#e0a066]" };
+
+function ordinal(n: number) {
+  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${n}${s}`;
 }
 
 // ---------- Reveal: who answered what, round winner/loser, stats ----------
@@ -889,7 +882,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
   return (
     <div className="h-full">
       <TvHeader state={state} right={`Question ${round.number} of ${round.total}`} />
-      <div className="absolute top-[115px] left-14 w-[1150px] bottom-[160px] flex flex-col gap-4 overflow-hidden">
+      <div className="absolute top-[115px] left-14 w-[1150px] bottom-[176px] flex flex-col gap-4 overflow-hidden px-2 pb-2">
         <p className="text-3xl text-muted leading-tight">{round.questionText}</p>
         <div className="panel-strong px-7 py-5 pop-in flex items-center gap-6">
           <Avatar name={reveal.subjectName} piece={reveal.subjectPiece} size={120} />
@@ -928,7 +921,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
           })}
         </div>
       </div>
-      <div className="absolute top-[115px] right-14 w-[620px] bottom-[160px] flex flex-col gap-4 overflow-hidden">
+      <div className="absolute top-[115px] right-14 w-[620px] bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="grid grid-cols-2 gap-3">
           <div className="panel p-4 flex flex-col items-center text-center gap-1">
             <span className="font-display text-2xl text-good">🏆 Round winner</span>
@@ -988,7 +981,7 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
   return (
     <div className="h-full">
       <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
-      <div className="absolute top-[120px] inset-x-14 bottom-[160px] flex flex-col gap-4 overflow-hidden">
+      <div className="absolute top-[120px] inset-x-14 bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col items-center gap-2">
           <h2 key={view} className="font-display text-7xl font-bold gold-text text-center pop-in">
             {showRound ? "This round" : "Leaderboard"}
@@ -1040,7 +1033,7 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
             return (
               <div
                 key={s.playerId}
-                className={`flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
+                className={`flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-inset ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
                 aria-label={`First place: ${s.name}, ${s.points} points`}
               >
                 {!duo && <span className="text-8xl w-[1.2em] text-center" aria-hidden="true">👑</span>}
@@ -1067,12 +1060,12 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
       )}
       <div className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
         {cols.map((col, ci) => (
-          <ol key={ci} className="flex flex-col gap-3">
+          <ol key={ci} className={`flex flex-col ${twoCols ? "gap-2" : "gap-3"}`}>
             {col.map((s) => (
               <li
                 key={s.playerId}
-                className={`flex items-center gap-4 rounded-2xl px-5 ${big ? "h-[98px] text-4xl" : "h-[80px] text-3xl"} ${
-                  s.rank === 1 ? "bg-accent/25 ring-2 ring-accent" : "bg-black/30"
+                className={`flex items-center gap-4 rounded-2xl px-5 ${big ? "h-[98px] text-4xl" : "h-[72px] text-3xl"} ${
+                  s.rank === 1 ? "bg-accent/25 ring-2 ring-inset ring-accent" : "bg-black/30"
                 } pop-in`}
               >
                 <span className="font-display font-bold w-[2.2ch] text-center text-accent-2">{s.rank}</span>
