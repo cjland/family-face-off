@@ -390,3 +390,19 @@ body {
   display: inline-block;
   animation: shame-wobble 0.6s ease-in-out infinite;
 }
+
+/* Leaderboard tab countdown: fills the active tab until the next page. Kept even with
+   reduced motion, since it's a slow, linear progress indicator rather than decoration. */
+@keyframes tab-timer {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.tab-timer {
+  width: 0%;
+  animation: tab-timer var(--tab-ms, 5000ms) linear forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-timer {
+    animation-duration: var(--tab-ms, 5000ms) !important;
+  }
+}

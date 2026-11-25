@@ -346,7 +346,9 @@ export async function performAction(
   return db.transaction(async (tx) => {
     const { game, now } = await lockGame(tx, gameId, "update");
     const round = await currentRound(tx, game);
-    if (expectedVersion !== undefined && expectedVersion !== game.version) {
+    // "end" is an explicit, confirmed host decision that means the same thing in any phase,
+    // so an auto-advance landing at the same moment must not turn it into a conflict.
+    if (expectedVersion !== undefined && expectedVersion !== game.version && action !== "end") {
       if (alreadyDone(action, game, round)) return { ok: true, noop: true, version: game.version, phase: game.phase };
       throw new ApiError("VERSION_CONFLICT", "The game changed. Refreshing…");
     }

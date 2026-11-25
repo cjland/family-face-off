@@ -72,6 +72,28 @@ export type StatsDTO = {
   awards: AwardDTO[];
   hardest: { questionText: string; answerText: string; pctCorrect: number } | null;
   roundsPlayed: number;
+  /** The (first) leader's game so far, round by round, for the TV's leader spotlight. */
+  leaderRun: LeaderRunDTO | null;
+};
+
+export type LeaderRunDTO = {
+  playerId: string;
+  name: string;
+  piece: string | null;
+  points: number;
+  tied: boolean;
+  correct: number;
+  eligible: number;
+  avgCorrectMs: number | null;
+  bestStreak: number;
+  history: {
+    number: number;
+    result: "right" | "wrong" | "missed" | "subject";
+    points: number;
+    elapsedMs: number | null;
+    rank: number;
+    total: number;
+  }[];
 };
 
 export type MeDTO = {

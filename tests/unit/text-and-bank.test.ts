@@ -30,8 +30,8 @@ describe("text handling", () => {
 });
 
 describe("prompt bank (src/data/questions.json)", () => {
-  it("loads 100 questions with the 4 common ones first", () => {
-    expect(PROMPT_BANK).toHaveLength(100);
+  it("loads 150 questions with the 4 common ones first", () => {
+    expect(PROMPT_BANK).toHaveLength(150);
     expect(PROMPT_BANK.slice(0, 4).map((p) => p.id)).toEqual(["q001", "q002", "q017", "q053"]);
     expect(PROMPT_BANK.filter((p) => p.common)).toHaveLength(4);
   });

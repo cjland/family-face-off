@@ -842,12 +842,13 @@ function StatCarousel({ state }: { state: GameStateDTO }) {
       <div className="flex-1 min-w-0 flex items-center gap-4">
         <p className="font-display text-3xl text-accent-2 whitespace-nowrap">{c.title}</p>
         {c.who && (
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-none min-w-0">
             {c.who.slice(0, 2).map((w) => (
               <span key={w.name} className="flex items-center gap-1 font-display text-3xl font-bold whitespace-nowrap">
                 <Avatar name={w.name} piece={w.piece} size={56} /> {w.name}
               </span>
             ))}
+            {c.who.length > 2 && <span className="font-display text-2xl text-muted whitespace-nowrap">+{c.who.length - 2} more</span>}
           </div>
         )}
         <p className="text-2xl text-muted truncate">{c.detail}</p>
@@ -968,26 +969,41 @@ function TvReveal({ state }: { state: GameStateDTO }) {
 
 // ---------- Full-screen leaderboard (between questions) ----------
 
-type BoardView = "overall" | "round" | "reaction";
+type BoardView = "overall" | "round" | "reaction" | "bets" | "leader";
 const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] = [
   { id: "overall", label: "Overall", title: "Leaderboard" },
   { id: "round", label: "This round", title: "This round" },
   { id: "reaction", label: "Reaction times", title: "Reaction times" },
+  { id: "bets", label: "Place your bets", title: "Place your bets! 🏇" },
+  { id: "leader", label: "Leader", title: "Leader watch" },
 ];
+
+const ROTATE_MS = 5000;
+const MANUAL_HOLD_MS = 20000;
 
 function TvLeaderboard({ state }: { state: GameStateDTO }) {
   const hasRound = Boolean(state.reveal && state.round);
   const [view, setView] = useState<BoardView>("overall");
+  const hasLeader = Boolean(state.stats?.leaderRun);
+  const views = BOARD_VIEWS.filter((v) => (v.id === "leader" ? hasLeader : true));
+  const viewKey = views.map((v) => v.id).join(",");
+  // Each "cycle" is one timed stretch: ROTATE_MS normally, MANUAL_HOLD_MS after someone picks a tab.
+  const [cycle, setCycle] = useState({ n: 0, ms: ROTATE_MS, held: false });
   useEffect(() => {
     if (!hasRound) return;
-    const id = setInterval(
-      () => setView((v) => BOARD_VIEWS[(BOARD_VIEWS.findIndex((x) => x.id === v) + 1) % BOARD_VIEWS.length].id),
-      5000,
-    );
-    return () => clearInterval(id);
-  }, [hasRound]);
+    const ids = viewKey.split(",") as BoardView[];
+    const id = setTimeout(() => {
+      if (!cycle.held) setView((v) => ids[(ids.indexOf(v) + 1) % ids.length]);
+      setCycle((c) => ({ n: c.n + 1, ms: ROTATE_MS, held: false }));
+    }, cycle.ms);
+    return () => clearTimeout(id);
+  }, [hasRound, viewKey, cycle]);
+  const pick = (v: BoardView) => {
+    setView(v);
+    setCycle((c) => ({ n: c.n + 1, ms: MANUAL_HOLD_MS, held: true }));
+  };
   const round = state.round;
-  const current = hasRound ? view : "overall";
+  const current: BoardView = hasRound && views.some((v) => v.id === view) ? view : "overall";
   return (
     <div className="h-full">
       <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
@@ -997,19 +1013,55 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
             {BOARD_VIEWS.find((v) => v.id === current)!.title}
           </h2>
           {hasRound && (
-            <div className="flex gap-3 text-2xl" aria-hidden="true">
-              {BOARD_VIEWS.map((v) => (
-                <span
-                  key={v.id}
-                  className={`rounded-full px-4 py-1 ${current === v.id ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted"}`}
-                >
-                  {v.label}
+            <div className="flex items-center gap-3 text-2xl" role="tablist" aria-label="Leaderboard pages">
+              {views.map((v) => {
+                const active = current === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={(e) => {
+                      pick(v.id);
+                      // Keep Enter/Space for the host's "next" shortcut, not this tab.
+                      e.currentTarget.blur();
+                    }}
+                    className={`relative overflow-hidden rounded-full px-5 py-1.5 transition-colors ${
+                      active ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted hover:bg-white/15 hover:text-ink"
+                    }`}
+                  >
+                    {v.label}
+                    {active && (
+                      <span
+                        key={cycle.n}
+                        aria-hidden="true"
+                        className={`tab-timer absolute left-0 bottom-0 h-2 ${cycle.held ? "bg-[#b3264f]" : "bg-black/55"}`}
+                        style={{ "--tab-ms": `${cycle.ms}ms` } as React.CSSProperties}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+              {cycle.held && (
+                <span className="text-xl text-muted" aria-live="polite">
+                  ⏸ Holding for {MANUAL_HOLD_MS / 1000}s
                 </span>
-              ))}
+              )}
             </div>
           )}
         </div>
-        {current === "round" ? <RoundBoard state={state} /> : current === "reaction" ? <ReactionBoard state={state} /> : <OverallBoard state={state} />}
+        {current === "round" ? (
+          <RoundBoard state={state} />
+        ) : current === "reaction" ? (
+          <ReactionBoard state={state} />
+        ) : current === "bets" ? (
+          <BetsBoard state={state} />
+        ) : current === "leader" ? (
+          <LeaderBoardPage state={state} />
+        ) : (
+          <OverallBoard state={state} />
+        )}
       </div>
       <TvFooter state={state}>
         <div className="flex-1 min-w-0">
@@ -1105,6 +1157,161 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * "Place your bets": a horse race where everyone's piece has run as far as their points.
+ * The leader sits near (not on) the finish line until the game is over; odds come from each
+ * player's share of the points, so it's for fun, not a prediction.
+ */
+function BetsBoard({ state }: { state: GameStateDTO }) {
+  const standings = state.standings ?? [];
+  const round = state.round;
+  const toGo = round ? Math.max(0, round.total - round.number) : 0;
+  const top = Math.max(1, standings[0]?.points ?? 0);
+  const weights = standings.map((s) => (s.points + 500) ** 2);
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  const laneH = Math.min(84, Math.floor(540 / Math.max(1, standings.length)));
+  const av = Math.max(36, Math.min(76, laneH - 4));
+  const compact = laneH < 64;
+  return (
+    <>
+      <p className="text-center text-3xl text-muted -mt-1">
+        {toGo > 0 ? `${toGo} question${toGo === 1 ? "" : "s"} to go. Who's your money on?` : "Down the final stretch!"}
+      </p>
+      <div className="relative mx-auto w-full max-w-[1760px] rounded-3xl overflow-hidden border-4 border-white/70 bg-[#2f7d3a] shadow-2xl">
+        {/* Finish line */}
+        <div
+          className="absolute top-0 bottom-0 right-[190px] w-6 z-10"
+          style={{ background: "repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / 12px 12px" }}
+          aria-hidden="true"
+        />
+        <ol aria-label="Horse race standings">
+          {standings.map((s, i) => {
+            const pct = s.points <= 0 ? 0 : (s.points / top) * 0.86;
+            const share = weights[i] / sum;
+            const fav = i === 0 && s.points > 0 && (standings[1]?.points ?? -1) < s.points;
+            const odds = Math.max(1, Math.round((1 - share) / share));
+            const oddsText = fav ? "Favorite" : odds >= 50 ? "Long shot" : `${odds}–1`;
+            return (
+              <li
+                key={s.playerId}
+                className={`relative flex items-center border-b-2 border-dashed border-white/40 last:border-b-0 ${i % 2 ? "bg-[#2a7334]" : ""}`}
+                style={{ height: laneH }}
+              >
+                <span className="w-[300px] flex-none flex items-center gap-3 pl-4 pr-2 bg-black/35 h-full">
+                  <span className="font-display text-3xl text-accent-2 w-[1.6ch] text-right">{s.rank}</span>
+                  <span className={`truncate font-display font-semibold ${laneH < 56 ? "text-2xl" : "text-3xl"}`}>{s.name}</span>
+                </span>
+                <span className="relative flex-1 h-full">
+                  <span
+                    className="absolute top-1/2 transition-[left] duration-[1400ms] ease-out"
+                    style={{ left: `calc(${pct * 100}% - ${pct * av}px)`, transform: "translateY(-50%) scaleX(-1)" }}
+                  >
+                    <Avatar name={s.name} piece={s.piece} size={av} />
+                  </span>
+                </span>
+                <span className={`w-[190px] flex-none tabular-nums ${compact ? "flex items-baseline justify-center gap-2" : "text-center"}`}>
+                  <span className={`font-display font-bold leading-none ${compact ? "text-2xl" : "block text-3xl"}`}>{oddsText}</span>
+                  <span className={`text-white/80 ${compact ? "text-lg" : "block text-xl"}`}>{compact ? s.points.toLocaleString() : `${s.points.toLocaleString()} pts`}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <p className="text-center text-xl text-muted">Odds are just for fun. Bragging rights only!</p>
+    </>
+  );
+}
+
+const RESULT_STYLE = {
+  right: { mark: "✓", cls: "bg-good/30 border-good text-good", label: "right" },
+  wrong: { mark: "✗", cls: "bg-bad/20 border-bad text-bad", label: "wrong" },
+  missed: { mark: "–", cls: "bg-black/30 border-white/20 text-muted", label: "no answer" },
+  subject: { mark: "★", cls: "bg-accent/20 border-accent text-accent-2", label: "question about them" },
+} as const;
+
+/** The last page: everything about the current leader, round by round. */
+function LeaderBoardPage({ state }: { state: GameStateDTO }) {
+  const run = state.stats!.leaderRun!;
+  const accuracy = run.eligible ? Math.round((run.correct / run.eligible) * 100) : 0;
+  const recent = run.history.slice(-12);
+  const maxRank = Math.max(2, ...run.history.map((h) => h.rank));
+  const W = 1040;
+  const Hh = 190;
+  const n = run.history.length;
+  const x = (i: number) => (n <= 1 ? W / 2 : 30 + (i * (W - 60)) / (n - 1));
+  const y = (rank: number) => 24 + ((rank - 1) * (Hh - 48)) / (maxRank - 1);
+  const path = run.history.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.rank).toFixed(1)}`).join(" ");
+  return (
+    <div className="flex gap-8 flex-1 min-h-0 max-w-[1760px] w-full mx-auto">
+      <div className="panel-strong w-[560px] flex-none flex flex-col items-center justify-center gap-3 px-6 py-4 ring-4 ring-inset ring-accent">
+        <span className="text-6xl" aria-hidden="true">👑</span>
+        <Avatar name={run.name} piece={run.piece} size={230} />
+        <span className="font-display text-6xl font-bold text-center leading-tight">{run.name}</span>
+        <span className="text-3xl text-muted">{run.tied ? "Tied for 1st" : "In 1st place"}</span>
+        <span className="font-display text-7xl font-bold gold-text tabular-nums">{run.points.toLocaleString()}</span>
+        <div className="grid grid-cols-3 gap-3 w-full text-center">
+          <div className="rounded-2xl bg-black/30 py-2">
+            <div className="font-display text-4xl font-bold">{accuracy}%</div>
+            <div className="text-lg text-muted">
+              {run.correct} of {run.eligible} right
+            </div>
+          </div>
+          <div className="rounded-2xl bg-black/30 py-2">
+            <div className="font-display text-4xl font-bold">🔥 {run.bestStreak}</div>
+            <div className="text-lg text-muted">best streak</div>
+          </div>
+          <div className="rounded-2xl bg-black/30 py-2">
+            <div className="font-display text-4xl font-bold">{run.avgCorrectMs === null ? "–" : `${(run.avgCorrectMs / 1000).toFixed(1)}s`}</div>
+            <div className="text-lg text-muted">avg right answer</div>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col gap-4">
+        <div className="panel p-4">
+          <h3 className="font-display text-3xl mb-1">Where they stood after each question</h3>
+          <svg viewBox={`0 0 ${W} ${Hh}`} className="w-full" style={{ height: Hh }} role="img" aria-label={`Rank after each question: ${run.history.map((h) => h.rank).join(", ")}`}>
+            {Array.from({ length: maxRank }, (_, r) => (
+              <g key={r}>
+                <line x1={20} x2={W - 10} y1={y(r + 1)} y2={y(r + 1)} stroke="rgba(255,255,255,0.12)" strokeWidth={2} />
+                {(r === 0 || r === maxRank - 1) && (
+                  <text x={0} y={y(r + 1) + 7} fill="rgba(255,255,255,0.6)" fontSize={22}>
+                    {r + 1}
+                  </text>
+                )}
+              </g>
+            ))}
+            <path d={path} fill="none" stroke="#f5c542" strokeWidth={6} strokeLinejoin="round" strokeLinecap="round" />
+            {run.history.map((h, i) => (
+              <circle key={i} cx={x(i)} cy={y(h.rank)} r={h.rank === 1 ? 11 : 8} fill={h.rank === 1 ? "#f5c542" : "#fff"} />
+            ))}
+          </svg>
+        </div>
+        <div className="panel p-4 flex-1 min-h-0">
+          <h3 className="font-display text-3xl mb-3">
+            Round by round{run.history.length > recent.length ? ` (last ${recent.length})` : ""}
+          </h3>
+          <ol className="grid grid-cols-6 gap-3">
+            {recent.map((h) => {
+              const st = RESULT_STYLE[h.result];
+              return (
+                <li key={h.number} className={`rounded-2xl border-2 ${st.cls} px-3 py-2 text-center`} aria-label={`Question ${h.number}: ${st.label}`}>
+                  <div className="text-lg text-muted">Q{h.number}</div>
+                  <div className="font-display text-4xl font-bold leading-none my-1">{st.mark}</div>
+                  <div className="text-xl text-ink tabular-nums">
+                    {h.result === "subject" ? "About them" : h.points > 0 ? `+${h.points.toLocaleString()}` : "+0"}
+                  </div>
+                  <div className="text-lg text-muted tabular-nums">{h.elapsedMs === null ? "\u00a0" : `${(h.elapsedMs / 1000).toFixed(1)}s`}</div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
+    </div>
   );
 }
 
