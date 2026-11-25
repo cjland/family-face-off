@@ -324,7 +324,7 @@ function TvHeader({ state, center, right }: { state: GameStateDTO; center?: Reac
         <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
       </div>
       <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[300px]">{right}</div>
+      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[420px]">{right}</div>
     </div>
   );
 }
@@ -333,8 +333,24 @@ function TvHeader({ state, center, right }: { state: GameStateDTO; center?: Reac
 function TvFooter({ state, children }: { state: GameStateDTO; children?: React.ReactNode }) {
   return (
     <div className="absolute inset-x-14 bottom-12 h-[96px] flex items-center gap-6">
+      {state.phase !== "LOBBY" && state.phase !== "FINISHED" && <RejoinQr code={state.code} />}
       <div className="flex-1 min-w-0 flex items-center gap-6">{children}</div>
       <NextArrow state={state} />
+    </div>
+  );
+}
+
+/** Small corner QR so anyone who closed their browser can scan back in (their phone remembers them). */
+function RejoinQr({ code }: { code: string }) {
+  const url = useMemo(() => joinUrlFor(code), [code]);
+  return (
+    <div className="flex-none flex items-center gap-3">
+      <QrCode url={url} size={104} label={`QR code to rejoin game ${code}`} />
+      <div className="leading-tight text-muted">
+        <div className="text-xl">Lost your spot?</div>
+        <div className="text-xl">Scan to rejoin</div>
+        <div className="font-display text-2xl text-accent-2 tracking-wider">{code}</div>
+      </div>
     </div>
   );
 }

@@ -42,7 +42,7 @@ export default function JoinPage() {
             const i = await api<Info>(`/api/games/${code}/info`);
             if (!alive) return;
             setInfo(i);
-            if (!i.open) setFatal("This game has already started, so new players can't join. Ask the host to start a new one!");
+            if (!i.open) setFatal("This game has already started, so new players can't join. Already playing? Open this on the same phone and browser you joined with and you'll jump straight back in.");
           } catch (e) {
             if (alive) setFatal(e instanceof Error ? e.message : "Couldn't find that game.");
           }
