@@ -333,6 +333,7 @@ function TvFooter({ state, children }: { state: GameStateDTO; children?: React.R
 }
 
 const NEXT_LABEL: Partial<Record<GameStateDTO["phase"], string>> = {
+  LOBBY: "Start game",
   PREPARING: "Start",
   QUESTION: "Reveal",
   REVEAL: "Leaderboard",
@@ -347,9 +348,14 @@ function NextArrow({ state }: { state: GameStateDTO }) {
   let label = NEXT_LABEL[state.phase];
   if (state.phase === "LEADERBOARD" && round && round.number >= round.total) label = "Final results";
   const action = state.phase === "QUESTION" ? "reveal" : state.phase === "PREPARING" ? "open" : "next";
-  const enabled = state.canControl && Boolean(label);
+  const enabled = state.canControl && Boolean(label) && (state.phase !== "LOBBY" || state.counts.ready >= 3);
+  const [startOpen, setStartOpen] = useState(false);
   const go = useCallback(() => {
     if (!enabled || busy) return;
+    if (state.phase === "LOBBY") {
+      setStartOpen(true);
+      return;
+    }
     setBusy(true);
     setErr(null);
     api(`/api/games/${state.code}/action`, { method: "POST", body: { action, expectedVersion: state.version } })
@@ -357,9 +363,9 @@ function NextArrow({ state }: { state: GameStateDTO }) {
         if (!(e instanceof ApiClientError && e.code === "VERSION_CONFLICT")) setErr(e instanceof Error ? e.message : "Couldn't advance");
       })
       .finally(() => setTimeout(() => setBusy(false), 600));
-  }, [enabled, busy, state.code, state.version, action]);
+  }, [enabled, busy, state.code, state.version, state.phase, action]);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || startOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
       if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) {
@@ -369,10 +375,11 @@ function NextArrow({ state }: { state: GameStateDTO }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [enabled, go]);
+  }, [enabled, go, startOpen]);
   if (!enabled) return null;
   return (
     <div className="flex items-center gap-3">
+      {startOpen && <TvStartDialog state={state} onClose={() => setStartOpen(false)} />}
       {err && <span className="text-xl text-bad max-w-[360px] truncate">{err}</span>}
       <button
         type="button"
@@ -441,9 +448,110 @@ function TvLobby({ state }: { state: GameStateDTO }) {
           ))}
           {players.length === 0 && <li className="w-full text-3xl text-muted py-10">Waiting for the first player…</li>}
         </ul>
-        <div className="panel-strong px-8 py-5 text-center font-display text-4xl">
-          {state.counts.ready >= 3 ? "Waiting for the host to start the game" : "Pick a game piece and answer 8 quick questions on your phone"}
+        <div className="flex items-center gap-6">
+          <div className="flex-1 panel-strong px-8 py-5 text-center font-display text-4xl">
+            {state.counts.ready >= 3
+              ? state.canControl
+                ? "Everyone ready? Press Start game!"
+                : "Waiting for the host to start the game"
+              : "Pick a game piece and answer 8 quick questions on your phone"}
+          </div>
+          <NextArrow state={state} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+type Preview = { readyPlayers: number; totalPlayers: number; maxPerPlayer: number; suggestedPerPlayer: number; questionSeconds: number };
+
+/** Host-only start dialog on the TV: choose questions per person, lock the roster, start. */
+function TvStartDialog({ state, onClose }: { state: GameStateDTO; onClose: () => void }) {
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [per, setPer] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    api<Preview>(`/api/games/${state.code}/preview`)
+      .then((p) => {
+        setPreview(p);
+        setPer(p.suggestedPerPlayer);
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : "Couldn't load"));
+  }, [state.code]);
+  const unready = state.counts.players - state.counts.ready;
+  const start = useCallback(async () => {
+    if (busy || !preview?.maxPerPlayer) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await api(`/api/games/${state.code}/start`, { method: "POST", body: { excludeUnready: unready > 0, perPlayer: per } });
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't start");
+      setBusy(false);
+    }
+  }, [busy, preview, state.code, unready, per, onClose]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (!preview) return;
+      if (e.key === "ArrowRight" || e.key === "ArrowUp") setPer((v) => Math.min(preview.maxPerPlayer, v + 1));
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown") setPer((v) => Math.max(1, v - 1));
+      if (e.key === "Enter") void start();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [preview, start, onClose]);
+  // "fixed" here is relative to the scaled TV canvas (it has a CSS transform), so this covers the canvas.
+  return (
+    <div className="fixed inset-0 z-40 bg-black/75 grid place-items-center" role="dialog" aria-labelledby="tv-start-title">
+      <div
+        className="rounded-[2rem] border-2 border-accent p-12 flex flex-col items-center gap-8 text-center pop-in w-[1300px] shadow-2xl"
+        style={{ background: "linear-gradient(160deg, var(--bg-1), var(--bg-2))" }}
+      >
+        {!preview ? (
+          <p className="text-4xl">{err ?? "Getting ready…"}</p>
+        ) : (
+          <>
+            <h2 id="tv-start-title" className="font-display text-6xl font-bold">
+              {preview.readyPlayers} players ready. How many questions about each person?
+            </h2>
+            {unready > 0 && (
+              <p className="text-3xl text-accent-2">
+                {unready} {unready === 1 ? "person is" : "people are"} still answering and will watch instead.
+              </p>
+            )}
+            <div className="flex gap-4 flex-wrap justify-center" role="radiogroup" aria-label="Questions per person">
+              {Array.from({ length: preview.maxPerPlayer }, (_, i) => i + 1).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={per === k}
+                  onClick={() => setPer(k)}
+                  className={`btn ${per === k ? "btn-primary" : "btn-ghost"} !min-h-[100px] !min-w-[110px] !text-6xl`}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+            <p className="text-4xl">
+              {per} × {preview.readyPlayers} people = <strong>{per * preview.readyPlayers} questions</strong>, about{" "}
+              {Math.max(1, Math.round((per * preview.readyPlayers * (preview.questionSeconds + 12)) / 60))} minutes
+            </p>
+            {err && <p className="text-3xl text-bad">{err}</p>}
+            <div className="flex gap-5">
+              <button type="button" className="btn btn-primary !min-h-[90px] !px-12 !text-5xl" disabled={busy} onClick={() => void start()}>
+                Lock roster &amp; start ➜
+              </button>
+              <button type="button" className="btn btn-ghost !min-h-[90px] !px-10 !text-4xl" onClick={onClose}>
+                Cancel
+              </button>
+            </div>
+            <p className="text-2xl text-muted">← → to choose · Enter to start · Esc to cancel</p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -557,8 +665,30 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
                 “{round.clue}” <span className="text-3xl text-muted font-sans align-middle">for “{round.promptText}”</span>
               </p>
             )}
-            <div className="h-[84px] mt-4 flex items-center">
-              {taunt && (
+            <div className="h-[96px] mt-3 flex items-center">
+              {shameLine ? (
+                <div className="shame-alert rounded-2xl border-4 border-white pl-5 pr-7 py-2 flex items-center gap-4 max-w-full shadow-2xl">
+                  <span className="font-display text-4xl font-bold text-white whitespace-nowrap">🚨 SHAME ALERT</span>
+                  <span className="flex -space-x-3">
+                    {shameTargets.slice(0, 4).map((p) => (
+                      <span key={p.id} className="shame-wobble">
+                        <Avatar name={p.name} piece={p.piece} size={64} />
+                      </span>
+                    ))}
+                  </span>
+                  <span className="min-w-0">
+                    <span key={shameLine} className="block font-display text-3xl font-bold text-white truncate pop-in">
+                      {shameLine}
+                    </span>
+                    <span className="block text-xl text-white/90 truncate">
+                      Time ran out {overtimeSecs}s ago. You can still answer…
+                      {state.settings.autoReveal && overtimeSecs < state.settings.overtimeSeconds
+                        ? ` Revealing in ${state.settings.overtimeSeconds - overtimeSecs}s.`
+                        : ""}
+                    </span>
+                  </span>
+                </div>
+              ) : taunt && (
                 <div key={taunt} className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block">
                   <span className="font-display text-5xl font-bold text-accent-2 whitespace-nowrap">{taunt}</span>
                 </div>
@@ -602,25 +732,6 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
           </span>
         )}
       </TvFooter>
-      {shameLine && (
-        <div className="absolute inset-x-0 top-[250px] z-30 flex justify-center pointer-events-none">
-          <div className="shame-alert rounded-[2rem] border-[6px] border-white px-14 py-8 text-center shadow-2xl max-w-[1600px]">
-            <p className="font-display text-8xl font-bold tracking-wide text-white">🚨 SHAME ALERT 🚨</p>
-            <div className="flex items-center justify-center gap-5 my-4">
-              {shameTargets.slice(0, 6).map((p) => (
-                <span key={p.id} className="shame-wobble">
-                  <Avatar name={p.name} piece={p.piece} size={shameTargets.length > 3 ? 96 : 130} />
-                </span>
-              ))}
-            </div>
-            <p key={shameLine} className="font-display text-6xl font-bold text-white pop-in">{shameLine}</p>
-            <p className="text-3xl text-white/90 mt-3">
-              Time ran out {overtimeSecs}s ago. You can still answer… we&apos;re all watching.
-              {state.settings.autoReveal && overtimeSecs < 15 ? ` Revealing in ${15 - overtimeSecs}s.` : ""}
-            </p>
-          </div>
-        </div>
-      )}
       {round.paused && (
         <div className="absolute inset-0 bg-black/60 grid place-items-center z-30">
           <span className="font-display text-9xl font-bold">Paused</span>

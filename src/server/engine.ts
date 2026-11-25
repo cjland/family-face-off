@@ -24,8 +24,7 @@ export const ACTIONS = ["prepare", "open", "next", "reveal", "pause", "resume", 
 export type GameAction = (typeof ACTIONS)[number];
 
 const RESERVE_ROUNDS = 6;
-/** In auto-reveal mode, how long to wait for late answers after the timer runs out. */
-export const OVERTIME_MS = 15_000;
+
 
 type Locked = { game: Game; now: Date };
 
@@ -488,7 +487,7 @@ export async function tick(db: DB, ctx: TickContext): Promise<boolean> {
 
   if (game.phase === "QUESTION" && round && round.status === "OPEN" && !round.pausedAt && settings.autoReveal) {
     // Auto reveal: when everyone has answered, or once the overtime grace period is over.
-    const expired = round.deadlineAt !== null && now.getTime() >= round.deadlineAt.getTime() + OVERTIME_MS;
+    const expired = round.deadlineAt !== null && now.getTime() >= round.deadlineAt.getTime() + settings.overtimeSeconds * 1000;
     let allIn = ctx.eligibleCount > 0 && ctx.answeredCount >= ctx.eligibleCount;
     if (!allIn && changed) allIn = (await countAnswered(db, round)) >= ctx.eligibleCount;
     if (expired || allIn) {
@@ -547,7 +546,7 @@ async function runBots(db: DB, game: Game, round: Round, now: Date): Promise<boo
     // About 1 in 4 bots dawdles past the timer (2-9s late) so the SHAME ALERT can be seen.
     const slowpoke = (h >>> 12) % 4 === 0;
     const delay = slowpoke
-      ? round.durationMs + 2000 + (h % 7000)
+      ? round.durationMs + 1000 + (h % 3500)
       : 1500 + (h % Math.max(1, Math.floor(round.durationMs * 0.6)));
     if (elapsed < delay) continue;
     const wrong = round.options.filter((o) => o.id !== round.correctOptionId);

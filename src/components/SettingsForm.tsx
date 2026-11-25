@@ -4,7 +4,7 @@ import type { GameSettings, MusicStyle } from "@/lib/settings";
 
 export type SettingsDraft = Pick<
   GameSettings,
-  "theme" | "roundCount" | "questionSeconds" | "speedBonus" | "autoReveal" | "autoNext" | "aiDistractors" | "music" | "taunts"
+  "theme" | "roundCount" | "questionSeconds" | "speedBonus" | "autoReveal" | "overtimeSeconds" | "autoNext" | "aiDistractors" | "music" | "taunts"
 >;
 
 export const DEFAULT_DRAFT: SettingsDraft = {
@@ -13,6 +13,7 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   questionSeconds: 20,
   speedBonus: 0,
   autoReveal: false,
+  overtimeSeconds: 5,
   autoNext: false,
   aiDistractors: false,
   music: "gameshow",
@@ -124,7 +125,30 @@ export function SettingsForm({
           checked={value.taunts}
           onChange={(v) => set("taunts", v)}
         />
-        <Toggle id="autoReveal" label="Auto reveal" hint="Reveal when everyone has answered or time runs out." checked={value.autoReveal} onChange={(v) => set("autoReveal", v)} />
+        <Toggle
+          id="autoReveal"
+          label="Auto reveal"
+          hint="Reveal as soon as everyone has answered, or a few seconds after time runs out (late answers still count)."
+          checked={value.autoReveal}
+          onChange={(v) => set("autoReveal", v)}
+        />
+        {value.autoReveal && (
+          <div className="flex items-center gap-2 flex-wrap pl-9" role="radiogroup" aria-label="Wait after time runs out">
+            <span className="text-sm text-muted">After time runs out, wait</span>
+            {[2, 5, 10, 15].map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={value.overtimeSeconds === n}
+                className={`btn ${value.overtimeSeconds === n ? "btn-primary" : "btn-ghost"} !min-h-[40px] !px-4 !text-sm`}
+                onClick={() => set("overtimeSeconds", n)}
+              >
+                +{n}s
+              </button>
+            ))}
+          </div>
+        )}
         <Toggle id="autoNext" label="Auto next question" hint="Move on 8 seconds after each reveal." checked={value.autoNext} onChange={(v) => set("autoNext", v)} />
         {aiAvailable && (
           <Toggle

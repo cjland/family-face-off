@@ -114,6 +114,7 @@ export type GameStateDTO = {
     questionSeconds: number;
     speedBonus: number;
     autoReveal: boolean;
+    overtimeSeconds: number;
     autoNext: boolean;
     revealSeconds: number;
     roundCount: number;

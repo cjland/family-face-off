@@ -372,6 +372,9 @@ body {
   }
 }
 .shame-alert {
+  /* Solid red even when animations are turned off (reduced motion). */
+  background-color: #c4162f;
+  box-shadow: 0 0 60px rgba(255, 40, 70, 0.8);
   animation: shame-flash 0.9s ease-in-out infinite;
 }
 @keyframes shame-wobble {

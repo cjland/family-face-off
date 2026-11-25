@@ -288,16 +288,16 @@ describe("game loop", () => {
     await expectApiError(submitGuess(db, game.id, other.player, r.id, r.correctOptionId), "WRONG_PHASE");
   });
 
-  it("auto reveal waits a grace period for late answers once time runs out", async () => {
-    const { game, ps } = await setupGame(3, { autoReveal: true });
+  it("auto reveal waits the chosen grace period (+2s here) for late answers once time runs out", async () => {
+    const { game, ps } = await setupGame(3, { autoReveal: true, overtimeSeconds: 2 });
     await startGame(db, game.id, { excludeUnready: false });
     await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
     const { r } = await current(game.code);
     const guesser = ps.find((p) => p.player.id !== r.subjectPlayerId)!;
     await submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId);
-    await db.update(rounds).set({ deadlineAt: sql`now() - interval '5 seconds'` }).where(eq(rounds.id, r.id));
+    await db.update(rounds).set({ deadlineAt: sql`now() - interval '1 second'` }).where(eq(rounds.id, r.id));
     expect((await getGameState(db, game.code, auth("display"))).phase).toBe("QUESTION");
-    await db.update(rounds).set({ deadlineAt: sql`now() - interval '16 seconds'` }).where(eq(rounds.id, r.id));
+    await db.update(rounds).set({ deadlineAt: sql`now() - interval '3 seconds'` }).where(eq(rounds.id, r.id));
     expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL");
   });
 

@@ -205,6 +205,7 @@ function LobbyControls({
     questionSeconds: state.settings.questionSeconds,
     speedBonus: state.settings.speedBonus,
     autoReveal: state.settings.autoReveal,
+    overtimeSeconds: state.settings.overtimeSeconds,
     autoNext: state.settings.autoNext,
     aiDistractors: state.host?.aiDistractors ?? false,
     music: state.music,
@@ -461,7 +462,7 @@ function RoundControls({
           <EndButton busy={busy} onEnd={() => action("end")} />
         </div>
         <p className="text-sm text-muted">
-          {state.settings.autoReveal ? "Auto reveal is on. " : ""}
+          {state.settings.autoReveal ? `Auto reveal is on (+${state.settings.overtimeSeconds}s after time runs out). ` : ""}
           {state.settings.autoNext ? `Auto next after ${state.settings.revealSeconds}s. ` : ""}
           The correct answer stays hidden here until the reveal, so you can play along on your phone too.
         </p>

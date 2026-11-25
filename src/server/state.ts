@@ -109,6 +109,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       questionSeconds: settings.questionSeconds,
       speedBonus: settings.speedBonus,
       autoReveal: settings.autoReveal,
+      overtimeSeconds: settings.overtimeSeconds,
       autoNext: settings.autoNext,
       revealSeconds: settings.revealSeconds,
       roundCount: settings.roundCount,
