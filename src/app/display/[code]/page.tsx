@@ -1250,10 +1250,10 @@ const RESULT_STYLE = {
 function LeaderBoardPage({ state }: { state: GameStateDTO }) {
   const run = state.stats!.leaderRun!;
   const accuracy = run.eligible ? Math.round((run.correct / run.eligible) * 100) : 0;
-  const recent = run.history.slice(-12);
+  const recent = run.history.slice(-18);
   const maxRank = Math.max(2, ...run.history.map((h) => h.rank));
   const W = 1040;
-  const Hh = 190;
+  const Hh = 150;
   const n = run.history.length;
   const x = (i: number) => (n <= 1 ? W / 2 : 30 + (i * (W - 60)) / (n - 1));
   const y = (rank: number) => 24 + ((rank - 1) * (Hh - 48)) / (maxRank - 1);
@@ -1261,8 +1261,8 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
   return (
     <div className="flex gap-8 flex-1 min-h-0 max-w-[1760px] w-full mx-auto">
       <div className="panel-strong w-[560px] flex-none flex flex-col items-center justify-center gap-3 px-6 py-4 ring-4 ring-inset ring-accent">
-        <span className="text-6xl" aria-hidden="true">👑</span>
-        <Avatar name={run.name} piece={run.piece} size={230} />
+        <span className="text-5xl leading-none" aria-hidden="true">👑</span>
+        <Avatar name={run.name} piece={run.piece} size={200} />
         <span className="font-display text-6xl font-bold text-center leading-tight">{run.name}</span>
         <span className="text-3xl text-muted">{run.tied ? "Tied for 1st" : "In 1st place"}</span>
         <span className="font-display text-7xl font-bold gold-text tabular-nums">{run.points.toLocaleString()}</span>
@@ -1285,7 +1285,7 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
       </div>
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="panel p-4">
-          <h3 className="font-display text-3xl mb-1">Where they stood after each question</h3>
+          <h3 className="font-display text-3xl">Where they stood after each question</h3>
           <svg viewBox={`0 0 ${W} ${Hh}`} className="w-full" style={{ height: Hh }} role="img" aria-label={`Rank after each question: ${run.history.map((h) => h.rank).join(", ")}`}>
             {Array.from({ length: maxRank }, (_, r) => (
               <g key={r}>
@@ -1303,7 +1303,7 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
             ))}
           </svg>
         </div>
-        <div className="panel p-4 flex-1 min-h-0">
+        <div className="panel p-4 flex-1 min-h-0 overflow-hidden">
           <h3 className="font-display text-3xl mb-3">
             Round by round{run.history.length > recent.length ? ` (last ${recent.length})` : ""}
           </h3>
@@ -1311,13 +1311,17 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
             {recent.map((h) => {
               const st = RESULT_STYLE[h.result];
               return (
-                <li key={h.number} className={`rounded-2xl border-2 ${st.cls} px-3 py-2 text-center`} aria-label={`Question ${h.number}: ${st.label}`}>
-                  <div className="text-lg text-muted">Q{h.number}</div>
-                  <div className="font-display text-4xl font-bold leading-none my-1">{st.mark}</div>
-                  <div className="text-xl text-ink tabular-nums">
-                    {h.result === "subject" ? "About them" : h.points > 0 ? `+${h.points.toLocaleString()}` : "+0"}
+                <li key={h.number} className={`rounded-2xl border-2 ${st.cls} px-3 py-2`} aria-label={`Question ${h.number}: ${st.label}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl text-muted">Q{h.number}</span>
+                    <span className="font-display text-4xl font-bold leading-none">{st.mark}</span>
                   </div>
-                  <div className="text-lg text-muted tabular-nums">{h.elapsedMs === null ? "\u00a0" : `${(h.elapsedMs / 1000).toFixed(1)}s`}</div>
+                  <div className="flex items-baseline justify-between gap-2 mt-1 whitespace-nowrap">
+                    <span className="text-xl text-ink tabular-nums">
+                      {h.result === "subject" ? "About them" : h.points > 0 ? `+${h.points.toLocaleString()}` : "+0"}
+                    </span>
+                    {h.elapsedMs !== null && <span className="text-lg text-muted tabular-nums">{(h.elapsedMs / 1000).toFixed(1)}s</span>}
+                  </div>
                 </li>
               );
             })}
