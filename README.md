@@ -1,68 +1,291 @@
 # Family Face-Off
 
-A party quiz about the people in the room, for 3–50 players (best with 5–25). Everyone scans a QR code on their phone, answers eight quick questions about themselves, then plays a synchronized multiple-choice quiz about each other. The TV shows the questions, countdown, reveals and leaderboard. The host runs everything from a separate screen.
+**The party quiz about the people in the room.** Everyone answers eight quick questions about themselves on their phone, then the whole family plays a game-show quiz about each other on the TV: *"How did Grandma June answer: Which dessert would you choose?"*
 
-No player accounts, emails or app installs. AI is optional and off by default.
+<p align="center"><img src="docs/images/hero.webp" alt="The TV showing a question with four colored answers, and two phones answering it" width="900"></p>
 
-- **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Neon PostgreSQL · Drizzle ORM · Zod · Vitest · Playwright
-- **Hosting:** Vercel (Node.js runtime) + Neon
-- **Spec:** [`CLAUDE.md`](./CLAUDE.md) · **Implementation checklist:** [`docs/CHECKLIST.md`](./docs/CHECKLIST.md)
+- **For 3 to 50 players** (best with 5–25), ages "can read" and up.
+- **Nothing to install.** Players scan a QR code on the TV. No accounts, no emails, no app.
+- **You need:** a TV or big screen (a laptop plugged into the TV works), everyone's phones, and a second screen for the host (your phone or laptop).
+- **150 built-in questions**, each with six tap-to-answer choices (four normal, two silly), or players type their own answer.
+- **Fun extras:** 40 game pieces or your own face on a costume, a 5-4-3-2-1 countdown, lock-in order, taunts and a 🚨 SHAME ALERT for slowpokes, ten rotating leaderboard pages, awards, a podium and confetti. There's a classic game-show look and a Thanksgiving theme.
+
+**Contents:** [How a game works](#how-a-game-works) · [Running game night](#running-game-night) · [Settings](#game-settings) · [Troubleshooting](#troubleshooting) · [Setting it up (Neon + Vercel)](#setting-it-up-on-neon--vercel) · [Local development](#local-development) · [For developers](#for-developers)
 
 ---
 
 ## How a game works
 
-| Screen | URL | Who uses it |
+### 1. The host creates a game
+
+Sign in at `/host` with your host password, pick your family, and press **Create game**. Then press **Open TV display** and put that tab on the TV. Keep the host screen on your own phone or laptop.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/host-dashboard.webp" alt="Host dashboard with the new game form"></td>
+<td width="50%"><img src="docs/images/host-lobby.webp" alt="Host lobby with the QR code and the list of players"></td>
+</tr>
+<tr>
+<td><b>Host dashboard:</b> family, title, theme, timer, music and automation, plus your recent games.</td>
+<td><b>Host lobby:</b> the join QR code, who's ready, and buttons to remove players or add demo players.</td>
+</tr>
+</table>
+
+### 2. Everyone joins on their phone
+
+The TV shows **Scan to join** with a QR code and a six-letter game code. Each player picks a name and a game piece (or **📷 Use my own photo**), then answers eight questions about themselves. Four questions are the same for everyone and four are random. Any question can be swapped for a different one, no questions asked.
+
+<p align="center"><img src="docs/images/tv-lobby.webp" alt="TV lobby with the QR code and ten players marked ready" width="820"></p>
+
+<table>
+<tr>
+<td><img src="docs/images/phone-join.webp" alt="Phone: name and game piece picker"></td>
+<td><img src="docs/images/phone-questionnaire.webp" alt="Phone: a question with six answer choices"></td>
+<td><img src="docs/images/phone-review.webp" alt="Phone: review answers with I'm ready at the top"></td>
+<td><img src="docs/images/phone-ready.webp" alt="Phone: You're ready"></td>
+</tr>
+<tr>
+<td>Name and game piece</td>
+<td>Tap an answer, or "Something else…"</td>
+<td>Check your answers, then <b>I'm ready!</b></td>
+<td>Waiting for the host</td>
+</tr>
+</table>
+
+Answers stay secret until they come up in the game. Players who close their browser can scan the QR code again (it's also in the corner of the TV during the game) and they'll pop right back in on the same phone.
+
+### 3. Start the game
+
+When at least 3 people are ready, press **Start game…** (on the host screen or on the TV) and choose how many questions about each person. The app shows the most it can do without ever repeating a question.
+
+<p align="center"><img src="docs/images/host-start.webp" alt="Host: how many questions about each person" width="620"></p>
+
+### 4. Play: countdown, question, lock in
+
+Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and phones, then the 20-second timer starts. The person the question is about sits that one out.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/tv-countdown.webp" alt="TV: big countdown number"></td>
+<td width="50%"><img src="docs/images/tv-question.webp" alt="TV: question, four answers, lock-in order and timer"></td>
+</tr>
+<tr>
+<td>The countdown before each question</td>
+<td>The question. Pieces light up and line up <b>1st, 2nd, 3rd…</b> as people lock in.</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td><img src="docs/images/phone-question.webp" alt="Phone: pick an answer"></td>
+<td><img src="docs/images/phone-locked.webp" alt="Phone: locked in"></td>
+<td width="55%"><img src="docs/images/host-question.webp" alt="Host: question with who has locked in"></td>
+</tr>
+<tr>
+<td>Pick A–D…</td>
+<td>…then <b>Lock in</b> (one try only)</td>
+<td>The host sees who has locked in, plus Pause, Skip and Reveal</td>
+</tr>
+</table>
+
+Slowpokes get teased by name on the TV. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** (late right answers still score, without a speed bonus).
+
+### 5. Reveal
+
+The TV shows the right answer, who picked what (and how fast), the **round winner** (fastest right answer) and the **round loser** (there's always one).
+
+<table>
+<tr>
+<td width="60%"><img src="docs/images/tv-reveal.webp" alt="TV: the reveal with how everyone answered"></td>
+<td width="18%"><img src="docs/images/phone-reveal.webp" alt="Phone: your result and how everyone answered"></td>
+</tr>
+</table>
+
+### 6. Leaderboards
+
+After each reveal the TV shows a full-screen leaderboard that rotates through ten pages, 5 seconds each. A bar on the highlighted tab shows when it will change. Click any tab to jump to it (it stays put for 20 seconds).
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/board-overall.webp" alt="Overall leaderboard"><br><b>Overall:</b> the leader gets a big spotlight row</td>
+<td width="50%"><img src="docs/images/board-round.webp" alt="This round"><br><b>This round:</b> everyone's pick, time and points</td>
+</tr>
+<tr>
+<td><img src="docs/images/board-reaction.webp" alt="Reaction times"><br><b>Reaction times:</b> quick or slow, right or wrong</td>
+<td><img src="docs/images/board-bets.webp" alt="Place your bets"><br><b>Place your bets 🏇:</b> a horse race with (just for fun) odds</td>
+</tr>
+<tr>
+<td><img src="docs/images/board-heating.webp" alt="Who's heating up"><br><b>Who's heating up? 🔥:</b> everyone's last five answers</td>
+<td><img src="docs/images/board-stumpers.webp" alt="Stumpers"><br><b>Stumpers:</b> the hardest questions so far, plus special badges</td>
+</tr>
+<tr>
+<td><img src="docs/images/board-mystery.webp" alt="Mystery meter"><br><b>Mystery meter 🕵️:</b> who's hardest (and easiest) to guess</td>
+<td><img src="docs/images/board-galaxy.webp" alt="Family galaxy"><br><b>Family galaxy 🌌:</b> speed vs. accuracy for everyone</td>
+</tr>
+<tr>
+<td><img src="docs/images/board-graveyard.webp" alt="Answer graveyard"><br><b>Answer graveyard 🪦:</b> the wrong answers that fooled the most people</td>
+<td><img src="docs/images/board-leader.webp" alt="Leader watch"><br><b>Leader watch:</b> the leader's whole game, and everyone's rank over time</td>
+</tr>
+</table>
+
+Pages only appear once there's something to show. For example, Who's heating up needs two questions.
+
+### 7. Awards and the winner
+
+At the end: award cards (Knows the family best, Biggest mystery, Open book, Fastest finger, Slowpoke), then the podium, full standings and confetti. Each phone shows that player's final place.
+
+<table>
+<tr>
+<td width="41%"><img src="docs/images/tv-awards.webp" alt="TV: The Awards"></td>
+<td width="41%"><img src="docs/images/tv-final.webp" alt="TV: final results podium"></td>
+<td width="18%"><img src="docs/images/phone-final.webp" alt="Phone: game over and final place"></td>
+</tr>
+</table>
+
+---
+
+## Running game night
+
+**Before everyone arrives**
+
+1. Open your site's `/api/health` page. It should say `"ok":true`. (If it says the database is out of date, run the latest `neon-setup.sql`; see [setup](#2-create-the-tables-and-load-the-questions).)
+2. On `/host`, create the game and press **Open TV display**. Open that link **in the same browser** you used to sign in, so the TV gets the host's ➜ button.
+3. Put the TV tab fullscreen (**⛶ Fullscreen** at the top right), and click **🔇 Enable sound** once (browsers block sound until you click).
+4. Try it alone first: **+ Add 4 demo players** fills the room with bots that answer on their own.
+
+**During the game**
+
+| To… | Do this |
+|---|---|
+| Move to the next step | The big ➜ button at the bottom of the TV, or **→**, **Space**, **Enter** or a presentation clicker. The host screen has the same buttons. |
+| Wait for everyone | The TV won't reveal until everyone has locked in, so nobody gets skipped by accident. |
+| Move on without someone who walked away | Once time is up, a small **⏭** appears next to the SHAME ALERT. Tap it twice to reveal without them. |
+| Pause | **❚❚ Pause** on the host screen freezes the timer everywhere. |
+| Skip a question | **Skip question** on the host screen (no points awarded). |
+| Look at a leaderboard page | Click its tab on the TV. It holds for 20 seconds, then rotation continues. |
+| Turn animations off on the TV | The **✨** button at the top right. Animations are on by default on the TV, even if the computer is set to reduce motion. |
+| End early | **End game early…** on the host screen. You have to type END to confirm. |
+| Let someone back in | They scan the QR code in the corner of the TV on the same phone. |
+
+**After the game:** delete it from the host dashboard, or leave it. Games and photos are kept for 7 days.
+
+### Photos and costumes
+
+Instead of a game piece, players can tap **📷 Use my own photo**, then drag and pinch to center their face in the circle. Their face appears on one of 20 cartoon costumes (superhero, astronaut, chef, wizard, king, rock star…) everywhere in the game. The phone shrinks the photo and strips its location data before uploading. Photos are deleted with the game, and the host can remove anyone's photo from the lobby.
+
+### Families
+
+Every game belongs to a family ("The Land Family" on the TV). Add families on the host dashboard. All families share your one host password.
+
+## Game settings
+
+Set these when creating a game (**Game settings** in the lobby lets you change them until the game starts).
+
+| Setting | Default | What it does |
 |---|---|---|
-| Landing | `/` | Anyone: type a game code or go to hosting |
-| Host dashboard | `/host` | You: sign in, create games, delete old games |
-| Host console | `/host/ABC123` | You: lobby, start, reveal, next, pause, skip, end |
-| TV display | `/display/ABC123?key=…` | The living-room TV (open it from the host console) |
-| Join | `/join/ABC123` | Players (the QR code goes here) |
-| Play | `/play/ABC123` | Players' phones during the game |
+| Theme | Classic game show | Or Thanksgiving: warm colors, falling leaves, Thanksgiving questions |
+| Questions per person | Chosen at start | How many questions about each player (no question is ever repeated) |
+| Seconds per question | 20 | 5–120 seconds |
+| Speed bonus | Off | Up to 500 extra points for answering fast |
+| Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
+| Tease slowpokes | On | Named, good-natured taunts on the TV |
+| Auto reveal | Off | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
+| Auto next question | Off | Move on 8 seconds after each reveal |
+| AI wrong-answer helper | Off | Only shown if OpenRouter is set up (see below) |
 
-1. On `/host`, pick (or add) a family, create a game, then click **Open TV display** and put that tab on the TV (HDMI or screen mirroring). Keep the host console on your phone or laptop.
-2. Players scan the QR code, enter a name, pick one of 40 game pieces (or tap **📷 Use my own photo**) and answer 8 private questions by tapping one of six choices (or "Something else…" to type their own). They can swap any question they'd rather not answer.
-3. When at least 3 players are ready, press **Start game…** and choose how many questions about each person (the app shows the most possible without ever repeating a question). This locks the roster and answers and builds the questions.
-4. Press **Start first question**. Players lock in A–D on their phones; the TV shows everyone's piece lighting up as they lock in (with a pop sound), and playfully teases whoever is slow ("Hurry up, Ben!"). Whoever the question is about sits that one out.
-5. **Reveal answer** shows the correct answer, how everyone answered (who picked what, and how fast), the round winner (fastest right answer) and the round loser (there's always one: the slowest wrong answer or no answer, or the slowest right answer if everyone got it). Next comes a **full-screen leaderboard** that alternates every 5 seconds between the overall standings and a **"This round"** view (everyone's pick, ✓/✗, time and points), then the next question.
+**Scoring:** 1,000 points per right answer (plus the speed bonus if it's on). Wrong or missed answers score 0. Late right answers score 1,000 with no bonus. Ties share a place.
 
-   **Running out of time:** answers are still accepted after the timer hits zero, until the reveal. The TV flashes a 🚨 **SHAME ALERT** (with a siren if sound is on) naming whoever is still holding things up, and the phone tells them everyone can see they're late. Late right answers still score 1,000 (no speed bonus). With auto reveal on, the game waits a few extra seconds for stragglers (+2s, +5s, +10s or +15s; set per game, default +5s). About 1 in 4 demo bots dawdles past the timer on purpose so you can see it.
+## Troubleshooting
 
-   **Start from the TV:** the TV lobby also has a **Start game ➜** button that asks how many questions per person right on the TV.
+| Problem | Fix |
+|---|---|
+| The QR code opens "localhost" on phones | `NEXT_PUBLIC_APP_URL` must be your real web address (or your computer's network address for home testing, see below). |
+| The TV has no ➜ button | Open the TV from **Open TV display** in the same browser where you signed in as host. Other screens are view-only on purpose. |
+| No sound on the TV | Click **Enable sound** once; browsers block sound until someone clicks. |
+| Nothing moves on the TV | Check the **✨** button at the top right isn't turned off. |
+| A player's photo didn't appear | Run the latest `neon-setup.sql` (`/api/health` will say if the database is out of date). |
+| "This game has already started" | New players can't join after the start. Someone who was already playing can rejoin on the same phone and browser. |
+| A player says their name is taken | Names are unique per game, ignoring capitals ("Rosie" and "rosie" count as the same). |
 
-   **No early reveals:** the TV's Reveal arrow (and the → key) only appears once everyone has locked in. The host console can still reveal early, after a warning.
+---
 
-   **The arrow:** if the TV tab is opened from the host console in the same browser (so it's signed in as host), a big ➜ button appears at the bottom of the TV to move to the next step. The right-arrow key, space bar or a presentation clicker work too. On any other screen, the TV stays view-only.
+## Setting it up on Neon + Vercel
 
-   **Ending early:** "End game early…" sits apart from the other buttons and asks you to type END to confirm.
-6. The finale shows award cards (Knows the family best, Biggest mystery, Open book, Fastest finger, Slowpoke), then the podium and confetti.
+Nothing here is automatic. Each step is something you do in your own accounts, and you never need to share passwords with anyone.
 
-**Photos:** a player can use their own photo instead of a game piece and pick one of 20 costumes (superhero, astronaut, chef, wizard, king, rock star…); their face appears in the costume everywhere in the game, on the join screen or later from the "You're ready!" screen. The phone shrinks it to a small square (location data is stripped) before uploading. Photos are stored with the game and deleted when the game is deleted (7 days, or sooner from the dashboard). The host can remove anyone's photo from the lobby.
+### 1. Create the Neon database
 
-**Families:** every game belongs to a family (existing games belong to "Land"). Add families on the host dashboard; the TV shows "The Land Family". All families share your one host password.
+1. Sign in at [console.neon.tech](https://console.neon.tech) and create a project (pick a region close to your Vercel region, e.g. AWS US East for Vercel `iad1`).
+2. On the project dashboard, click **Connect**. Copy two connection strings:
+   - **Pooled** (toggle "Connection pooling" on; the host contains `-pooler`) → this is `DATABASE_URL`.
+   - **Direct** (pooling off) → this is `DIRECT_DATABASE_URL` (used only for migrations).
+3. Check your Neon plan's compute and connection limits in the Neon console; don't assume free-tier capacity for a big party.
 
-**Music & sound:** on the TV, click **Enable sound**. Background music plays while people choose (Game show, Suspense or Lounge; set per game or switch on the TV). All music is generated in the browser.
+### 2. Create the tables and load the questions
 
-**Scoring:** 1,000 points per correct answer. Optional speed bonus (0–500, off by default). Wrong or missed answers score 0. Ties share a rank.
+**Easiest (browser only):** in the Neon console, open **SQL Editor**, paste the entire contents of [`neon-setup.sql`](./neon-setup.sql) and click **Run**. The last line shows `questions_ready` (147 today: 3 questions about presidents are switched off by default). It is safe to run again, and you should re-run it whenever the app is updated.
 
-**Automation (optional per game):** auto-reveal when everyone has answered or time runs out, and auto-advance 8 seconds after each reveal.
+**Or from a terminal on your computer:**
 
-### Testing without your whole family
+```bash
+DATABASE_URL="<pooled url>" DIRECT_DATABASE_URL="<direct url>" npm run db:migrate
+DATABASE_URL="<pooled url>" DIRECT_DATABASE_URL="<direct url>" npm run db:seed
+```
 
-In the host lobby, press **+ Add 4 demo players** (up to 12). This adds clearly-labelled fictional bot players with pre-filled answers. During questions the bots answer on their own, so one person with a phone (or just the TV and host screen) can play a full game. Demo tools are on automatically in development; set `ENABLE_DEMO_TOOLS=true` to show them in production.
+Migrations are an explicit release step. The app never migrates on a request.
+
+> **Preview deployments:** use a separate Neon *branch* (Neon console → Branches → Create) for Vercel Preview environments, so testing never touches your real game data. Migrate and seed that branch too.
+
+### 3. Push to GitHub
+
+```bash
+git remote add origin https://github.com/<you>/family-face-off.git
+git push -u origin main
+```
+
+### 4. Import into Vercel
+
+1. At [vercel.com/new](https://vercel.com/new), import the GitHub repository. The framework is detected as Next.js; keep the default build settings.
+2. Under **Environment Variables**, add these for **Production** (and Preview, with the preview branch URL):
+
+   | Name | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon **pooled** URL |
+   | `HOST_PASSWORD` | a strong password, at least 8 characters (`openssl rand -base64 18`) |
+   | `SESSION_SECRET` | `openssl rand -hex 32` |
+   | `NEXT_PUBLIC_APP_URL` | your production URL, e.g. `https://family-face-off.vercel.app` (no trailing slash) |
+   | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | optional |
+   | `ENABLE_DEMO_TOOLS` | optional, `true` to allow demo bots in production |
+
+   Never prefix secrets with `NEXT_PUBLIC_`.
+3. Deploy. If your final domain differs from what you entered, update `NEXT_PUBLIC_APP_URL` and redeploy (it is baked into the QR codes).
+4. Open `https://<your-domain>/api/health`. It should return `{"ok":true,"database":true}`. If a setting is wrong it names the variable (never its value).
+
+### 5. Optional: scheduled cleanup
+
+Games are kept for 7 days. Expired data is deleted when you press **Delete expired data** on the host dashboard, and any game can be deleted immediately. Nothing is deleted automatically unless you add a schedule. To add one, set `CRON_SECRET` in Vercel and add a `vercel.json`:
+
+```json
+{ "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 9 * * *" }] }
+```
+
+Vercel sends `CRON_SECRET` as a Bearer token; check Vercel's current Cron Jobs docs and plan limits before relying on it.
+
+### 6. Optional: AI wrong-answer helper (OpenRouter)
+
+Set `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` (a model that supports JSON `response_format`). A toggle then appears in game settings (off by default). When the host turns it on, only question text and answer text (never names) are sent to OpenRouter to suggest extra *wrong* choices for unusual typed answers. Correct answers always come from your family, and if the AI is slow or fails, the game quietly uses the built-in choices.
 
 ---
 
 ## Local development
 
-Requirements: Node.js 20.9+ (22 recommended) and a Postgres database, either a free Neon project (below) or local Postgres 14+.
+Requirements: Node.js 20.9+ (22 recommended) and a Postgres database, either a free Neon project or local Postgres 14+.
 
 ```bash
 npm install
 cp .env.example .env.local      # then fill in the values (see below)
 npm run db:migrate              # creates tables
-npm run db:seed                 # loads the 100-question bank from src/data/questions.json (safe to re-run)
+npm run db:seed                 # loads the question bank from src/data/questions.json (safe to re-run)
 npm run dev                     # http://localhost:3000
 ```
 
@@ -92,89 +315,32 @@ Then run `npm run dev -- -H 0.0.0.0` and make sure the phones are on the same Wi
 | `dev` / `build` / `start` | Next.js development, production build, production server |
 | `lint` / `typecheck` | ESLint, TypeScript |
 | `test` | Unit + integration tests (Vitest). Integration tests need a **separate** test database: `TEST_DATABASE_URL` (default `postgres://postgres:postgres@localhost:5432/faceoff_test`). They refuse to run against a URL without "test" in it. |
-| `test:e2e` | Playwright: host + TV + 3 isolated phone browsers play a full game, plus a demo-bot game with auto mode. Builds and starts the app automatically, or set `E2E_BASE_URL` to test a running server. Run `npx playwright install chromium` once. |
+| `test:e2e` | Playwright: host + TV + 3 phone browsers play a full game, a demo-bot game with auto mode, and a "player walked away" game. Builds and starts the app, or set `E2E_BASE_URL` to test a running server. Run `npx playwright install chromium` once. |
 | `test:load` | 25 simulated players join, poll and guess at once against `BASE_URL`; prints latency and errors |
 | `db:generate` | Generate a new SQL migration after editing `src/db/schema.ts` |
 | `db:migrate` | Apply migrations (uses `DIRECT_DATABASE_URL` if set, else `DATABASE_URL`) |
-| `db:seed` | Upsert the prompt bank |
+| `db:seed` | Upsert the question bank |
 
----
+### Editing the questions
 
-## Deploying to Vercel + Neon
-
-Nothing here is automatic. Each step is something you do in your own accounts, and you never need to share passwords with anyone.
-
-### 1. Create the Neon database
-
-1. Sign in at [console.neon.tech](https://console.neon.tech) and create a project (pick a region close to your Vercel region, e.g. AWS US East for Vercel `iad1`).
-2. On the project dashboard, click **Connect**. Copy two connection strings:
-   - **Pooled** (toggle "Connection pooling" on; the host contains `-pooler`) → this is `DATABASE_URL`.
-   - **Direct** (pooling off) → this is `DIRECT_DATABASE_URL` (used only for migrations).
-3. Check your Neon plan's compute and connection limits in the Neon console; don't assume free-tier capacity for a big party.
-
-### 2. Create the tables and load the questions
-
-**Easiest (browser only):** in the Neon console, open **SQL Editor**, paste the entire contents of [`neon-setup.sql`](./neon-setup.sql) and click **Run**. The last line should show `questions_ready = 100`. It is safe to run again. (Regenerate it after schema changes with `npx tsx scripts/build-setup-sql.ts`.)
-
-**Or from a terminal on your computer:**
-
-```bash
-DATABASE_URL="<pooled url>" DIRECT_DATABASE_URL="<direct url>" npm run db:migrate
-DATABASE_URL="<pooled url>" DIRECT_DATABASE_URL="<direct url>" npm run db:seed
-```
-
-Migrations are an explicit release step. The app never migrates on a request. Re-run `db:migrate` whenever a new migration is added.
-
-> **Preview deployments:** use a separate Neon *branch* (Neon console → Branches → Create) for Vercel Preview environments, so testing never touches your real game data. Migrate and seed that branch too.
-
-### 3. Push to GitHub
-
-```bash
-git remote add origin https://github.com/<you>/family-face-off.git
-git push -u origin main
-```
-
-### 4. Import into Vercel
-
-1. At [vercel.com/new](https://vercel.com/new), import the GitHub repository. The framework is detected as Next.js; keep the default build settings.
-2. Under **Environment Variables**, add these for **Production** (and Preview, with the preview branch URL):
-
-   | Name | Value |
-   |---|---|
-   | `DATABASE_URL` | Neon **pooled** URL |
-   | `HOST_PASSWORD` | a strong password (`openssl rand -base64 18`) |
-   | `SESSION_SECRET` | `openssl rand -hex 32` |
-   | `NEXT_PUBLIC_APP_URL` | your production URL, e.g. `https://family-face-off.vercel.app` (no trailing slash) |
-   | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | optional |
-   | `ENABLE_DEMO_TOOLS` | optional, `true` to allow demo bots in production |
-
-   Never prefix secrets with `NEXT_PUBLIC_`.
-3. Deploy. After the first deploy, if your final domain differs from what you entered, update `NEXT_PUBLIC_APP_URL` and redeploy (it is baked into the client bundle for QR codes).
-4. Open `https://<your-domain>/api/health`. It should return `{"ok":true,"database":true}`.
-
-### 5. Optional: scheduled cleanup
-
-Games are kept for 7 days. Expired data is deleted when you press **Delete expired data** on the host dashboard, and any game can be deleted immediately. Nothing is deleted automatically unless you add a schedule. To add one, set `CRON_SECRET` in Vercel and add a `vercel.json`:
-
-```json
-{ "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 9 * * *" }] }
-```
-
-Vercel sends `CRON_SECRET` as a Bearer token; check Vercel's current Cron Jobs docs and plan limits before relying on it.
-
-### 6. Optional: AI wrong-answer helper (OpenRouter)
-
-Set `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` (a model that supports JSON `response_format`). A toggle then appears in game settings (off by default). When the host turns it on, only question text and answer text (never names) are sent to OpenRouter to suggest extra *wrong* choices for unusual answers. Correct answers always come from your family, and if the AI is slow or fails, the game silently falls back to the built-in choices.
-
----
-
-## Editing the questions
-
-All questions live in [`src/data/questions.json`](./src/data/questions.json): each has a personal question, the TV wording (`{playerName}` is replaced with the player's name), six options (`is_humorous` marks the funny ones), `active`, and an optional `seasonal` tag. The four everyone answers are set in `COMMON_PROMPT_IDS` in `src/lib/promptBank.ts`. Seasonal questions are only handed out when the game's theme matches (Thanksgiving questions in Thanksgiving games; there's no Christmas theme yet, so Christmas questions stay unused).
+All questions live in [`src/data/questions.json`](./src/data/questions.json): each has a personal question, the TV wording (`{playerName}` is replaced with the player's name), six options (`is_humorous` marks the funny ones), `active`, a `category` and an optional `seasonal` tag. The four everyone answers are set in `COMMON_PROMPT_IDS` in `src/lib/promptBank.ts`. Seasonal questions only appear when the game's theme matches (Thanksgiving questions in Thanksgiving games). Questions #101, #102 and #109 (presidents/politics) are included but `active: false`; set them to `true` to use them.
 
 After editing: run `npx tsx scripts/build-setup-sql.ts` and paste the new `neon-setup.sql` into the Neon SQL Editor (or run `npm run db:seed`). The unit tests check that every option can be quizzed with three distinct wrong choices.
 
-## Real-device checklist (before the party)
+### Updating the screenshots in this README
+
+```bash
+DOCS_SCREENS=/tmp/docs-raw E2E_BASE_URL=http://localhost:3000 npx playwright test docs-screens
+python3 scripts/docs-images.py /tmp/docs-raw docs/images      # needs: pip install pillow
+```
+
+The script plays a short game with two pretend players and eight labelled demo bots (everyone in the pictures is fictional) and saves every screen above.
+
+---
+
+## For developers
+
+### Real-device checklist (before the party)
 
 - [ ] `/api/health` returns `ok: true` on the deployed URL
 - [ ] TV display opens from **Open TV display**, goes fullscreen, and is readable from the couch
@@ -182,37 +348,41 @@ After editing: run `npx tsx scripts/build-setup-sql.ts` and paste the new `neon-
 - [ ] Two phones can't take the same name ("Rosie" vs "rosie")
 - [ ] A player who refreshes or closes and reopens the browser returns to the same spot
 - [ ] Answer all 8 questions on one phone (tap a choice, and try "Something else…"); try "swap question"
+- [ ] Upload a photo, center it, and pick a costume
 - [ ] Start with ≥3 ready players; confirm the warning appears if someone isn't ready
-- [ ] Countdown on phones and TV match within about a second
-- [ ] Lock in an answer; the phone shows "Locked in" and other choices are disabled
+- [ ] The 5-4-3-2-1 countdown and the timer match on phones and TV within about a second
+- [ ] The **Lock in** button is visible without scrolling on a small phone
 - [ ] The person a question is about sees "This one's about you!"
 - [ ] Pause/resume freezes and resumes the timer on all screens
 - [ ] Reveal shows the right answer, who guessed what, and updated scores
 - [ ] Final screen shows the podium; ties share a place
-- [ ] **Enable sound** on the TV works after clicking (browsers block sound until then)
+- [ ] **Enable sound** on the TV works after clicking
 - [ ] Delete the test game from the host dashboard
 
-## Security & privacy notes
+### Security & privacy notes
 
 - Host login: constant-time password check, rate limited, HttpOnly SameSite=Lax cookies (Secure over HTTPS). Session tokens are 32 random bytes; only HMAC hashes are stored.
 - Player cookies are per game (`ffo_p_<CODE>`), so one phone can be in several games. The game code is a join identifier, not authorization.
-- The TV link carries an unguessable per-game display key; it can only *view*.
-- Correct answers, other players' guesses and scores are never sent to phones before the reveal. API responses are role-specific DTOs, never raw database rows.
+- The TV link carries an unguessable per-game display key; it can only *view*. Host controls on the TV only appear when the browser is signed in as host.
+- Correct answers, other players' guesses and scores are never sent to phones before the reveal. API responses are role-specific DTOs, never raw database rows. "Who submitted this answer?" rounds hide the subject on the TV too.
 - Mutations check the request Origin, inputs are validated with Zod, bodies are size-limited, and join/login/guess are rate limited (stored in Postgres, so it works across serverless instances).
 - Names and answers are rendered as text (React escaping), never as HTML, and are not logged. There are no analytics.
 - Private pages and all API responses send `Cache-Control: no-store` and `X-Robots-Tag: noindex`.
 
-## Architecture notes
+### Architecture notes
 
+- **Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Neon PostgreSQL · Drizzle ORM · Zod · Vitest · Playwright. Hosted on Vercel (Node.js runtime) + Neon. Spec: [`CLAUDE.md`](./CLAUDE.md) · checklist: [`docs/CHECKLIST.md`](./docs/CHECKLIST.md).
 - **No in-memory state, sockets or timers.** Clients poll `/api/games/:code/state` (about 1.5 s during play, 3.5 s in the lobby, 10 s when the tab is hidden, immediately on focus) and never overlap requests. A typical player response is about 1 KB.
-- **Database clock is authoritative.** Deadlines are computed from Postgres `now()`; clients render a smooth countdown using the measured server-clock offset.
+- **Database clock is authoritative.** Deadlines are computed from Postgres `now()`; clients render a smooth countdown using the measured server-clock offset. Each question "opens" after the pre-question countdown; guesses before that are refused.
 - **Transactions:** every transition locks the game row (`SELECT … FOR UPDATE`) and uses optimistic `expectedVersion`. Guesses take a `FOR SHARE` lock so they run concurrently but can't race a reveal. Reveal inserts score events with unique keys, so scoring happens exactly once. On Neon the app uses the WebSocket `Pool` driver (`drizzle-orm/neon-serverless`), created per request and closed after the response, because the HTTP driver doesn't support interactive transactions.
 - **Automatic transitions** (auto reveal / auto next / demo bots) are evaluated on polls and only when due, at most one per request. If nobody is polling, they happen on the next request.
 - **Quiz generation** (`src/lib/generator.ts`) is deterministic and pure: round-robin across players keeps everyone's subject count within one, avoids back-to-back subjects, never repeats a question, and never invents an answer. If there aren't enough credible wrong choices, it uses "Who submitted this answer?" (4+ players) or skips the answer.
+- **Leaderboard pages** are computed server-side from revealed rounds only (`src/server/stats.ts`, `src/server/boards.ts`).
 
-## Known limitations
+### Known limitations
 
 - Single host account (one password). Multi-host tenancy is not implemented.
 - Polling, not push: the TV and phones update within about 1.5 s. Load scales with players × poll rate; the 25-player smoke test is a local measurement, not a guarantee for your Neon/Vercel plan.
 - Removing a player is only possible before the game starts (by design: the roster locks at start).
+- A player who loses their phone's cookie (different phone, private browsing, cleared data) can't rejoin a game that has started.
 - The inappropriate-word filter is intentionally small; the host can remove players in the lobby.
