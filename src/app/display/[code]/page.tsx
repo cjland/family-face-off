@@ -2,7 +2,7 @@
 
 import confetti from "canvas-confetti";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Podium, QrCode, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { GuessList } from "@/components/RoundPanels";
@@ -968,32 +968,48 @@ function TvReveal({ state }: { state: GameStateDTO }) {
 
 // ---------- Full-screen leaderboard (between questions) ----------
 
+type BoardView = "overall" | "round" | "reaction";
+const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] = [
+  { id: "overall", label: "Overall", title: "Leaderboard" },
+  { id: "round", label: "This round", title: "This round" },
+  { id: "reaction", label: "Reaction times", title: "Reaction times" },
+];
+
 function TvLeaderboard({ state }: { state: GameStateDTO }) {
   const hasRound = Boolean(state.reveal && state.round);
-  const [view, setView] = useState<"overall" | "round">("overall");
+  const [view, setView] = useState<BoardView>("overall");
   useEffect(() => {
     if (!hasRound) return;
-    const id = setInterval(() => setView((v) => (v === "overall" ? "round" : "overall")), 5000);
+    const id = setInterval(
+      () => setView((v) => BOARD_VIEWS[(BOARD_VIEWS.findIndex((x) => x.id === v) + 1) % BOARD_VIEWS.length].id),
+      5000,
+    );
     return () => clearInterval(id);
   }, [hasRound]);
   const round = state.round;
-  const showRound = hasRound && view === "round";
+  const current = hasRound ? view : "overall";
   return (
     <div className="h-full">
       <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
       <div className="absolute top-[120px] inset-x-14 bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col items-center gap-2">
-          <h2 key={view} className="font-display text-7xl font-bold gold-text text-center pop-in">
-            {showRound ? "This round" : "Leaderboard"}
+          <h2 key={current} className="font-display text-7xl font-bold gold-text text-center pop-in">
+            {BOARD_VIEWS.find((v) => v.id === current)!.title}
           </h2>
           {hasRound && (
             <div className="flex gap-3 text-2xl" aria-hidden="true">
-              <span className={`rounded-full px-4 py-1 ${!showRound ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted"}`}>Overall</span>
-              <span className={`rounded-full px-4 py-1 ${showRound ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted"}`}>This round</span>
+              {BOARD_VIEWS.map((v) => (
+                <span
+                  key={v.id}
+                  className={`rounded-full px-4 py-1 ${current === v.id ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted"}`}
+                >
+                  {v.label}
+                </span>
+              ))}
             </div>
           )}
         </div>
-        {showRound ? <RoundBoard state={state} /> : <OverallBoard state={state} />}
+        {current === "round" ? <RoundBoard state={state} /> : current === "reaction" ? <ReactionBoard state={state} /> : <OverallBoard state={state} />}
       </div>
       <TvFooter state={state}>
         <div className="flex-1 min-w-0">
@@ -1088,6 +1104,82 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
           Page {(page % pages) + 1} of {pages}
         </p>
       )}
+    </>
+  );
+}
+
+/**
+ * This round's reaction times in a 2x2: quick or slow (split at the round's median answer time)
+ * against right or wrong. Anyone who didn't answer lands in slow + wrong.
+ */
+function ReactionBoard({ state }: { state: GameStateDTO }) {
+  const round = state.round!;
+  const reveal = state.reveal!;
+  const guessed = new Map(reveal.guesses.map((g) => [g.playerId, g]));
+  const times = reveal.guesses.map((g) => g.elapsedMs).sort((a, b) => a - b);
+  const cutoff = times.length >= 2 ? times[Math.floor((times.length - 1) / 2)] : round.durationMs / 2;
+  type Entry = { id: string; name: string; piece: string | null; ms: number | null };
+  const boxes: Record<"fastRight" | "fastWrong" | "slowRight" | "slowWrong", Entry[]> = {
+    fastRight: [],
+    fastWrong: [],
+    slowRight: [],
+    slowWrong: [],
+  };
+  for (const p of state.players ?? []) {
+    if (p.id === round.subjectPlayerId) continue;
+    const g = guessed.get(p.id);
+    const e: Entry = { id: p.id, name: p.name, piece: p.piece, ms: g ? g.elapsedMs : null };
+    const fast = g ? g.elapsedMs <= cutoff : false;
+    boxes[fast ? (g!.correct ? "fastRight" : "fastWrong") : g?.correct ? "slowRight" : "slowWrong"].push(e);
+  }
+  for (const list of Object.values(boxes)) list.sort((a, b) => (a.ms ?? Infinity) - (b.ms ?? Infinity));
+  const cells: { key: keyof typeof boxes; emoji: string; title: string; sub: string; tone: string }[] = [
+    { key: "fastRight", emoji: "⚡", title: "Quick & right", sub: "Lightning brains", tone: "bg-good/25 border-good" },
+    { key: "fastWrong", emoji: "🙈", title: "Quick & wrong", sub: "Trigger happy", tone: "bg-bad/20 border-bad" },
+    { key: "slowRight", emoji: "🐢", title: "Slow & right", sub: "Slow and steady", tone: "bg-good/10 border-good/60" },
+    { key: "slowWrong", emoji: "🫠", title: "Slow & wrong", sub: "Took their time… still wrong", tone: "bg-black/30 border-white/20" },
+  ];
+  const many = (state.players?.length ?? 0) > 8;
+  return (
+    <>
+      <p className="text-center text-2xl text-muted -mt-1">
+        Quick = answered in {(cutoff / 1000).toFixed(1)}s or less this round
+      </p>
+      <div className="grid grid-cols-[auto_1fr_1fr] grid-rows-[auto_1fr_1fr] gap-3 flex-1 min-h-0 max-w-[1700px] w-full mx-auto">
+        <span />
+        <span className="text-center font-display text-3xl text-good">✓ Right</span>
+        <span className="text-center font-display text-3xl text-bad">✗ Wrong</span>
+        {(["Quick", "Slow"] as const).map((rowLabel, ri) => (
+          <Fragment key={rowLabel}>
+            <span className="font-display text-3xl text-accent-2 self-center [writing-mode:vertical-rl] rotate-180">
+              {rowLabel === "Quick" ? "⚡ Quick" : "🐢 Slow"}
+            </span>
+            {cells.slice(ri * 2, ri * 2 + 2).map((c) => (
+              <div key={c.key} className={`rounded-3xl border-2 ${c.tone} px-5 py-3 flex flex-col gap-2 min-h-0 overflow-hidden pop-in`}>
+                <div className="flex items-baseline gap-3">
+                  <span className="font-display text-4xl font-bold whitespace-nowrap">
+                    {c.emoji} {c.title}
+                  </span>
+                  <span className="text-2xl text-muted truncate">{c.sub}</span>
+                  <span className="ml-auto font-display text-4xl text-accent-2">{boxes[c.key].length}</span>
+                </div>
+                <div className="flex flex-wrap gap-2 content-start">
+                  {boxes[c.key].length === 0 && <span className="text-2xl text-muted">Nobody</span>}
+                  {boxes[c.key].map((e) => (
+                    <span key={e.id} className="inline-flex items-center gap-2 rounded-full bg-black/30 pl-1 pr-4 py-1">
+                      <Avatar name={e.name} piece={e.piece} size={many ? 40 : 52} />
+                      <span className={`font-semibold ${many ? "text-xl" : "text-2xl"}`}>{e.name}</span>
+                      <span className={`tabular-nums text-muted ${many ? "text-lg" : "text-xl"}`}>
+                        {e.ms === null ? "no answer" : `${(e.ms / 1000).toFixed(1)}s`}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </Fragment>
+        ))}
+      </div>
     </>
   );
 }
