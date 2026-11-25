@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BodyPicker } from "@/components/BodyPicker";
 import { PhotoPicker } from "@/components/PhotoButton";
+import { DEFAULT_BODY, type BodyId } from "@/lib/bodies";
 import { Avatar, Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
 import type { GameStateDTO } from "@/lib/dto";
@@ -21,6 +23,7 @@ export default function JoinPage() {
   const [name, setName] = useState("");
   const [piece, setPiece] = useState<string | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [body, setBody] = useState<BodyId>(DEFAULT_BODY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
@@ -96,8 +99,16 @@ export default function JoinPage() {
               try {
                 await api(`/api/games/${code}/join`, { method: "POST", body: { name, piece: piece ?? undefined } });
                 if (photo) {
-                  // A failed photo upload shouldn't block joining; they keep a game piece.
-                  await api(`/api/games/${code}/photo`, { method: "POST", body: { image: photo } }).catch(() => {});
+                  try {
+                    await api(`/api/games/${code}/photo`, { method: "POST", body: { image: photo, body } });
+                  } catch (err) {
+                    // They're in the game either way; tell them the photo didn't make it.
+                    setError(
+                      `You're in! But your photo didn't upload (${err instanceof ApiClientError ? err.message : "network problem"}). You can try again from the next screen.`,
+                    );
+                    setTimeout(() => router.replace(`/play/${code}`), 3500);
+                    return;
+                  }
                 }
                 router.replace(`/play/${code}`);
               } catch (err) {
@@ -130,14 +141,15 @@ export default function JoinPage() {
               <legend className="font-display text-2xl font-semibold mb-2">Pick your game piece</legend>
               <div className="flex items-center gap-3 mb-3">
                 {photo ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photo} alt="Your photo" width={64} height={64} className="rounded-full ring-4 ring-accent object-cover w-16 h-16" />
-                    <span className="flex-1 text-sm">Using your photo.</span>
-                    <button type="button" className="btn btn-ghost !text-sm !min-h-[44px]" onClick={() => setPhoto(null)}>
-                      Use a piece instead
-                    </button>
-                  </>
+                  <div className="flex flex-col gap-2 w-full">
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 font-semibold">Pick an outfit for your face:</span>
+                      <button type="button" className="btn btn-ghost !text-sm !min-h-[40px]" onClick={() => setPhoto(null)}>
+                        Use a piece instead
+                      </button>
+                    </div>
+                    <BodyPicker face={photo} value={body} onChange={setBody} />
+                  </div>
                 ) : (
                   <PhotoPicker
                     className="btn btn-ghost !text-base w-full"
@@ -150,7 +162,7 @@ export default function JoinPage() {
                   </PhotoPicker>
                 )}
               </div>
-              <div className="grid grid-cols-5 gap-1.5 max-h-[46vh] overflow-y-auto pr-1" role="radiogroup" aria-label="Game pieces">
+              <div className={`grid grid-cols-5 gap-1.5 max-h-[46vh] overflow-y-auto pr-1 ${photo ? "hidden" : ""}`} role="radiogroup" aria-label="Game pieces">
                 {PIECES.map((p) => {
                   const isTaken = taken.has(p.id) && !allTaken;
                   const selected = piece === p.id;
@@ -177,7 +189,11 @@ export default function JoinPage() {
                 })}
               </div>
               <p className="text-sm text-muted mt-2">
-                {photo ? "Your photo shows up on the TV and is deleted when the game is deleted." : piece ? "Great choice!" : "Skip it and we'll pick one for you."}
+                {photo
+                  ? "Your face shows up on the TV all game long. Photos are deleted when the game is deleted."
+                  : piece
+                    ? "Great choice!"
+                    : "Skip it and we'll pick one for you."}
               </p>
             </fieldset>
             {error && <Banner kind="error">{error}</Banner>}

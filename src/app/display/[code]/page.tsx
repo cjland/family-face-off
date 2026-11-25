@@ -39,10 +39,17 @@ function TvCanvas({ children }: { children: React.ReactNode }) {
     };
   }, []);
   return (
-    <div className="fixed inset-0 overflow-hidden grid place-items-center">
+    <div className="fixed inset-0 overflow-hidden">
       <div
-        style={{ width: W, height: H, transform: `scale(${scale || 0.0001})`, transformOrigin: "center center", flex: "none" }}
-        className="relative"
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: W,
+          height: H,
+          transform: `translate(-50%, -50%) scale(${scale || 0.0001})`,
+          transformOrigin: "center center",
+        }}
       >
         {children}
       </div>
@@ -205,13 +212,12 @@ function Display() {
         ) : (
           <TvScreen state={state} offsetMs={offsetMs} sfx={sfx} reduced={reduced} />
         )}
-      </TvCanvas>
       <div
-        className={`fixed top-3 right-3 z-50 flex gap-2 transition-opacity focus-within:opacity-100 ${controlsVisible ? "opacity-100" : "opacity-0"}`}
+        className={`absolute top-6 right-8 z-50 flex gap-3 transition-opacity focus-within:opacity-100 ${controlsVisible ? "opacity-100" : "opacity-0"}`}
       >
         <button
           type="button"
-          className="btn btn-ghost !min-h-[44px] !text-sm"
+          className="btn btn-ghost !min-h-[56px] !text-xl"
           aria-pressed={soundOn}
           onClick={() => {
             if (!sfx.current) sfx.current = new Sfx();
@@ -228,7 +234,7 @@ function Display() {
           {soundOn ? "🔊 Sound on" : "🔇 Enable sound"}
         </button>
         {soundOn && (
-          <label className="btn btn-ghost !min-h-[44px] !text-sm">
+          <label className="btn btn-ghost !min-h-[56px] !text-xl">
             <span aria-hidden="true">🎵</span>
             <select
               className="bg-transparent outline-none"
@@ -246,7 +252,7 @@ function Display() {
         )}
         <button
           type="button"
-          className="btn btn-ghost !min-h-[44px] !text-sm"
+          className="btn btn-ghost !min-h-[56px] !text-xl"
           onClick={() => {
             if (document.fullscreenElement) void document.exitFullscreen();
             else void document.documentElement.requestFullscreen?.();
@@ -255,6 +261,7 @@ function Display() {
           {isFull ? "Exit fullscreen" : "⛶ Fullscreen"}
         </button>
       </div>
+      </TvCanvas>
       {error && error.status === 0 && (
         <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50">
           <Banner kind="error">Reconnecting…</Banner>
@@ -348,7 +355,13 @@ function NextArrow({ state }: { state: GameStateDTO }) {
   let label = NEXT_LABEL[state.phase];
   if (state.phase === "LEADERBOARD" && round && round.number >= round.total) label = "Final results";
   const action = state.phase === "QUESTION" ? "reveal" : state.phase === "PREPARING" ? "open" : "next";
-  const enabled = state.canControl && Boolean(label) && (state.phase !== "LOBBY" || state.counts.ready >= 3);
+  const allIn = !round || round.eligibleCount === 0 || round.answeredCount >= round.eligibleCount;
+  const enabled =
+    state.canControl &&
+    Boolean(label) &&
+    (state.phase !== "LOBBY" || state.counts.ready >= 3) &&
+    // No revealing (button or keyboard) until everyone eligible has locked in.
+    (state.phase !== "QUESTION" || allIn);
   const [startOpen, setStartOpen] = useState(false);
   const go = useCallback(() => {
     if (!enabled || busy) return;
@@ -400,7 +413,7 @@ function TvLobby({ state }: { state: GameStateDTO }) {
   const many = players.length > 15;
   const cols = balancedColumns(Math.max(players.length, 1), players.length > 24 ? 7 : players.length > 15 ? 6 : 5);
   return (
-    <div className="h-full grid grid-cols-[700px_1fr] gap-12 px-16 pt-12 pb-16 overflow-hidden">
+    <div className="h-full grid grid-cols-[700px_1fr] gap-12 px-16 pt-24 pb-16 overflow-hidden">
       <div className="flex flex-col items-center justify-center gap-6 text-center">
         <div className="marquee">
           <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="lg" />
@@ -666,29 +679,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               </p>
             )}
             <div className="h-[96px] mt-3 flex items-center">
-              {shameLine ? (
-                <div className="shame-alert rounded-2xl border-4 border-white pl-5 pr-7 py-2 flex items-center gap-4 max-w-full shadow-2xl">
-                  <span className="font-display text-4xl font-bold text-white whitespace-nowrap">🚨 SHAME ALERT</span>
-                  <span className="flex -space-x-3">
-                    {shameTargets.slice(0, 4).map((p) => (
-                      <span key={p.id} className="shame-wobble">
-                        <Avatar name={p.name} piece={p.piece} size={64} />
-                      </span>
-                    ))}
-                  </span>
-                  <span className="min-w-0">
-                    <span key={shameLine} className="block font-display text-3xl font-bold text-white truncate pop-in">
-                      {shameLine}
-                    </span>
-                    <span className="block text-xl text-white/90 truncate">
-                      Time ran out {overtimeSecs}s ago. You can still answer…
-                      {state.settings.autoReveal && overtimeSecs < state.settings.overtimeSeconds
-                        ? ` Revealing in ${state.settings.overtimeSeconds - overtimeSecs}s.`
-                        : ""}
-                    </span>
-                  </span>
-                </div>
-              ) : taunt && (
+              {taunt && (
                 <div key={taunt} className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block">
                   <span className="font-display text-5xl font-bold text-accent-2 whitespace-nowrap">{taunt}</span>
                 </div>
@@ -725,7 +716,29 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
         <span className="font-display text-4xl whitespace-nowrap" aria-live="polite">
           {round.answeredCount} of {round.eligibleCount} locked in
         </span>
-        {subject && (
+        {shameLine ? (
+          <div className="shame-alert rounded-2xl border-4 border-white pl-4 pr-6 py-1.5 flex items-center gap-3 min-w-0 flex-1 shadow-2xl">
+            <span className="font-display text-3xl font-bold text-white whitespace-nowrap">🚨 SHAME ALERT</span>
+            <span className="flex -space-x-3 flex-none">
+              {shameTargets.slice(0, 4).map((p) => (
+                <span key={p.id} className="shame-wobble">
+                  <Avatar name={p.name} piece={p.piece} size={56} />
+                </span>
+              ))}
+            </span>
+            <span className="min-w-0">
+              <span key={shameLine} className="block font-display text-2xl font-bold text-white truncate pop-in">
+                {shameLine}
+              </span>
+              <span className="block text-lg text-white/90 truncate">
+                Time ran out {overtimeSecs}s ago. You can still answer…
+                {state.settings.autoReveal && overtimeSecs < state.settings.overtimeSeconds
+                  ? ` Revealing in ${state.settings.overtimeSeconds - overtimeSecs}s.`
+                  : ""}
+              </span>
+            </span>
+          </div>
+        ) : subject && (
           <span className="flex items-center gap-2 text-2xl text-muted min-w-0">
             <Avatar name={subject.name} piece={subject.piece} size={52} />
             <span className="truncate">{subject.name} sits this one out</span>
@@ -932,7 +945,7 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
   const [view, setView] = useState<"overall" | "round">("overall");
   useEffect(() => {
     if (!hasRound) return;
-    const id = setInterval(() => setView((v) => (v === "overall" ? "round" : "overall")), 9000);
+    const id = setInterval(() => setView((v) => (v === "overall" ? "round" : "overall")), 5000);
     return () => clearInterval(id);
   }, [hasRound]);
   const round = state.round;

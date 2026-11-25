@@ -2,7 +2,9 @@ import { ApiError } from "@/lib/errors";
 import { requirePlayer } from "@/server/auth";
 import { json, normalizeCode, route } from "@/server/http";
 import { findGame } from "@/server/lobby";
-import { MAX_PHOTO_BYTES, removePhoto, setPhoto } from "@/server/photos";
+import { z } from "zod";
+import { readJson } from "@/server/http";
+import { MAX_PHOTO_BYTES, removePhoto, setPhoto, setPhotoBody } from "@/server/photos";
 import { rateLimit } from "@/server/rateLimit";
 
 type Ctx = { params: Promise<{ code: string }> };
@@ -15,12 +17,15 @@ export const POST = route<Ctx>(async (req, ctx, db) => {
   const text = await req.text();
   if (text.length > MAX_PHOTO_BYTES * 1.4 + 200) throw new ApiError("PAYLOAD_TOO_LARGE", "That photo is too large.");
   let image = "";
+  let body: string | undefined;
   try {
-    image = String((JSON.parse(text) as { image?: unknown }).image ?? "");
+    const parsed = JSON.parse(text) as { image?: unknown; body?: unknown };
+    image = String(parsed.image ?? "");
+    body = typeof parsed.body === "string" ? parsed.body : undefined;
   } catch {
     throw new ApiError("VALIDATION", "Request body must be JSON.");
   }
-  const piece = await setPhoto(db, game, player, image);
+  const piece = await setPhoto(db, game, player, image, body);
   return json({ ok: true, piece });
 });
 
@@ -30,4 +35,12 @@ export const DELETE = route<Ctx>(async (req, ctx, db) => {
   const player = await requirePlayer(db, req, game);
   await removePhoto(db, game.id, player.id);
   return json({ ok: true });
+});
+
+/** Pick a different cartoon body for my face. */
+export const PATCH = route<Ctx>(async (req, ctx, db) => {
+  const game = await findGame(db, normalizeCode((await ctx.params).code));
+  const player = await requirePlayer(db, req, game);
+  const { body } = await readJson(req, z.object({ body: z.string().max(20) }));
+  return json({ ok: true, piece: await setPhotoBody(db, game, player, body) });
 });

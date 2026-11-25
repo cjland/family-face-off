@@ -21,8 +21,20 @@ export async function GET() {
     const [tables] = (
       (await handle.db.execute(sql`select count(*)::int as n from prompts where active`)) as unknown as { rows: { n: number }[] }
     ).rows;
+    // Newest schema pieces: if any is missing, the latest neon-setup.sql hasn't been run.
+    const [schema] = (
+      (await handle.db.execute(sql`
+        select to_regclass('public.player_photos') is not null as photos,
+               to_regclass('public.families') is not null as families,
+               exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
+                       where t.typname = 'game_phase' and e.enumlabel = 'LEADERBOARD') as leaderboard
+      `)) as unknown as { rows: { photos: boolean; families: boolean; leaderboard: boolean }[] }
+    ).rows;
     database = true;
     if (!tables?.n) databaseError = "connected, but no questions loaded: run neon-setup.sql in the Neon SQL Editor";
+    else if (!schema?.photos || !schema?.families || !schema?.leaderboard) {
+      databaseError = "connected, but the database is out of date: run the latest neon-setup.sql in the Neon SQL Editor";
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     databaseError = /relation .* does not exist/.test(msg)

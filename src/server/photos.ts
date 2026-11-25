@@ -3,7 +3,8 @@ import { and, eq } from "drizzle-orm";
 import type { DB } from "@/db/client";
 import { games, playerPhotos, players, type Game, type Player } from "@/db/schema";
 import { ApiError } from "@/lib/errors";
-import { PIECES, isPiece, photoPiece } from "@/lib/pieces";
+import { DEFAULT_BODY, isBody } from "@/lib/bodies";
+import { PIECES, isPiece, parsePhotoPiece, photoPiece } from "@/lib/pieces";
 
 export const MAX_PHOTO_BYTES = 150_000;
 
@@ -22,7 +23,7 @@ export function decodePhoto(dataUrl: string): { mime: string; data: Buffer } {
 }
 
 /** Stores the player's photo and shows it in place of their game piece. */
-export async function setPhoto(db: DB, game: Game, player: Player, dataUrl: string): Promise<string> {
+export async function setPhoto(db: DB, game: Game, player: Player, dataUrl: string, body?: string): Promise<string> {
   const { mime, data } = decodePhoto(dataUrl);
   return db.transaction(async (tx) => {
     const [g] = await tx.select().from(games).where(eq(games.id, game.id)).for("share");
@@ -30,6 +31,8 @@ export async function setPhoto(db: DB, game: Game, player: Player, dataUrl: stri
     const [current] = await tx.select().from(players).where(and(eq(players.id, player.id), eq(players.gameId, game.id)));
     if (!current) throw new ApiError("NOT_FOUND", "Player not found.");
     const previous = isPiece(current.piece) ? current.piece : null;
+    const keptBody = current.piece && current.piece.startsWith("photo:") ? parsePhotoPiece(current.piece).body : null;
+    const chosenBody = isBody(body) ? body : isBody(keptBody) ? keptBody : DEFAULT_BODY;
     await tx
       .insert(playerPhotos)
       .values({ playerId: player.id, mime, data, previousPiece: previous })
@@ -37,7 +40,7 @@ export async function setPhoto(db: DB, game: Game, player: Player, dataUrl: stri
         target: playerPhotos.playerId,
         set: { mime, data, updatedAt: new Date(), ...(previous ? { previousPiece: previous } : {}) },
       });
-    const piece = photoPiece(player.id, Date.now());
+    const piece = photoPiece(player.id, Date.now(), chosenBody);
     await tx.update(players).set({ piece }).where(eq(players.id, player.id));
     return piece;
   });
@@ -72,4 +75,15 @@ export async function getPhoto(db: DB, playerId: string) {
     .innerJoin(games, eq(games.id, players.gameId))
     .where(eq(playerPhotos.playerId, playerId));
   return row ?? null;
+}
+
+/** Changes the cartoon body under a player's face photo. */
+export async function setPhotoBody(db: DB, game: Game, player: Player, body: string): Promise<string> {
+  if (!isBody(body)) throw new ApiError("VALIDATION", "Unknown outfit.");
+  const [current] = await db.select().from(players).where(and(eq(players.id, player.id), eq(players.gameId, game.id)));
+  if (!current?.piece?.startsWith("photo:")) throw new ApiError("CONFLICT", "Add a photo first.");
+  const { version } = parsePhotoPiece(current.piece);
+  const piece = photoPiece(player.id, Number(version) || Date.now(), body);
+  await db.update(players).set({ piece }).where(eq(players.id, player.id));
+  return piece;
 }

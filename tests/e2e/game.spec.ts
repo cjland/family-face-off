@@ -32,7 +32,9 @@ async function joinAndAnswer(browser: Browser, code: string, name: string, answe
   await page.getByLabel("What should we call you?").fill(name);
   if (piece === "photo") {
     await page.locator('input[type="file"]').setInputFiles("tests/fixtures/sample-photo.jpg");
-    await expect(page.getByAltText("Your photo")).toBeVisible();
+    await expect(page.getByRole("radiogroup", { name: "Choose an outfit" })).toBeVisible();
+    await page.getByRole("radio", { name: "Royalty" }).click();
+    await shot(page, "phone-outfit");
   } else {
     await page.getByRole("radio", { name: piece, exact: true }).click();
   }

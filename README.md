@@ -25,18 +25,20 @@ No player accounts, emails or app installs. AI is optional and off by default.
 2. Players scan the QR code, enter a name, pick one of 40 game pieces (or tap **📷 Use my own photo**) and answer 8 private questions by tapping one of six choices (or "Something else…" to type their own). They can swap any question they'd rather not answer.
 3. When at least 3 players are ready, press **Start game…** and choose how many questions about each person (the app shows the most possible without ever repeating a question). This locks the roster and answers and builds the questions.
 4. Press **Start first question**. Players lock in A–D on their phones; the TV shows everyone's piece lighting up as they lock in (with a pop sound), and playfully teases whoever is slow ("Hurry up, Ben!"). Whoever the question is about sits that one out.
-5. **Reveal answer** shows the correct answer, how everyone answered (who picked what, and how fast), the round winner (fastest right answer) and the round loser (there's always one: the slowest wrong answer or no answer, or the slowest right answer if everyone got it). Next comes a **full-screen leaderboard** that alternates every 9 seconds between the overall standings and a **"This round"** view (everyone's pick, ✓/✗, time and points), then the next question.
+5. **Reveal answer** shows the correct answer, how everyone answered (who picked what, and how fast), the round winner (fastest right answer) and the round loser (there's always one: the slowest wrong answer or no answer, or the slowest right answer if everyone got it). Next comes a **full-screen leaderboard** that alternates every 5 seconds between the overall standings and a **"This round"** view (everyone's pick, ✓/✗, time and points), then the next question.
 
    **Running out of time:** answers are still accepted after the timer hits zero, until the reveal. The TV flashes a 🚨 **SHAME ALERT** (with a siren if sound is on) naming whoever is still holding things up, and the phone tells them everyone can see they're late. Late right answers still score 1,000 (no speed bonus). With auto reveal on, the game waits a few extra seconds for stragglers (+2s, +5s, +10s or +15s; set per game, default +5s). About 1 in 4 demo bots dawdles past the timer on purpose so you can see it.
 
    **Start from the TV:** the TV lobby also has a **Start game ➜** button that asks how many questions per person right on the TV.
+
+   **No early reveals:** the TV's Reveal arrow (and the → key) only appears once everyone has locked in. The host console can still reveal early, after a warning.
 
    **The arrow:** if the TV tab is opened from the host console in the same browser (so it's signed in as host), a big ➜ button appears at the bottom of the TV to move to the next step. The right-arrow key, space bar or a presentation clicker work too. On any other screen, the TV stays view-only.
 
    **Ending early:** "End game early…" sits apart from the other buttons and asks you to type END to confirm.
 6. The finale shows award cards (Knows the family best, Biggest mystery, Open book, Fastest finger, Slowpoke), then the podium and confetti.
 
-**Photos:** a player can use their own photo instead of a game piece, on the join screen or later from the "You're ready!" screen. The phone shrinks it to a small square (location data is stripped) before uploading. Photos are stored with the game and deleted when the game is deleted (7 days, or sooner from the dashboard). The host can remove anyone's photo from the lobby.
+**Photos:** a player can use their own photo instead of a game piece and pick one of 20 costumes (superhero, astronaut, chef, wizard, king, rock star…); their face appears in the costume everywhere in the game, on the join screen or later from the "You're ready!" screen. The phone shrinks it to a small square (location data is stripped) before uploading. Photos are stored with the game and deleted when the game is deleted (7 days, or sooner from the dashboard). The host can remove anyone's photo from the lobby.
 
 **Families:** every game belongs to a family (existing games belong to "Land"). Add families on the host dashboard; the TV shows "The Land Family". All families share your one host password.
 

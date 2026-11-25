@@ -3,7 +3,8 @@
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import type { OptionDTO, StandingDTO } from "@/lib/dto";
-import { pieceSrc } from "@/lib/pieces";
+import { bodyFace, isBody, type BodyId } from "@/lib/bodies";
+import { parsePhotoPiece, pieceSrc } from "@/lib/pieces";
 import type { Theme } from "@/lib/settings";
 
 // ---------- Stage / theme ----------
@@ -218,8 +219,34 @@ function hash(s: string) {
   return h;
 }
 
+/** A face photo shown through a costume's face hole (photo behind, costume art on top). */
+export function FaceOnBody({ src, body, size }: { src: string; body: BodyId; size: number }) {
+  const f = bodyFace(body);
+  return (
+    <span aria-hidden="true" className="relative inline-block flex-none drop-shadow-[0_4px_6px_rgba(0,0,0,0.45)]" style={{ width: size, height: size }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        className="absolute rounded-full object-cover"
+        style={{
+          left: `${(f.cx - f.r) * 100}%`,
+          top: `${(f.cy - f.r) * 100}%`,
+          width: `${f.r * 200}%`,
+          height: `${f.r * 200}%`,
+        }}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/bodies/${body}.webp`} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
+    </span>
+  );
+}
+
 export function Avatar({ name, size = 48, piece }: { name: string; size?: number; piece?: string | null }) {
   if (piece && piece.startsWith("photo:")) {
+    const { body } = parsePhotoPiece(piece);
+    if (body && isBody(body)) return <FaceOnBody src={pieceSrc(piece)} body={body} size={size} />;
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img

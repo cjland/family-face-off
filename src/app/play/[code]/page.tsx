@@ -10,7 +10,9 @@ import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { api, ApiClientError } from "@/lib/client/api";
 import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
-import { isPhotoPiece } from "@/lib/pieces";
+import { BodyPicker } from "@/components/BodyPicker";
+import { DEFAULT_BODY, isBody } from "@/lib/bodies";
+import { isPhotoPiece, parsePhotoPiece, pieceSrc } from "@/lib/pieces";
 import { ordinalLabel } from "@/lib/scoring";
 
 export default function PlayPage() {
@@ -130,6 +132,7 @@ function Centered({ title, children }: { title: string; children: React.ReactNod
 
 function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string; refresh: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   return (
     <section className="flex flex-col gap-5 pop-in">
       <div className="text-center flex flex-col gap-2 py-4">
@@ -161,7 +164,12 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
             disabled={busy}
             onPicked={async (image) => {
               setBusy(true);
-              await api(`/api/games/${code}/photo`, { method: "POST", body: { image } }).catch(() => {});
+              setPhotoError(null);
+              try {
+                await api(`/api/games/${code}/photo`, { method: "POST", body: { image } });
+              } catch (err) {
+                setPhotoError(`Your photo didn't upload: ${err instanceof ApiClientError ? err.message : "network problem"}`);
+              }
               refresh();
               setBusy(false);
             }}
@@ -185,6 +193,26 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
           )}
         </div>
       </div>
+      {isPhotoPiece(state.me!.piece) && (
+        <div className="panel p-4 flex flex-col gap-2">
+          <p className="font-semibold">Your outfit</p>
+          <BodyPicker
+            face={pieceSrc(state.me!.piece!)}
+            value={(() => {
+              const b = parsePhotoPiece(state.me!.piece!).body;
+              return isBody(b) ? b : DEFAULT_BODY;
+            })()}
+            disabled={busy}
+            onChange={async (b) => {
+              setBusy(true);
+              await api(`/api/games/${code}/photo`, { method: "PATCH", body: { body: b } }).catch(() => {});
+              refresh();
+              setBusy(false);
+            }}
+          />
+        </div>
+      )}
+      {photoError && <Banner kind="error">{photoError}</Banner>}
       <button
         className="btn btn-ghost"
         disabled={busy}

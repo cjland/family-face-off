@@ -20,7 +20,7 @@ import {
   setReady,
 } from "@/server/lobby";
 import { getGameState, type StateAuth } from "@/server/state";
-import { decodePhoto, getPhoto, removePhoto, setPhoto } from "@/server/photos";
+import { decodePhoto, getPhoto, removePhoto, setPhoto, setPhotoBody } from "@/server/photos";
 import { readFileSync } from "node:fs";
 import { closeTestDb, resetGames, testDb } from "../support/db";
 
@@ -501,13 +501,18 @@ describe("player photos", () => {
     const game = await createGame(db, {});
     const { player } = await joinGame(db, game.code, "Ann", null, { piece: "owl" });
     const piece = await setPhoto(db, game, player, jpeg);
-    expect(piece).toMatch(new RegExp(`^photo:${player.id}:\\d+$`));
+    expect(piece).toMatch(new RegExp(`^photo:${player.id}:\\d+:hero$`));
     expect((await refreshPlayer(player.id)).piece).toBe(piece);
     expect((await getPhoto(db, player.id))?.mime).toBe("image/jpeg");
     // The photo doesn't block the owl for others, and the join page never sees photo ids.
     expect((await joinInfo(db, game.code)).taken).not.toContain(piece);
     const lobby = await getGameState(db, game.code, auth("display"));
     expect(lobby.lobby?.[0].piece).toBe(piece);
+
+    // Choosing a costume keeps the same photo.
+    const king = await setPhotoBody(db, game, player, "king");
+    expect(king).toBe(piece.replace(/:hero$/, ":king"));
+    await expect(setPhotoBody(db, game, player, "nope")).rejects.toThrow();
 
     await removePhoto(db, game.id, player.id);
     expect((await refreshPlayer(player.id)).piece).toBe("owl");

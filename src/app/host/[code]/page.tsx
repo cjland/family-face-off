@@ -432,7 +432,15 @@ function RoundControls({
         <div className="flex gap-3 flex-wrap">
           {isQuestion ? (
             <>
-              <button className="btn btn-primary" disabled={busy} onClick={() => action("reveal")}>
+              <button
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => {
+                  const missing = round.eligibleCount - round.answeredCount;
+                  if (missing > 0 && !window.confirm(`${missing} ${missing === 1 ? "person hasn't" : "people haven't"} locked in yet. Reveal anyway?`)) return;
+                  void action("reveal");
+                }}
+              >
                 Reveal answer
               </button>
               {round.paused ? (
