@@ -57,6 +57,14 @@ export default function HostConsole() {
     return (
       <Stage theme="classic">
         <Spinner label="Loading game" />
+        {error && error.status >= 500 && (
+          <div className="mx-auto max-w-lg px-5">
+            <Banner kind="error">
+              Couldn&apos;t load the game ({error.message}). If the app was just updated, run the latest <code>neon-setup.sql</code> in the
+              Neon SQL Editor, then check <code>/api/health</code>. Retrying…
+            </Banner>
+          </div>
+        )}
       </Stage>
     );
   }

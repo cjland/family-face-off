@@ -220,8 +220,11 @@ function Display() {
     <Stage theme={theme}>
       <TvCanvas>
         {!state ? (
-          <div className="h-full grid place-items-center">
+          <div className="h-full flex flex-col items-center justify-center gap-10">
             <TitleMark title="Family Face-Off" theme={theme} size="xl" />
+            {error && error.status >= 500 && (
+              <p className="max-w-[1200px] text-center text-4xl text-bad">Couldn&apos;t load the game. If the app was just updated, the host needs to run the latest neon-setup.sql. Retrying…</p>
+            )}
           </div>
         ) : (
           <TvScreen state={state} offsetMs={offsetMs} sfx={sfx} reduced={reduced} />

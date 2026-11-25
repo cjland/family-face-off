@@ -53,6 +53,11 @@ export default function PlayPage() {
     return (
       <Stage theme={state?.theme ?? "classic"}>
         <Spinner label="Connecting" />
+        {error && error.status >= 500 && (
+          <div className="mx-auto max-w-md px-5">
+            <Banner kind="error">Something went wrong loading the game. Tell the host! Retrying…</Banner>
+          </div>
+        )}
       </Stage>
     );
   }
