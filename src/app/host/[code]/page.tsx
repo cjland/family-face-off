@@ -472,7 +472,7 @@ function RoundControls({
             <h2 className="font-display text-2xl font-bold">
               Locking in · {round.answeredCount}/{round.eligibleCount}
             </h2>
-            <LockInList state={state} />
+            <LockInList state={state} overtime={Boolean(now) && remaining <= 0 && !round.paused} />
           </>
         )}
         {state.phase === "REVEAL" && (

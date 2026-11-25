@@ -62,6 +62,27 @@ export class Sfx {
     osc.stop(t0 + 0.2);
   }
 
+  /** Wailing siren for the SHAME ALERT. */
+  shame() {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = "sawtooth";
+    for (let i = 0; i < 4; i++) {
+      osc.frequency.setValueAtTime(620, t0 + i * 0.4);
+      osc.frequency.linearRampToValueAtTime(940, t0 + i * 0.4 + 0.2);
+      osc.frequency.linearRampToValueAtTime(620, t0 + i * 0.4 + 0.4);
+    }
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.05);
+    g.gain.setValueAtTime(0.09, t0 + 1.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.65);
+    osc.connect(g).connect(this.ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 1.7);
+  }
+
   tick() {
     this.tone(880, 0, 0.08, "square", 0.05);
   }

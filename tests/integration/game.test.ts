@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db/client";
 import { guesses, players, rounds, scoreEvents, type Player } from "@/db/schema";
@@ -270,14 +270,35 @@ describe("game loop", () => {
     expect((await findGame(db, game.code)).phase).toBe("QUESTION");
   });
 
-  it("rejects guesses after the deadline even before reveal runs", async () => {
-    const { game, ps } = await setupGame(3);
+  it("accepts late answers after the timer (for shaming), scored without a speed bonus", async () => {
+    const { game, ps } = await setupGame(3, { speedBonus: 500 });
     await startGame(db, game.id, { excludeUnready: false });
     await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
     const { r } = await current(game.code);
-    await db.update(rounds).set({ deadlineAt: sql`now() - interval '1 second'` }).where(eq(rounds.id, r.id));
+    await db.update(rounds).set({ deadlineAt: sql`now() - interval '4 seconds'` }).where(eq(rounds.id, r.id));
     const guesser = ps.find((p) => p.player.id !== r.subjectPlayerId)!;
-    await expectApiError(submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId), "TIME_UP");
+    await submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId);
+    const [g] = await db.select().from(guesses).where(eq(guesses.roundId, r.id));
+    expect(g.elapsedMs).toBeGreaterThan(r.durationMs);
+    await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+    const [ev] = await db.select().from(scoreEvents).where(and(eq(scoreEvents.roundId, r.id), eq(scoreEvents.playerId, guesser.player.id)));
+    expect(ev.points).toBe(1000);
+    // After the reveal, late is too late.
+    const other = ps.find((p) => p.player.id !== r.subjectPlayerId && p.player.id !== guesser.player.id)!;
+    await expectApiError(submitGuess(db, game.id, other.player, r.id, r.correctOptionId), "WRONG_PHASE");
+  });
+
+  it("auto reveal waits a grace period for late answers once time runs out", async () => {
+    const { game, ps } = await setupGame(3, { autoReveal: true });
+    await startGame(db, game.id, { excludeUnready: false });
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    const { r } = await current(game.code);
+    const guesser = ps.find((p) => p.player.id !== r.subjectPlayerId)!;
+    await submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId);
+    await db.update(rounds).set({ deadlineAt: sql`now() - interval '5 seconds'` }).where(eq(rounds.id, r.id));
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("QUESTION");
+    await db.update(rounds).set({ deadlineAt: sql`now() - interval '16 seconds'` }).where(eq(rounds.id, r.id));
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL");
   });
 
   it("pause preserves remaining time and blocks guesses", async () => {

@@ -24,6 +24,8 @@ export const ACTIONS = ["prepare", "open", "next", "reveal", "pause", "resume", 
 export type GameAction = (typeof ACTIONS)[number];
 
 const RESERVE_ROUNDS = 6;
+/** In auto-reveal mode, how long to wait for late answers after the timer runs out. */
+export const OVERTIME_MS = 15_000;
 
 type Locked = { game: Game; now: Date };
 
@@ -437,7 +439,9 @@ export async function submitGuess(db: DB, gameId: string, player: Player, roundI
     const [round] = await tx.select().from(rounds).where(and(eq(rounds.id, roundId), eq(rounds.gameId, game.id)));
     if (!round || round.status !== "OPEN") throw new ApiError("WRONG_PHASE", "That question is closed.");
     if (round.pausedAt) throw new ApiError("PAUSED", "The game is paused.");
-    if (!round.deadlineAt || now.getTime() >= round.deadlineAt.getTime()) throw new ApiError("TIME_UP", "Time's up for this question.");
+    // Late answers (after the timer) are still accepted until the reveal; they just get shamed
+    // on the TV and earn no speed bonus.
+    if (!round.deadlineAt) throw new ApiError("WRONG_PHASE", "That question isn't open.");
     if (player.gameId !== game.id || !player.active) throw new ApiError("NOT_ELIGIBLE", "You're not playing in this game.");
     if (round.excludedPlayerIds.includes(player.id)) throw new ApiError("NOT_ELIGIBLE", "This question is about you, so you sit this one out.");
     if (!round.options.some((o) => o.id === optionId)) throw new ApiError("VALIDATION", "That isn't one of the choices.");
@@ -483,7 +487,8 @@ export async function tick(db: DB, ctx: TickContext): Promise<boolean> {
   }
 
   if (game.phase === "QUESTION" && round && round.status === "OPEN" && !round.pausedAt && settings.autoReveal) {
-    const expired = round.deadlineAt !== null && now.getTime() >= round.deadlineAt.getTime();
+    // Auto reveal: when everyone has answered, or once the overtime grace period is over.
+    const expired = round.deadlineAt !== null && now.getTime() >= round.deadlineAt.getTime() + OVERTIME_MS;
     let allIn = ctx.eligibleCount > 0 && ctx.answeredCount >= ctx.eligibleCount;
     if (!allIn && changed) allIn = (await countAnswered(db, round)) >= ctx.eligibleCount;
     if (expired || allIn) {
@@ -533,12 +538,17 @@ async function runBots(db: DB, game: Game, round: Round, now: Date): Promise<boo
   if (!bots.length || !round.openedAt) return false;
   const existing = await db.select({ playerId: guesses.playerId }).from(guesses).where(eq(guesses.roundId, round.id));
   const done = new Set(existing.map((e) => e.playerId));
-  const elapsed = round.durationMs - Math.max(0, (round.deadlineAt?.getTime() ?? 0) - now.getTime());
+  // Keeps counting past the deadline, so late (overtime) bots fire too.
+  const elapsed = round.durationMs - ((round.deadlineAt?.getTime() ?? 0) - now.getTime());
   let any = false;
   for (const bot of bots) {
     if (done.has(bot.id) || round.excludedPlayerIds.includes(bot.id)) continue;
     const h = hashString(`${bot.id}:${round.id}`);
-    const delay = 1500 + (h % Math.max(1, Math.floor(round.durationMs * 0.6)));
+    // About 1 in 4 bots dawdles past the timer (2-9s late) so the SHAME ALERT can be seen.
+    const slowpoke = (h >>> 12) % 4 === 0;
+    const delay = slowpoke
+      ? round.durationMs + 2000 + (h % 7000)
+      : 1500 + (h % Math.max(1, Math.floor(round.durationMs * 0.6)));
     if (elapsed < delay) continue;
     const wrong = round.options.filter((o) => o.id !== round.correctOptionId);
     const optionId = h % 100 < 55 ? round.correctOptionId : wrong[(h >>> 8) % wrong.length].id;

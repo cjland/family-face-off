@@ -4,7 +4,7 @@ import type { GameStateDTO } from "@/lib/dto";
 import { Avatar, LETTERS } from "./ui";
 
 /** Who has locked in so far (never what they chose). */
-export function LockInList({ state, size = "md" }: { state: GameStateDTO; size?: "md" | "tv" }) {
+export function LockInList({ state, size = "md", overtime = false }: { state: GameStateDTO; size?: "md" | "tv"; overtime?: boolean }) {
   const round = state.round;
   if (!round) return null;
   const locked = new Set(round.lockedPlayerIds ?? []);
@@ -25,7 +25,9 @@ export function LockInList({ state, size = "md" }: { state: GameStateDTO; size?:
               <Avatar name={p.name} piece={p.piece} size={tv ? 48 : 36} />
             </span>
             <span className={`flex-1 min-w-0 truncate font-semibold ${isIn ? "" : "text-muted"}`}>{p.name}</span>
-            <span className={isIn ? "text-good font-semibold" : "text-muted pulse-soft"}>{isIn ? "🔒 Locked in" : "⏳ Thinking…"}</span>
+            <span className={isIn ? "text-good font-semibold" : overtime ? "text-bad font-semibold pulse-soft" : "text-muted pulse-soft"}>
+              {isIn ? "🔒 Locked in" : overtime ? "🚨 Late!" : "⏳ Thinking…"}
+            </span>
           </li>
         );
       })}
@@ -71,7 +73,9 @@ export function GuessList({ state, size = "md" }: { state: GameStateDTO; size?: 
                 {g ? `${LETTERS[idx] ?? "?"}: ${round.options[idx]?.label ?? ""}` : "No answer"}
               </span>
             </span>
-            <span className={`tabular-nums ${tv ? "text-lg" : "text-sm"} text-muted`}>{g ? `${(g.elapsedMs / 1000).toFixed(1)}s` : "—"}</span>
+            <span className={`tabular-nums ${tv ? "text-lg" : "text-sm"} ${g && g.elapsedMs > round.durationMs ? "text-bad font-semibold" : "text-muted"}`}>
+              {g ? `${g.elapsedMs > round.durationMs ? "🚨 late " : ""}${(g.elapsedMs / 1000).toFixed(1)}s` : "—"}
+            </span>
             <span className={`font-bold ${g?.correct ? "text-good" : "text-bad"}`} aria-label={g?.correct ? "correct" : "wrong"}>
               {g?.correct ? "✓" : "✗"}
             </span>

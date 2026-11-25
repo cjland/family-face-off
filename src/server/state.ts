@@ -167,7 +167,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
     }
     state.round = dto;
 
-    if (game.phase === "REVEAL" && round.status === "REVEALED") {
+    if ((game.phase === "REVEAL" || game.phase === "LEADERBOARD") && round.status === "REVEALED") {
       const roundGuesses = await db
         .select({
           playerId: guesses.playerId,
@@ -244,7 +244,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
         .from(guesses)
         .where(and(eq(guesses.roundId, round.id), eq(guesses.playerId, me.id)));
       lockedOptionId = g?.optionId ?? null;
-      if (game.phase === "REVEAL" && round.status === "REVEALED") {
+      if ((game.phase === "REVEAL" || game.phase === "LEADERBOARD") && round.status === "REVEALED") {
         const [ev] = await db
           .select({ points: scoreEvents.points, isCorrect: scoreEvents.isCorrect })
           .from(scoreEvents)

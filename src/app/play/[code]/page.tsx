@@ -244,7 +244,7 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
     }
   };
 
-  const disabled = Boolean(locked) || submitting || round.paused || timeUp;
+  const disabled = Boolean(locked) || submitting || round.paused;
   const lockedIndex = round.options.findIndex((o) => o.id === locked);
 
   return (
@@ -279,16 +279,23 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
       {locked ? (
         <div className="panel p-4 text-center pop-in" role="status">
           <span className="font-display text-2xl">🔒 Locked in: {LETTERS[lockedIndex] ?? ""}</span>
+          {timeUp && <span className="block text-sm text-accent-2">Phew. Not a moment too soon.</span>}
           <span className="block text-muted text-sm mt-1">
             {round.answeredCount} of {round.eligibleCount} have answered
           </span>
         </div>
-      ) : timeUp ? (
-        <Banner kind="info">Time&apos;s up! Waiting for the reveal…</Banner>
       ) : (
-        <button className="btn btn-primary text-xl" disabled={!selected || disabled} onClick={lock}>
-          {submitting ? "Locking…" : selected ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}` : "Pick an answer"}
-        </button>
+        <>
+          {timeUp && (
+            <div role="alert" className="shame-alert rounded-2xl border-4 border-white px-4 py-3 text-center text-white">
+              <p className="font-display text-2xl font-bold">🚨 Time&apos;s up! 🚨</p>
+              <p>You can still answer… but the whole family can see you&apos;re late.</p>
+            </div>
+          )}
+          <button className="btn btn-primary text-xl" disabled={!selected || disabled} onClick={lock}>
+            {submitting ? "Locking…" : selected ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}` : "Pick an answer"}
+          </button>
+        </>
       )}
     </section>
   );
