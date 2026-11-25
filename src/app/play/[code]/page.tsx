@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { splitQuestion } from "@/lib/questionText";
+import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PhotoPicker } from "@/components/PhotoButton";
@@ -96,7 +97,12 @@ function PlayBody({ state, code, offsetMs, refresh }: { state: GameStateDTO; cod
         </Centered>
       );
     case "QUESTION":
-      return <QuestionScreen key={state.round?.id} state={state} code={code} offsetMs={offsetMs} refresh={refresh} />;
+      return (
+        <>
+          <QuestionScreen key={state.round?.id} state={state} code={code} offsetMs={offsetMs} refresh={refresh} />
+          {state.round && <PreQuestionCountdown round={state.round} offsetMs={offsetMs} variant="phone" />}
+        </>
+      );
     case "REVEAL":
       return <RevealScreen state={state} />;
     case "LEADERBOARD":
@@ -234,7 +240,8 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
   const round = state.round!;
   const me = state.me!;
   const now = useServerNow(offsetMs, !round.paused);
-  const remaining = round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.max(0, new Date(round.deadlineAt).getTime() - now);
+  const remaining =
+    round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.min(round.durationMs, Math.max(0, new Date(round.deadlineAt).getTime() - now));
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -287,7 +294,7 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
             🚨 Time&apos;s up! Late answers still count
           </span>
         )}
-        <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={72} />
+        <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={60} />
       </div>
       {(() => {
         const q = splitQuestion(round.questionText);
@@ -306,13 +313,13 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
         </p>
       )}
       {round.paused && <Banner kind="info">The host paused the game.</Banner>}
-      <div className="grid gap-3" role="group" aria-label="Answer choices">
+      <div className="grid gap-2.5" role="group" aria-label="Answer choices">
         {round.options.map((o, i) => (
           <AnswerTile
             key={o.id}
             index={i}
             option={o}
-            size="lg"
+            size="md"
             state={locked ? (o.id === locked ? "selected" : "dim") : selected === o.id ? "selected" : "idle"}
             onClick={() => !disabled && setSelected(o.id)}
             disabled={disabled}
@@ -330,9 +337,12 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
         </div>
       ) : (
         <>
-          <button className="btn btn-primary text-xl" disabled={!selected || disabled} onClick={lock}>
-            {submitting ? "Locking…" : selected ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}` : "Pick an answer"}
-          </button>
+          {/* Pinned to the bottom so it's always on screen, even on small phones with browser toolbars. */}
+          <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#140c33] via-[#140c33]/95 to-transparent z-10">
+            <button className="btn btn-primary text-xl w-full" disabled={!selected || disabled} onClick={lock}>
+              {submitting ? "Locking…" : selected ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}` : "Pick an answer"}
+            </button>
+          </div>
         </>
       )}
     </section>

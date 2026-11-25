@@ -156,8 +156,9 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       options: round.options,
       durationMs: round.durationMs,
       deadlineAt: round.deadlineAt?.toISOString() ?? null,
+      opensAt: round.openedAt?.toISOString() ?? null,
       paused: Boolean(round.pausedAt),
-      remainingMs: round.status === "OPEN" ? remainingActiveMs(round, now) : 0,
+      remainingMs: round.status === "OPEN" ? Math.min(round.durationMs, remainingActiveMs(round, now)) : 0,
       answeredCount,
       eligibleCount,
     };

@@ -334,15 +334,17 @@ body {
   animation: pulse-soft 1.6s ease-in-out infinite;
 }
 
+/* Reduced motion is respected everywhere, except on a TV display where the host has switched
+   "Motion" on (html.force-motion): a shared party screen, not the viewer's own desktop. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html:not(.force-motion) *,
+  html:not(.force-motion) *::before,
+  html:not(.force-motion) *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .leaves {
+  html:not(.force-motion) .leaves {
     display: none;
   }
 }
@@ -405,4 +407,85 @@ body {
   .tab-timer {
     animation-duration: var(--tab-ms, 5000ms) !important;
   }
+}
+
+/* Pre-question countdown: each number pops in. */
+@keyframes countdown-pop {
+  0% { transform: scale(1.6); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  85% { transform: scale(0.92); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.6; }
+}
+.countdown-pop {
+  display: inline-block;
+  animation: countdown-pop 1s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not(.force-motion) .countdown-pop {
+    animation: none !important;
+  }
+}
+
+/* Horse race: runners bob as they gallop to their spot, then settle. */
+@keyframes gallop {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14%) rotate(-6deg); }
+}
+.gallop {
+  animation: gallop 0.28s ease-in-out 8;
+}
+
+/* Leader watch: the leader's piece floats and sways a little. */
+@keyframes leader-float {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(6px, -10px) rotate(3deg); }
+  50% { transform: translate(0, -16px) rotate(0deg); }
+  75% { transform: translate(-6px, -10px) rotate(-3deg); }
+}
+.leader-float {
+  animation: leader-float 3.2s ease-in-out infinite;
+}
+
+/* Rank chart lines draw in from the left. */
+@keyframes draw-line {
+  from { stroke-dashoffset: var(--len, 2000); }
+  to { stroke-dashoffset: 0; }
+}
+.draw-line {
+  stroke-dasharray: var(--len, 2000);
+  animation: draw-line 1.6s ease-out both;
+}
+
+/* Tiles that drop in one after another. */
+@keyframes tile-in {
+  from { transform: translateY(14px) scale(0.9); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.tile-in {
+  animation: tile-in 0.45s cubic-bezier(.2,.9,.3,1.2) both;
+}
+
+/* Galaxy stars */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+.twinkle {
+  animation: twinkle 2.6s ease-in-out infinite;
+}
+
+/* ON FIRE flame flicker */
+@keyframes flame {
+  0%, 100% { transform: scale(1) rotate(-4deg); }
+  50% { transform: scale(1.2) rotate(4deg); }
+}
+.flame {
+  animation: flame 0.5s ease-in-out infinite;
+}
+
+/* Emoji next to gold gradient headings keep their own colors. */
+.emoji-plain {
+  background: none;
+  -webkit-text-fill-color: initial;
+  color: initial;
 }

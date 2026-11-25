@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { DB } from "@/db/client";
 import { guesses, players, rounds, scoreEvents } from "@/db/schema";
+import { computeBoards } from "./boards";
 import type { AwardDTO, LeaderRunDTO, StandingDTO, StatsDTO } from "@/lib/dto";
 
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
@@ -23,6 +24,8 @@ export async function computeStats(db: DB, gameId: string, standings: StandingDT
       correctOptionId: rounds.correctOptionId,
       questionText: rounds.questionText,
       answerText: rounds.answerText,
+      promptText: rounds.promptText,
+      options: rounds.options,
       excluded: rounds.excludedPlayerIds,
     })
     .from(rounds)
@@ -45,9 +48,11 @@ export async function computeStats(db: DB, gameId: string, standings: StandingDT
     hardest: null,
     roundsPlayed: revealed.length,
     leaderRun: null,
+    boards: null,
   };
   if (!revealed.length) return stats;
   stats.leaderRun = await leaderRun(db, gameId, standings, revealed, allGuesses);
+  stats.boards = computeBoards(roster, standings, revealed, allGuesses);
 
   const roundById = new Map(revealed.map((r) => [r.id, r]));
   const eligibleCount = (r: (typeof revealed)[number]) => roster.filter((p) => !r.excluded.includes(p.id)).length;
@@ -138,13 +143,16 @@ async function leaderRun(
   const ids = standings.map((s) => s.playerId);
   const totals = new Map(ids.map((id) => [id, 0]));
   const history: LeaderRunDTO["history"] = [];
+  const fieldRanks = new Map(ids.map((id) => [id, [] as number[]]));
   let streak = 0;
   let bestStreak = 0;
   const correctMs: number[] = [];
   ordered.forEach((r, i) => {
     for (const e of events) if (e.roundId === r.id && totals.has(e.playerId)) totals.set(e.playerId, totals.get(e.playerId)! + e.points);
+    const all = [...totals.values()];
+    for (const [id, pts] of totals) fieldRanks.get(id)!.push(1 + all.filter((v) => v > pts).length);
     const mine = totals.get(top.playerId)!;
-    const rank = 1 + [...totals.values()].filter((v) => v > mine).length;
+    const rank = 1 + all.filter((v) => v > mine).length;
     const g = allGuesses.find((x) => x.roundId === r.id && x.playerId === top.playerId);
     const pts = events.find((e) => e.roundId === r.id && e.playerId === top.playerId)?.points ?? 0;
     let result: LeaderRunDTO["history"][number]["result"];
@@ -168,6 +176,7 @@ async function leaderRun(
     eligible: top.eligible,
     avgCorrectMs: correctMs.length ? correctMs.reduce((a, b) => a + b, 0) / correctMs.length : null,
     bestStreak,
+    field: standings.map((s) => ({ playerId: s.playerId, name: s.name, piece: s.piece ?? null, ranks: fieldRanks.get(s.playerId)! })),
     history,
   };
 }

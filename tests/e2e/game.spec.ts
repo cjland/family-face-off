@@ -1,5 +1,10 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
+/** Each question starts with a full-screen 5-4-3-2-1; wait until answers are open. */
+async function countdownDone(page: Page) {
+  await expect(page.getByRole("status", { name: /starts in/ })).toHaveCount(0, { timeout: 15_000 });
+}
+
 /**
  * Full game: host + three isolated phone browsers (separate cookie jars) + TV display.
  * All names and answers are fictional sample data.
@@ -129,11 +134,16 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   await expect(host.getByRole("heading", { name: "Questions are ready" })).toBeVisible();
   await expect(tv.getByText("Get ready!")).toBeVisible();
   await hostAction(host, "Start first question");
-  await expect(tv.getByText(/Question 1 of 3/)).toBeVisible();
+  await expect(tv.getByText(/Question 1 of 3/).first()).toBeVisible();
+  await expect(tv.getByRole("status", { name: /starts in/ })).toBeVisible();
+  await shot(tv, "tv-countdown");
+  await shot(p1, "phone-countdown");
+  await countdownDone(tv);
 
   const players = [p1, p2, p3];
   for (let q = 1; q <= 3; q++) {
-    await expect(tv.getByText(new RegExp(`Question ${q} of 3`))).toBeVisible();
+    await expect(tv.getByText(new RegExp(`Question ${q} of 3`)).first()).toBeVisible();
+  await countdownDone(tv);
     let guessed = 0;
     for (const p of players) {
       await expect(p.getByText(new RegExp(`Q${q} of 3|This one's about you`))).toBeVisible();
@@ -223,12 +233,14 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   await host.getByRole("radio", { name: "1", exact: true }).click();
   await hostAction(host, "Lock roster & start");
   await hostAction(host, "Start first question");
-  await expect(tv.getByText(/Question 1 of 4/)).toBeVisible();
+  await expect(tv.getByText(/Question 1 of 4/).first()).toBeVisible();
+  await countdownDone(tv);
   await shot(tv, "tv-question-thanksgiving");
   // Bots answer on their own; auto reveal fires; auto next moves to Q2; then the game finishes.
   await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
   await shot(tv, "tv-reveal-thanksgiving");
-  await expect(tv.getByText(/Question 2 of 4/)).toBeVisible({ timeout: 30_000 });
+  await expect(tv.getByText(/Question 2 of 4/).first()).toBeVisible({ timeout: 30_000 });
+  await countdownDone(tv);
   await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
   await hostAction(host, "End game early…");
   await expect(host.getByText("Are you sure you want to end the game?")).toBeVisible();

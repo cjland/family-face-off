@@ -31,6 +31,8 @@ export type RoundDTO = {
   options: OptionDTO[];
   durationMs: number;
   deadlineAt: string | null;
+  /** When answers open (end of the pre-question countdown). */
+  opensAt: string | null;
   paused: boolean;
   remainingMs: number;
   answeredCount: number;
@@ -74,6 +76,32 @@ export type StatsDTO = {
   roundsPlayed: number;
   /** The (first) leader's game so far, round by round, for the TV's leader spotlight. */
   leaderRun: LeaderRunDTO | null;
+  /** Extra TV leaderboard pages, all from revealed rounds only. */
+  boards: BoardsDTO | null;
+};
+
+type Who = { playerId: string; name: string; piece: string | null };
+
+export type BoardsDTO = {
+  /** Every revealed question, hardest first. */
+  stumpers: (Who & {
+    number: number;
+    prompt: string;
+    answer: string;
+    pctCorrect: number;
+    right: number;
+    eligible: number;
+    /** Nobody / everybody got it, or the right answer was the least popular pick. */
+    badge: "impossible" | "everybody" | "surprise" | null;
+  })[];
+  /** Each player's last five eligible questions, oldest first. */
+  form: (Who & { last: ("right" | "wrong" | "missed")[] })[];
+  /** How often the family guessed right about each person. */
+  mystery: (Who & { rate: number; right: number; total: number })[];
+  /** Average answer time vs accuracy, per player who has answered. */
+  galaxy: (Who & { avgMs: number; accuracy: number; answered: number })[];
+  /** The wrong answers that fooled the most people. */
+  graveyard: { label: string; fooled: number; subjectName: string; prompt: string; actual: string }[];
 };
 
 export type LeaderRunDTO = {
@@ -86,6 +114,8 @@ export type LeaderRunDTO = {
   eligible: number;
   avgCorrectMs: number | null;
   bestStreak: number;
+  /** Everyone's rank after each question, for the chart (leader included). */
+  field: { playerId: string; name: string; piece: string | null; ranks: number[] }[];
   history: {
     number: number;
     result: "right" | "wrong" | "missed" | "subject";

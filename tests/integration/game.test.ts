@@ -56,7 +56,7 @@ async function fillAndReady(code: string, player: Player, i: number) {
 }
 
 async function setupGame(n: number, settings: Record<string, unknown> = {}) {
-  const game = await createGame(db, { title: "Test", settings: { roundCount: 6, ...settings } });
+  const game = await createGame(db, { title: "Test", settings: { roundCount: 6, countdownSeconds: 0, ...settings } });
   const ps: { player: Player; token: string }[] = [];
   for (let i = 0; i < n; i++) {
     const r = await joinGame(db, game.code, `Player ${i + 1}`, null);
@@ -268,6 +268,24 @@ describe("game loop", () => {
     expect((await findGame(db, game.code)).phase).toBe("LEADERBOARD");
     await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
     expect((await findGame(db, game.code)).phase).toBe("QUESTION");
+  });
+
+  it("holds answers during the 5-4-3-2-1 countdown and starts the timer after it", async () => {
+    const { game, ps } = await setupGame(4, { countdownSeconds: 5 });
+    await startGame(db, game.id, { excludeUnready: false });
+    const g = await findGame(db, game.code);
+    await performAction(db, game.id, "open", g.version);
+    const { r } = await current(game.code);
+    const guesser = ps.find((p) => p.player.id !== r.subjectPlayerId)!;
+    expect(r.openedAt!.getTime() - Date.now()).toBeGreaterThan(3000);
+    expect(r.deadlineAt!.getTime() - r.openedAt!.getTime()).toBe(r.durationMs);
+    await expectApiError(submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId), "WRONG_PHASE");
+    const view = await getGameState(db, game.code, auth("player", guesser.player));
+    expect(view.round!.opensAt).toBe(r.openedAt!.toISOString());
+    expect(view.round!.remainingMs).toBeLessThanOrEqual(r.durationMs);
+    // Once the countdown is over, answers count from zero.
+    await db.update(rounds).set({ openedAt: new Date(Date.now() - 1000), deadlineAt: new Date(Date.now() - 1000 + r.durationMs) }).where(eq(rounds.id, r.id));
+    await submitGuess(db, game.id, guesser.player, r.id, r.correctOptionId);
   });
 
   it("accepts late answers after the timer (for shaming), scored without a speed bonus", async () => {

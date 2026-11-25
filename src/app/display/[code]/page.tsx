@@ -8,6 +8,8 @@ import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { GuessList } from "@/components/RoundPanels";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import { splitQuestion } from "@/lib/questionText";
+import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
+import { GalaxyBoard, GraveyardBoard, HeatingBoard, MysteryBoard, StumpersBoard } from "@/components/tv/Boards";
 import { MusicPlayer } from "@/lib/client/music";
 import { Sfx } from "@/lib/client/sound";
 import type { GameStateDTO } from "@/lib/dto";
@@ -109,7 +111,25 @@ function Display() {
   const music = useRef<MusicPlayer | null>(null);
   const [soundOn, setSoundOn] = useState(false);
   const [isFull, setIsFull] = useState(false);
-  const reduced = usePrefersReducedMotion();
+  const prefersReduced = usePrefersReducedMotion();
+  // TV animations default to on, even if this computer asks for reduced motion (it's a shared
+  // party screen). The ✨ button turns them off; the choice is remembered on this browser.
+  const [motion, setMotion] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        if (localStorage.getItem("ffo_tv_motion") === "off") setMotion(false);
+      } catch {
+        /* storage unavailable */
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    document.documentElement.classList.toggle("force-motion", motion);
+    return () => document.documentElement.classList.remove("force-motion");
+  }, [motion]);
+  const reduced = prefersReduced && !motion;
   const [controlsVisible, setControlsVisible] = useState(true);
 
   useEffect(() => {
@@ -228,6 +248,24 @@ function Display() {
         </button>
         <button
           type="button"
+          className={`btn btn-ghost !min-h-[56px] !px-4 !text-2xl ${motion ? "" : "opacity-60"}`}
+          aria-pressed={motion}
+          aria-label={motion ? "Animations on (click to reduce motion)" : "Animations reduced (click to turn on)"}
+          title={motion ? "Animations on" : "Animations reduced"}
+          onClick={() => {
+            const next = !motion;
+            setMotion(next);
+            try {
+              localStorage.setItem("ffo_tv_motion", next ? "on" : "off");
+            } catch {
+              /* storage unavailable */
+            }
+          }}
+        >
+          {motion ? "✨" : "🚫✨"}
+        </button>
+        <button
+          type="button"
           className="btn btn-ghost !min-h-[56px] !text-xl"
           onClick={() => {
             if (document.fullscreenElement) void document.exitFullscreen();
@@ -300,7 +338,7 @@ function TvHeader({ state, center, right }: { state: GameStateDTO; center?: Reac
         <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
       </div>
       <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[520px]">{right}</div>
+      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[620px]">{right}</div>
     </div>
   );
 }
@@ -647,8 +685,12 @@ function joinNames(names: string[]) {
 function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: number; sfx: React.RefObject<Sfx | null> }) {
   const round = state.round!;
   const now = useServerNow(offsetMs, !round.paused, 100);
-  const remaining = round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.max(0, new Date(round.deadlineAt).getTime() - now);
+  const remaining =
+    round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.min(round.durationMs, Math.max(0, new Date(round.deadlineAt).getTime() - now));
   const secs = Math.ceil(remaining / 1000);
+  const onCountdownTick = () => {
+    if (sfx.current?.enabled) sfx.current.tick();
+  };
   const lastTick = useRef<number>(-1);
   useEffect(() => {
     if (!round.paused && secs <= 5 && secs > 0 && secs !== lastTick.current) {
@@ -732,7 +774,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               </div>
             )
           )}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {(() => {
               const q = splitQuestion(round.questionText);
               return q.lead ? (
@@ -755,8 +797,9 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             )}
             <div className="h-[96px] mt-3 flex items-center">
               {taunt && (
-                <div key={taunt} className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block">
-                  <span className="font-display text-5xl font-bold text-accent-2 whitespace-nowrap">{taunt}</span>
+                <div key={taunt} className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block max-w-full">
+                  {/* Stays inside the question column so it never runs under the countdown ring. */}
+                  <span className={`block font-display font-bold text-accent-2 truncate ${taunt.length > 44 ? "text-4xl" : "text-5xl"}`}>{taunt}</span>
                 </div>
               )}
             </div>
@@ -842,6 +885,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
           <span className="font-display text-9xl font-bold">Paused</span>
         </div>
       )}
+      <PreQuestionCountdown round={round} offsetMs={offsetMs} variant="tv" onTick={onCountdownTick} />
     </div>
   );
 }
@@ -1043,12 +1087,17 @@ function TvReveal({ state }: { state: GameStateDTO }) {
 
 // ---------- Full-screen leaderboard (between questions) ----------
 
-type BoardView = "overall" | "round" | "reaction" | "bets" | "leader";
+type BoardView = "overall" | "round" | "reaction" | "bets" | "heating" | "stumpers" | "mystery" | "galaxy" | "graveyard" | "leader";
 const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] = [
   { id: "overall", label: "Overall", title: "Leaderboard" },
   { id: "round", label: "This round", title: "This round" },
-  { id: "reaction", label: "Reaction times", title: "Reaction times" },
-  { id: "bets", label: "Place your bets", title: "Place your bets! 🏇" },
+  { id: "reaction", label: "Reaction", title: "Reaction times" },
+  { id: "bets", label: "Bets", title: "Place your bets! 🏇" },
+  { id: "heating", label: "Heating up", title: "Who's heating up? 🔥" },
+  { id: "stumpers", label: "Stumpers", title: "The questions that stumped everyone" },
+  { id: "mystery", label: "Mystery", title: "The family mystery meter 🕵️" },
+  { id: "galaxy", label: "Galaxy", title: "The family galaxy 🌌" },
+  { id: "graveyard", label: "Graveyard", title: "The answer graveyard 🪦" },
   { id: "leader", label: "Leader", title: "Leader watch" },
 ];
 
@@ -1059,7 +1108,21 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
   const hasRound = Boolean(state.reveal && state.round);
   const [view, setView] = useState<BoardView>("overall");
   const hasLeader = Boolean(state.stats?.leaderRun);
-  const views = BOARD_VIEWS.filter((v) => (v.id === "leader" ? hasLeader : true));
+  const b = state.stats?.boards;
+  const played = state.stats?.roundsPlayed ?? 0;
+  const available: Record<BoardView, boolean> = {
+    overall: true,
+    round: true,
+    reaction: true,
+    bets: true,
+    heating: Boolean(b && played >= 2 && b.form.length > 0),
+    stumpers: Boolean(b && b.stumpers.length >= 2),
+    mystery: Boolean(b && b.mystery.length >= 2),
+    galaxy: Boolean(b && b.galaxy.length >= 2),
+    graveyard: Boolean(b && b.graveyard.length > 0),
+    leader: hasLeader,
+  };
+  const views = BOARD_VIEWS.filter((v) => available[v.id]);
   const viewKey = views.map((v) => v.id).join(",");
   // Each "cycle" is one timed stretch: ROTATE_MS normally, MANUAL_HOLD_MS after someone picks a tab.
   const [cycle, setCycle] = useState({ n: 0, ms: ROTATE_MS, held: false });
@@ -1084,10 +1147,24 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
       <div className="absolute top-[120px] inset-x-14 bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col items-center gap-2">
           <h2 key={current} className="font-display text-7xl font-bold gold-text text-center pop-in">
-            {BOARD_VIEWS.find((v) => v.id === current)!.title}
+            {(() => {
+              // Emoji sit outside the gold gradient text, otherwise they render as solid gold blobs.
+              const t = BOARD_VIEWS.find((v) => v.id === current)!.title;
+              const m = /^(.*?)\s*(\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*)$/u.exec(t);
+              return m ? (
+                <>
+                  {m[1]}{" "}
+                  <span className="emoji-plain" aria-hidden="true">
+                    {m[2]}
+                  </span>
+                </>
+              ) : (
+                t
+              );
+            })()}
           </h2>
           {hasRound && (
-            <div className="flex items-center gap-3 text-2xl" role="tablist" aria-label="Leaderboard pages">
+            <div className="flex items-center justify-center flex-wrap gap-2 text-xl" role="tablist" aria-label="Leaderboard pages">
               {views.map((v) => {
                 const active = current === v.id;
                 return (
@@ -1101,7 +1178,7 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
                       // Keep Enter/Space for the host's "next" shortcut, not this tab.
                       e.currentTarget.blur();
                     }}
-                    className={`relative overflow-hidden rounded-full px-5 py-1.5 transition-colors ${
+                    className={`relative overflow-hidden rounded-full px-4 py-1 transition-colors ${
                       active ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted hover:bg-white/15 hover:text-ink"
                     }`}
                   >
@@ -1117,11 +1194,6 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
                   </button>
                 );
               })}
-              {cycle.held && (
-                <span className="text-xl text-muted" aria-live="polite">
-                  ⏸ Holding for {MANUAL_HOLD_MS / 1000}s
-                </span>
-              )}
             </div>
           )}
         </div>
@@ -1133,6 +1205,16 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
           <BetsBoard state={state} />
         ) : current === "leader" ? (
           <LeaderBoardPage state={state} />
+        ) : current === "heating" && b ? (
+          <HeatingBoard boards={b} />
+        ) : current === "stumpers" && b ? (
+          <StumpersBoard boards={b} />
+        ) : current === "mystery" && b ? (
+          <MysteryBoard boards={b} />
+        ) : current === "galaxy" && b ? (
+          <GalaxyBoard boards={b} />
+        ) : current === "graveyard" && b ? (
+          <GraveyardBoard boards={b} />
         ) : (
           <OverallBoard state={state} />
         )}
@@ -1239,6 +1321,9 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
  * The leader sits near (not on) the finish line until the game is over; odds come from each
  * player's share of the points, so it's for fun, not a prediction.
  */
+const RACE_MS = 2200;
+const RACE_STAGGER = 70;
+
 function BetsBoard({ state }: { state: GameStateDTO }) {
   const standings = state.standings ?? [];
   const round = state.round;
@@ -1249,6 +1334,12 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
   const laneH = Math.min(84, Math.floor(540 / Math.max(1, standings.length)));
   const av = Math.max(36, Math.min(76, laneH - 4));
   const compact = laneH < 64;
+  // Everyone starts at the gate and gallops to their spot each time this page appears.
+  const [go, setGo] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGo(true), 120);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <>
       <p className="text-center text-3xl text-muted -mt-1">
@@ -1279,11 +1370,29 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
                   <span className={`truncate font-display font-semibold ${laneH < 56 ? "text-2xl" : "text-3xl"}`}>{s.name}</span>
                 </span>
                 <span className="relative flex-1 h-full">
+                  {/* Trail: a line under each runner from the gate to where they are now. */}
                   <span
-                    className="absolute top-1/2 transition-[left] duration-[1400ms] ease-out"
-                    style={{ left: `calc(${pct * 100}% - ${pct * av}px)`, transform: "translateY(-50%) scaleX(-1)" }}
+                    aria-hidden="true"
+                    className="absolute left-0 bottom-[3px] h-[6px] rounded-full bg-gradient-to-r from-white/10 via-white/50 to-accent ease-out"
+                    style={{
+                      width: go ? `calc(${pct * 100}% - ${pct * av}px + ${av / 2}px)` : 0,
+                      transition: `width ${RACE_MS}ms cubic-bezier(.25,.8,.3,1) ${i * RACE_STAGGER}ms`,
+                    }}
+                  />
+                  <span
+                    className="absolute top-1/2"
+                    style={{
+                      left: go ? `calc(${pct * 100}% - ${pct * av}px)` : 0,
+                      transform: "translateY(-50%)",
+                      transition: `left ${RACE_MS}ms cubic-bezier(.25,.8,.3,1) ${i * RACE_STAGGER}ms`,
+                    }}
                   >
-                    <Avatar name={s.name} piece={s.piece} size={av} />
+                    <span
+                      className={`block ${s.points > 0 ? "gallop" : ""}`}
+                      style={{ animationDelay: `${i * RACE_STAGGER}ms` }}
+                    >
+                      <Avatar name={s.name} piece={s.piece} size={av} />
+                    </span>
                   </span>
                 </span>
                 <span className={`w-[190px] flex-none tabular-nums ${compact ? "flex items-baseline justify-center gap-2" : "text-center"}`}>
@@ -1308,73 +1417,140 @@ const RESULT_STYLE = {
 } as const;
 
 /** The last page: everything about the current leader, round by round. */
+const FIELD_COLORS = ["#7dd3fc", "#f9a8d4", "#86efac", "#c4b5fd", "#fdba74", "#67e8f9", "#fca5a5", "#bef264", "#a5b4fc", "#fcd34d", "#5eead4", "#f0abfc"];
+
+/** The last page: everything about the current leader, round by round, against the whole field. */
 function LeaderBoardPage({ state }: { state: GameStateDTO }) {
   const run = state.stats!.leaderRun!;
   const accuracy = run.eligible ? Math.round((run.correct / run.eligible) * 100) : 0;
-  const recent = run.history.slice(-18);
-  const maxRank = Math.max(2, ...run.history.map((h) => h.rank));
+  const recent = run.history.slice(-12);
+  const field = run.field.length ? run.field : [{ playerId: run.playerId, name: run.name, piece: run.piece, ranks: run.history.map((h) => h.rank) }];
+  const maxRank = Math.max(2, ...field.flatMap((f) => f.ranks));
   const W = 1040;
-  const Hh = 150;
+  const Hh = 250;
+  const padR = 70; // room for the end-of-line pieces
   const n = run.history.length;
-  const x = (i: number) => (n <= 1 ? W / 2 : 30 + (i * (W - 60)) / (n - 1));
-  const y = (rank: number) => 24 + ((rank - 1) * (Hh - 48)) / (maxRank - 1);
-  const path = run.history.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.rank).toFixed(1)}`).join(" ");
+  const x = (i: number) => (n <= 1 ? (W - padR) / 2 : 36 + (i * (W - padR - 50)) / (n - 1));
+  const y = (rank: number) => 18 + ((rank - 1) * (Hh - 36)) / (maxRank - 1);
+  const pathFor = (ranks: number[]) => ranks.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
+  const others = field.filter((f) => f.playerId !== run.playerId);
+  // End-of-line pieces: players sharing a final rank are fanned out sideways so none hide another.
+  const ends = new Map<number, number>();
+  const endPos = field.map((f) => {
+    const r = f.ranks[f.ranks.length - 1] ?? 1;
+    const k = ends.get(r) ?? 0;
+    ends.set(r, k + 1);
+    return { f, r, k };
+  });
+  const endSize = field.length > 8 ? 30 : 40;
   return (
     <div className="flex gap-8 flex-1 min-h-0 max-w-[1760px] w-full mx-auto">
-      <div className="panel-strong w-[560px] flex-none flex flex-col items-center justify-center gap-3 px-6 py-4 ring-4 ring-inset ring-accent">
-        <span className="text-5xl leading-none" aria-hidden="true">👑</span>
-        <Avatar name={run.name} piece={run.piece} size={200} />
+      <div className="panel-strong w-[560px] flex-none flex flex-col items-center justify-center gap-3 px-6 py-4 ring-4 ring-inset ring-accent overflow-hidden">
+        <span className="text-5xl leading-none leader-float" style={{ animationDelay: "-0.4s" }} aria-hidden="true">
+          👑
+        </span>
+        <span className="leader-float">
+          <Avatar name={run.name} piece={run.piece} size={200} />
+        </span>
         <span className="font-display text-6xl font-bold text-center leading-tight">{run.name}</span>
         <span className="text-3xl text-muted">{run.tied ? "Tied for 1st" : "In 1st place"}</span>
-        <span className="font-display text-7xl font-bold gold-text tabular-nums">{run.points.toLocaleString()}</span>
+        <span className="font-display text-7xl font-bold gold-text tabular-nums pop-in">{run.points.toLocaleString()}</span>
         <div className="grid grid-cols-3 gap-3 w-full text-center">
-          <div className="rounded-2xl bg-black/30 py-2">
-            <div className="font-display text-4xl font-bold">{accuracy}%</div>
-            <div className="text-lg text-muted">
-              {run.correct} of {run.eligible} right
+          {[
+            { big: `${accuracy}%`, small: `${run.correct} of ${run.eligible} right` },
+            { big: `🔥 ${run.bestStreak}`, small: "best streak" },
+            { big: run.avgCorrectMs === null ? "–" : `${(run.avgCorrectMs / 1000).toFixed(1)}s`, small: "avg right answer" },
+          ].map((c, i) => (
+            <div key={c.small} className="rounded-2xl bg-black/30 py-2 tile-in" style={{ animationDelay: `${300 + i * 120}ms` }}>
+              <div className="font-display text-4xl font-bold">{c.big}</div>
+              <div className="text-lg text-muted">{c.small}</div>
             </div>
-          </div>
-          <div className="rounded-2xl bg-black/30 py-2">
-            <div className="font-display text-4xl font-bold">🔥 {run.bestStreak}</div>
-            <div className="text-lg text-muted">best streak</div>
-          </div>
-          <div className="rounded-2xl bg-black/30 py-2">
-            <div className="font-display text-4xl font-bold">{run.avgCorrectMs === null ? "–" : `${(run.avgCorrectMs / 1000).toFixed(1)}s`}</div>
-            <div className="text-lg text-muted">avg right answer</div>
-          </div>
+          ))}
         </div>
       </div>
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="panel p-4">
-          <h3 className="font-display text-3xl">Where they stood after each question</h3>
-          <svg viewBox={`0 0 ${W} ${Hh}`} className="w-full" style={{ height: Hh }} role="img" aria-label={`Rank after each question: ${run.history.map((h) => h.rank).join(", ")}`}>
-            {Array.from({ length: maxRank }, (_, r) => (
-              <g key={r}>
-                <line x1={20} x2={W - 10} y1={y(r + 1)} y2={y(r + 1)} stroke="rgba(255,255,255,0.12)" strokeWidth={2} />
-                {(r === 0 || r === maxRank - 1) && (
-                  <text x={0} y={y(r + 1) + 7} fill="rgba(255,255,255,0.6)" fontSize={22}>
-                    {r + 1}
-                  </text>
-                )}
-              </g>
+          <h3 className="font-display text-3xl">
+            Where everyone stood after each question <span className="text-2xl text-accent-2 font-sans">· gold = {run.name}</span>
+          </h3>
+          <div className="relative w-full" style={{ height: Hh }}>
+            <svg
+              viewBox={`0 0 ${W} ${Hh}`}
+              preserveAspectRatio="none"
+              className="absolute inset-0 w-full h-full overflow-visible"
+              role="img"
+              aria-label={`${run.name}'s rank after each question: ${run.history.map((h) => h.rank).join(", ")}`}
+            >
+              {Array.from({ length: maxRank }, (_, r) => (
+                <line key={r} x1={30} x2={W - padR + 10} y1={y(r + 1)} y2={y(r + 1)} stroke="rgba(255,255,255,0.08)" strokeWidth={2} />
+              ))}
+              {others.map((f, i) => (
+                <path
+                  key={f.playerId}
+                  d={pathFor(f.ranks)}
+                  pathLength={1}
+                  className="draw-line"
+                  style={{ ["--len" as string]: 1, animationDelay: `${i * 60}ms` } as React.CSSProperties}
+                  fill="none"
+                  stroke={FIELD_COLORS[i % FIELD_COLORS.length]}
+                  strokeOpacity={0.55}
+                  strokeWidth={3.5}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+              <path
+                d={pathFor(run.history.map((h) => h.rank))}
+                pathLength={1}
+                className="draw-line"
+                style={{ ["--len" as string]: 1, animationDelay: "250ms" } as React.CSSProperties}
+                fill="none"
+                stroke="#f5c542"
+                strokeWidth={8}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            <span className="absolute left-0 text-xl text-muted" style={{ top: `calc(${(y(1) / Hh) * 100}% - 0.7em)` }}>
+              1
+            </span>
+            <span className="absolute left-0 text-xl text-muted" style={{ top: `calc(${(y(maxRank) / Hh) * 100}% - 0.7em)` }}>
+              {maxRank}
+            </span>
+            {endPos.map(({ f, r, k }) => (
+              <span
+                key={f.playerId}
+                className={`absolute pop-in ${f.playerId === run.playerId ? "z-10" : ""}`}
+                style={{
+                  left: `calc(${(x(n - 1) / W) * 100}% + ${8 + k * (endSize * 0.55)}px)`,
+                  top: `calc(${(y(r) / Hh) * 100}% - ${endSize / 2}px)`,
+                  animationDelay: "1.4s",
+                }}
+                title={f.name}
+              >
+                <Avatar name={f.name} piece={f.piece} size={f.playerId === run.playerId ? endSize + 12 : endSize} />
+              </span>
             ))}
-            <path d={path} fill="none" stroke="#f5c542" strokeWidth={6} strokeLinejoin="round" strokeLinecap="round" />
-            {run.history.map((h, i) => (
-              <circle key={i} cx={x(i)} cy={y(h.rank)} r={h.rank === 1 ? 11 : 8} fill={h.rank === 1 ? "#f5c542" : "#fff"} />
-            ))}
-          </svg>
+          </div>
         </div>
         <div className="panel p-4 flex-1 min-h-0 overflow-hidden">
           <h3 className="font-display text-3xl mb-3">
-            Round by round{run.history.length > recent.length ? ` (last ${recent.length})` : ""}
+            {run.name}&apos;s questions{run.history.length > recent.length ? ` (last ${recent.length})` : ""}
           </h3>
           <ol className="grid grid-cols-6 gap-3">
-            {recent.map((h) => {
+            {recent.map((h, i) => {
               const st = RESULT_STYLE[h.result];
               return (
-                <li key={h.number} className={`rounded-2xl border-2 ${st.cls} px-3 py-2`} aria-label={`Question ${h.number}: ${st.label}`}>
+                <li
+                  key={h.number}
+                  className={`rounded-2xl border-2 ${st.cls} px-3 py-2 tile-in`}
+                  style={{ animationDelay: `${500 + i * 70}ms` }}
+                  aria-label={`Question ${h.number}: ${st.label}`}
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-xl text-muted">Q{h.number}</span>
+                    <span className="rounded-full bg-accent text-black font-display font-bold text-2xl px-3 leading-snug">Q{h.number}</span>
                     <span className="font-display text-4xl font-bold leading-none">{st.mark}</span>
                   </div>
                   <div className="flex items-baseline justify-between gap-2 mt-1 whitespace-nowrap">
@@ -1424,7 +1600,8 @@ function ReactionBoard({ state }: { state: GameStateDTO }) {
     { key: "slowRight", emoji: "🐢", title: "Slow & right", sub: "Slow and steady", tone: "bg-good/10 border-good/60" },
     { key: "slowWrong", emoji: "🫠", title: "Slow & wrong", sub: "Took their time… still wrong", tone: "bg-black/30 border-white/20" },
   ];
-  const many = (state.players?.length ?? 0) > 8;
+  // Bigger chips when the busiest box has room for them.
+  const many = Math.max(...Object.values(boxes).map((b) => b.length)) > 4;
   return (
     <>
       <p className="text-center text-2xl text-muted -mt-1">
@@ -1451,10 +1628,10 @@ function ReactionBoard({ state }: { state: GameStateDTO }) {
                 <div className="flex flex-wrap gap-2 content-start">
                   {boxes[c.key].length === 0 && <span className="text-2xl text-muted">Nobody</span>}
                   {boxes[c.key].map((e) => (
-                    <span key={e.id} className="inline-flex items-center gap-2 rounded-full bg-black/30 pl-1 pr-4 py-1">
-                      <Avatar name={e.name} piece={e.piece} size={many ? 40 : 52} />
-                      <span className={`font-semibold ${many ? "text-xl" : "text-2xl"}`}>{e.name}</span>
-                      <span className={`tabular-nums text-muted ${many ? "text-lg" : "text-xl"}`}>
+                    <span key={e.id} className="inline-flex items-center gap-2 rounded-full bg-black/30 pl-1 pr-5 py-1 pop-in">
+                      <Avatar name={e.name} piece={e.piece} size={many ? 64 : 84} />
+                      <span className={`font-display font-semibold ${many ? "text-2xl" : "text-3xl"}`}>{e.name}</span>
+                      <span className={`tabular-nums text-muted ${many ? "text-xl" : "text-2xl"}`}>
                         {e.ms === null ? "no answer" : `${(e.ms / 1000).toFixed(1)}s`}
                       </span>
                     </span>

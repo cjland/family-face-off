@@ -258,10 +258,13 @@ async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
     await bumpGame(tx, game.id, { phase: "FINISHED", finishedAt: now, currentRoundId: null });
     return;
   }
-  // Fresh server deadline from the database clock.
+  // Fresh server deadline from the database clock. With a pre-question countdown the round
+  // "opens" a few seconds from now; answers are refused until then and the timer starts after it.
+  const countdownMs = parseSettings(game.settings).countdownSeconds * 1000;
+  const opensAt = new Date(now.getTime() + countdownMs);
   await tx
     .update(rounds)
-    .set({ status: "OPEN", openedAt: now, deadlineAt: new Date(now.getTime() + next.durationMs), pausedAt: null, remainingMs: null })
+    .set({ status: "OPEN", openedAt: opensAt, deadlineAt: new Date(opensAt.getTime() + next.durationMs), pausedAt: null, remainingMs: null })
     .where(eq(rounds.id, next.id));
   await bumpGame(tx, game.id, { phase: "QUESTION", currentRoundId: next.id });
 }
@@ -390,9 +393,12 @@ async function applyAction(tx: DB, game: Game, round: Round | null, action: Game
       if (game.phase !== "QUESTION" || !round || round.status !== "OPEN") throw new ApiError("WRONG_PHASE", "Nothing to resume.");
       if (!round.pausedAt) return;
       const remaining = round.remainingMs ?? 0;
+      const deadlineAt = new Date(now.getTime() + remaining);
+      // Paused during the countdown: the rest of the countdown resumes too.
+      const openedAt = remaining > round.durationMs ? new Date(deadlineAt.getTime() - round.durationMs) : round.openedAt;
       await tx
         .update(rounds)
-        .set({ pausedAt: null, remainingMs: null, deadlineAt: new Date(now.getTime() + remaining) })
+        .set({ pausedAt: null, remainingMs: null, deadlineAt, openedAt })
         .where(eq(rounds.id, round.id));
       return bumpGame(tx, game.id, {});
     }
@@ -443,6 +449,7 @@ export async function submitGuess(db: DB, gameId: string, player: Player, roundI
     // Late answers (after the timer) are still accepted until the reveal; they just get shamed
     // on the TV and earn no speed bonus.
     if (!round.deadlineAt) throw new ApiError("WRONG_PHASE", "That question isn't open.");
+    if (round.openedAt && now < round.openedAt) throw new ApiError("WRONG_PHASE", "Get ready! Answers open when the countdown ends.");
     if (player.gameId !== game.id || !player.active) throw new ApiError("NOT_ELIGIBLE", "You're not playing in this game.");
     if (round.excludedPlayerIds.includes(player.id)) throw new ApiError("NOT_ELIGIBLE", "This question is about you, so you sit this one out.");
     if (!round.options.some((o) => o.id === optionId)) throw new ApiError("VALIDATION", "That isn't one of the choices.");

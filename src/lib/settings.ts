@@ -16,6 +16,8 @@ export const settingsSchema = z
     autoReveal: z.boolean().default(false),
     /** With auto reveal: extra seconds to wait for late answers after the timer runs out. */
     overtimeSeconds: z.number().int().min(0).max(30).default(5),
+    /** Full-screen "5, 4, 3, 2, 1" before each question; answers open when it hits zero. */
+    countdownSeconds: z.number().int().min(0).max(10).default(5),
     autoNext: z.boolean().default(false),
     revealSeconds: z.number().int().min(3).max(30).default(8),
     replaceSkipped: z.boolean().default(true),

@@ -1,4 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
+
+/** Each question starts with a full-screen 5-4-3-2-1; wait until answers are open. */
+async function countdownDone(page: Page) {
+  await expect(page.getByRole("status", { name: /starts in/ })).toHaveCount(0, { timeout: 15_000 });
+}
 test("someone walks away: host can reveal without them once time is up", async ({ browser }) => {
   test.setTimeout(240000);
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
@@ -27,7 +32,8 @@ test("someone walks away: host can reveal without them once time is up", async (
   await tv.setViewportSize({ width: 1920, height: 1080 });
   await tv.goto(href!);
   for (const l of ["Start game…", "Lock roster & start", "Start first question"]) await host.getByRole("button", { name: l }).click();
-  await expect(tv.getByText(/Question 1 of/)).toBeVisible({ timeout: 20000 });
+  await expect(tv.getByText(/Question 1 of/).first()).toBeVisible({ timeout: 20000 });
+  await countdownDone(tv);
   // Walt never answers. Before time is up there's no way to reveal.
   await expect(tv.getByRole("button", { name: /Reveal without waiting/ })).toHaveCount(0);
   if (await tv.getByText(/Wanderer Walt sits this one out/).count()) test.skip(true, "Walt is the subject this round");

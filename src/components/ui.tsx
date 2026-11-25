@@ -101,7 +101,7 @@ export function CountdownRing({
   const urgent = !paused && secs <= 5;
   return (
     <div
-      className="relative grid place-items-center"
+      className="relative grid place-items-center flex-none"
       style={{ width: size, height: size }}
       role="timer"
       aria-live="off"
