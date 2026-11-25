@@ -52,6 +52,10 @@ The TV shows **Scan to join** with a QR code and a six-letter game code. Each pl
 </tr>
 </table>
 
+**New to the game?** Press **📖 How to play** on the TV lobby. It plays a full-screen, 15-step walkthrough on a loop (scan the code, type your name, pick a piece, answer the questions, what happens during the game) while the QR code, game code and everyone joining stay on screen. Arrow keys flip through the steps; **✕ Close** goes back to the normal lobby. Skip it once everyone knows the game.
+
+<p align="center"><img src="docs/images/tv-howto.webp" alt="TV: How to play walkthrough, step 10 of 15, with the QR code still on screen" width="820"></p>
+
 Answers stay secret until they come up in the game. Players who close their browser can scan the QR code again (it's also in the corner of the TV during the game) and they'll pop right back in on the same phone.
 
 ### 3. Start the game
@@ -149,7 +153,7 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 **Before everyone arrives**
 
 1. Open your site's `/api/health` page. It should say `"ok":true`. (If it says the database is out of date, run the latest `neon-setup.sql`; see [setup](#2-create-the-tables-and-load-the-questions).)
-2. On `/host`, create the game and press **Open TV display**. Open that link **in the same browser** you used to sign in, so the TV gets the host's ➜ button.
+2. On `/host`, create the game and press **Open TV display**. Open that link **in the same browser** you used to sign in, so the TV gets the host's ➜ button. For first-timers, press **📖 How to play** on the TV lobby and leave it running while people join.
 3. Put the TV tab fullscreen (**⛶ Fullscreen** at the top right), and click **🔇 Enable sound** once (browsers block sound until you click).
 4. Try it alone first: **+ Add 4 demo players** fills the room with bots that answer on their own.
 
@@ -334,7 +338,7 @@ DOCS_SCREENS=/tmp/docs-raw E2E_BASE_URL=http://localhost:3000 npx playwright tes
 python3 scripts/docs-images.py /tmp/docs-raw docs/images      # needs: pip install pillow
 ```
 
-The script plays a short game with two pretend players and eight labelled demo bots (everyone in the pictures is fictional) and saves every screen above.
+The script plays a short game with two pretend players and eight labelled demo bots (everyone in the pictures is fictional) and saves every screen above. It also refreshes the pictures used by the TV's **How to play** walkthrough (`public/howto`).
 
 ---
 

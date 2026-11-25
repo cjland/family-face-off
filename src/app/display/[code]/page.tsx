@@ -9,6 +9,7 @@ import { GuessList } from "@/components/RoundPanels";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import { splitQuestion } from "@/lib/questionText";
 import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
+import { HowToPlay } from "@/components/tv/HowToPlay";
 import { GalaxyBoard, GraveyardBoard, HeatingBoard, MysteryBoard, StumpersBoard } from "@/components/tv/Boards";
 import { MusicPlayer } from "@/lib/client/music";
 import { Sfx } from "@/lib/client/sound";
@@ -482,6 +483,39 @@ function RevealAnyway({ state }: { state: GameStateDTO }) {
 
 function TvLobby({ state }: { state: GameStateDTO }) {
   const joinUrl = useMemo(() => joinUrlFor(state.code), [state.code]);
+  // "How to play" walkthrough: stays open (and survives a TV refresh) until someone closes it.
+  const howtoKey = `ffo_howto_${state.code}`;
+  const [howto, setHowto] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        if (localStorage.getItem(howtoKey) === "1") setHowto(true);
+      } catch {
+        /* storage unavailable */
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [howtoKey]);
+  const toggleHowto = (open: boolean) => {
+    setHowto(open);
+    try {
+      if (open) localStorage.setItem(howtoKey, "1");
+      else localStorage.removeItem(howtoKey);
+    } catch {
+      /* storage unavailable */
+    }
+  };
+  if (howto) {
+    return (
+      <HowToPlay
+        state={state}
+        joinUrl={joinUrl}
+        prettyJoin={prettyUrl(joinUrl)}
+        startButton={<NextArrow state={state} />}
+        onClose={() => toggleHowto(false)}
+      />
+    );
+  }
   const players = state.lobby ?? [];
   const many = players.length > 15;
   const cols = balancedColumns(Math.max(players.length, 1), players.length > 24 ? 7 : players.length > 15 ? 6 : 5);
@@ -502,8 +536,18 @@ function TvLobby({ state }: { state: GameStateDTO }) {
         </div>
       </div>
       <div className="flex flex-col gap-6 min-h-0">
-        <div className="flex items-end justify-between">
+        <div className="flex items-end justify-between gap-4">
           <h3 className="font-display text-5xl font-bold">Who&apos;s playing</h3>
+          <button
+            type="button"
+            className="btn btn-ghost !min-h-[56px] !text-2xl ml-auto"
+            onClick={(e) => {
+              e.currentTarget.blur();
+              toggleHowto(true);
+            }}
+          >
+            📖 How to play
+          </button>
           <span className="text-3xl text-muted" aria-live="polite">
             {state.counts.ready} of {state.counts.players} ready
           </span>

@@ -107,4 +107,14 @@ for i, (name, x, y) in enumerate([("phone-question", 1070, 170), ("phone-locked"
     hero.alpha_composite(ph, (x, y))
 
 save(hero.convert("RGB"), "hero", quality=85)
+
+# The TV's "How to play" walkthrough uses some of these same screens.
+HOWTO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "howto")
+if os.path.isdir(HOWTO):
+    for f in os.listdir(HOWTO):
+        src = os.path.join(OUT, f)
+        if os.path.exists(src):
+            with open(src, "rb") as a, open(os.path.join(HOWTO, f), "wb") as b:
+                b.write(a.read())
+
 print("wrote", len(os.listdir(OUT)), "images to", OUT)

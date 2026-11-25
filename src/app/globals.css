@@ -489,3 +489,19 @@ body {
   -webkit-text-fill-color: initial;
   color: initial;
 }
+
+/* Full-screen panels over the TV canvas (e.g. How to play) use the theme's own backdrop. */
+.stage-solid {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, var(--bg-glow), transparent 70%),
+    linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 100%);
+}
+
+/* How to play: the hand points at the QR code. */
+@keyframes howto-point {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-28px); }
+}
+.howto-point {
+  animation: howto-point 1.1s ease-in-out infinite;
+}

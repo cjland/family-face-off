@@ -78,6 +78,12 @@ test("README screenshots", async ({ browser }) => {
   await tv.waitForTimeout(1200);
   await shot(tv, "tv-lobby");
   await shot(host, "host-lobby");
+  await tv.getByRole("button", { name: /How to play/ }).click();
+  for (let s = 2; s <= 10; s++) await tv.keyboard.press("ArrowRight");
+  await expect(tv.getByText("Step 10 of 15")).toBeVisible();
+  await tv.waitForTimeout(900);
+  await shot(tv, "tv-howto");
+  await tv.getByRole("button", { name: "✕ Close" }).click();
 
   await host.getByRole("button", { name: "Start game…" }).click();
   await host.getByRole("radio", { name: "1", exact: true }).click();
