@@ -317,14 +317,14 @@ function TvScreen({
   }
 }
 
-function TvHeader({ state, center }: { state: GameStateDTO; center?: React.ReactNode }) {
+function TvHeader({ state, center, right }: { state: GameStateDTO; center?: React.ReactNode; right?: React.ReactNode }) {
   return (
     <div className="absolute top-0 inset-x-0 h-[110px] px-14 grid grid-cols-[1fr_auto_1fr] items-center">
       <div className="justify-self-start">
         <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
       </div>
       <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div />
+      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[300px]">{right}</div>
     </div>
   );
 }
@@ -625,6 +625,8 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   const players = state.players ?? [];
   const locked = new Set(round.lockedPlayerIds ?? []);
   const subject = players.find((p) => p.id === round.subjectPlayerId);
+  // "Who submitted this answer?" rounds must not reveal who the subject is.
+  const secret = round.type === "WHO_ANSWERED";
   const guessers = players.filter((p) => p.id !== round.subjectPlayerId);
   const laggards = guessers.filter((p) => !locked.has(p.id));
   const elapsedFrac = round.durationMs ? 1 - remaining / round.durationMs : 0;
@@ -666,9 +668,24 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
 
   return (
     <div className="h-full">
-      <TvHeader state={state} center={`Question ${round.number} of ${round.total}`} />
+      <TvHeader state={state} right={`Question ${round.number} of ${round.total}`} />
       <div className="absolute top-[110px] inset-x-14 bottom-[160px] flex flex-col gap-5">
         <div className="flex-1 flex items-center gap-10 min-h-0">
+          {secret ? (
+            <div
+              className="flex-none grid place-items-center rounded-full bg-black/30 border-4 border-accent font-display text-[9rem] text-accent-2"
+              style={{ width: 230, height: 230 }}
+              aria-label="Mystery player"
+            >
+              ?
+            </div>
+          ) : (
+            subject && (
+              <div className="flex-none flex flex-col items-center pop-in" key={subject.id}>
+                <Avatar name={subject.name} piece={subject.piece} size={250} />
+              </div>
+            )
+          )}
           <div className="flex-1">
             <h2 className="font-display font-bold leading-[1.05] text-[4.6rem]" style={{ textWrap: "balance" }}>
               {round.questionText}
@@ -694,8 +711,9 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
           ))}
         </div>
         <div className="flex flex-wrap items-end gap-x-3 gap-y-1 min-h-[124px]" aria-label="Who has locked in">
-          {guessers.map((p) => {
-            const isIn = locked.has(p.id);
+          {(secret ? players : guessers).map((p) => {
+            // On mystery rounds the subject is shown like everyone else (as locked in) so nobody can tell.
+            const isIn = locked.has(p.id) || (secret && p.id === round.subjectPlayerId);
             return (
               <div key={p.id} className="flex flex-col items-center w-[96px]" title={p.name}>
                 <div className={`relative transition-all duration-300 ${isIn ? "pop-in" : overtime ? "shame-wobble" : "opacity-35 grayscale"}`}>
@@ -738,9 +756,10 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               </span>
             </span>
           </div>
+        ) : secret ? (
+          <span className="text-2xl text-muted">One mystery person sits this one out 🤫</span>
         ) : subject && (
           <span className="flex items-center gap-2 text-2xl text-muted min-w-0">
-            <Avatar name={subject.name} piece={subject.piece} size={52} />
             <span className="truncate">{subject.name} sits this one out</span>
           </span>
         )}
@@ -853,7 +872,7 @@ function TvReveal({ state }: { state: GameStateDTO }) {
 
   return (
     <div className="h-full">
-      <TvHeader state={state} center={`Question ${round.number} of ${round.total}`} />
+      <TvHeader state={state} right={`Question ${round.number} of ${round.total}`} />
       <div className="absolute top-[115px] left-14 w-[1150px] bottom-[160px] flex flex-col gap-4 overflow-hidden">
         <p className="text-3xl text-muted leading-tight">{round.questionText}</p>
         <div className="panel-strong px-7 py-5 pop-in flex items-center gap-6">
