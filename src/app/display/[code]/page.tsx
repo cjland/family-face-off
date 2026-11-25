@@ -1013,28 +1013,65 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
 
 function OverallBoard({ state }: { state: GameStateDTO }) {
   const standings = state.standings ?? [];
-  const perPage = 16;
-  const pages = Math.max(1, Math.ceil(standings.length / perPage));
+  // The leader gets a double-height spotlight row. With a tie for first (or nobody scoring yet)
+  // a spotlight would be misleading, so up to two co-leaders share it and bigger ties use the plain list.
+  const leaders = standings.filter((s) => s.rank === 1);
+  const spotlight = leaders.length <= 2 && (leaders[0]?.points ?? 0) > 0 ? leaders : [];
+  const rest = standings.slice(spotlight.length);
+  const twoCols = spotlight.length ? rest.length > 4 : rest.length > 5;
+  const perPage = spotlight.length ? (twoCols ? 10 : 4) : 16;
+  const pages = Math.max(1, Math.ceil(rest.length / perPage));
   const [page, setPage] = useState(0);
   useEffect(() => {
     if (pages <= 1) return;
     const id = setInterval(() => setPage((p) => (p + 1) % pages), 4500);
     return () => clearInterval(id);
   }, [pages]);
-  const rows = standings.slice((page % pages) * perPage, (page % pages) * perPage + perPage);
-  const twoCols = standings.length > 8;
+  const rows = rest.slice((page % pages) * perPage, (page % pages) * perPage + perPage);
   const half = twoCols ? Math.ceil(rows.length / 2) : rows.length;
   const cols = twoCols ? [rows.slice(0, half), rows.slice(half)] : [rows];
   const big = !twoCols;
   return (
     <>
+      {spotlight.length > 0 && (
+        <div className={`grid gap-6 w-full mx-auto ${spotlight.length > 1 ? "grid-cols-2" : "grid-cols-1 max-w-[1300px]"}`}>
+          {spotlight.map((s) => {
+            const duo = spotlight.length > 1;
+            return (
+              <div
+                key={s.playerId}
+                className={`flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
+                aria-label={`First place: ${s.name}, ${s.points} points`}
+              >
+                {!duo && <span className="text-8xl w-[1.2em] text-center" aria-hidden="true">👑</span>}
+                <Avatar name={s.name} piece={s.piece} size={duo ? 150 : 164} />
+                <div className="flex-1 min-w-0">
+                  <div className={`truncate font-display font-bold ${duo ? "text-5xl" : "text-7xl"}`}>
+                    {duo && <span aria-hidden="true">👑 </span>}
+                    {s.name}
+                  </div>
+                  <div className="flex gap-5 text-3xl text-muted tabular-nums mt-2 whitespace-nowrap">
+                    {!duo && <span>1st place</span>}
+                    {duo && <span>Tied for 1st</span>}
+                    {s.lastRound != null && (
+                      <span className={s.lastRound > 0 ? "text-good" : ""}>{s.lastRound > 0 ? `+${s.lastRound.toLocaleString()}` : "+0"}</span>
+                    )}
+                    {!duo && s.eligible > 0 && <span>{Math.round(s.accuracy * 100)}%</span>}
+                  </div>
+                </div>
+                <span className={`font-display font-bold tabular-nums gold-text ${duo ? "text-6xl" : "text-8xl"}`}>{s.points.toLocaleString()}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
         {cols.map((col, ci) => (
           <ol key={ci} className="flex flex-col gap-3">
             {col.map((s) => (
               <li
                 key={s.playerId}
-                className={`flex items-center gap-4 rounded-2xl px-5 ${big ? "py-3 text-4xl" : "py-2 text-3xl"} ${
+                className={`flex items-center gap-4 rounded-2xl px-5 ${big ? "h-[98px] text-4xl" : "h-[80px] text-3xl"} ${
                   s.rank === 1 ? "bg-accent/25 ring-2 ring-accent" : "bg-black/30"
                 } pop-in`}
               >

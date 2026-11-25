@@ -32,6 +32,17 @@ async function joinAndAnswer(browser: Browser, code: string, name: string, answe
   await page.getByLabel("What should we call you?").fill(name);
   if (piece === "photo") {
     await page.locator('input[type="file"]').setInputFiles("tests/fixtures/sample-photo.jpg");
+    // Center-your-face step: drag a little, zoom in, then use it.
+    const view = page.getByLabel(/Photo position/);
+    await expect(view).toBeVisible();
+    await shot(page, "phone-photo-crop");
+    const box = (await view.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 20, { steps: 5 });
+    await page.mouse.up();
+    await page.getByRole("slider", { name: "Zoom" }).fill("1.6");
+    await page.getByRole("button", { name: "Use photo" }).click();
     await expect(page.getByRole("radiogroup", { name: "Choose an outfit" })).toBeVisible();
     await page.getByRole("radio", { name: "Royalty" }).click();
     await shot(page, "phone-outfit");
@@ -154,6 +165,8 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
       await expect(tv.getByText("Paused", { exact: true })).toBeHidden();
     }
 
+    // Wait until the host's own poll has seen every lock-in, otherwise it asks "Reveal anyway?".
+    await expect(host.getByText("2 of 2 locked in")).toBeVisible();
     await hostAction(host, "Reveal answer");
     await expect(tv.getByText("Correct answer")).toBeVisible();
     await expect(tv.getByRole("heading", { name: "Who guessed what" })).toBeVisible();

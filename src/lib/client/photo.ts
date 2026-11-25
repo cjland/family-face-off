@@ -6,18 +6,39 @@
  * because only the re-drawn pixels are kept.
  */
 export async function prepareSquarePhoto(file: File, size = 320, quality = 0.82): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("Please choose a photo.");
-  const bitmap = await loadBitmap(file);
+  const bitmap = await loadPhoto(file);
   const side = Math.min(bitmap.width, bitmap.height);
-  const sx = (bitmap.width - side) / 2;
-  const sy = (bitmap.height - side) / 2;
+  return cropPhoto(bitmap, { x: (bitmap.width - side) / 2, y: (bitmap.height - side) / 2, side }, size, quality);
+}
+
+export type PhotoSource = ImageBitmap | HTMLImageElement;
+export type Crop = { x: number; y: number; side: number };
+
+/** Decodes a picked file (respecting phone rotation). */
+export async function loadPhoto(file: File): Promise<PhotoSource> {
+  if (!file.type.startsWith("image/") && file.type !== "") throw new Error("Please choose a photo.");
+  return loadBitmap(file);
+}
+
+/** Keeps a square crop inside the image. */
+export function clampCrop(img: { width: number; height: number }, c: Crop): Crop {
+  const side = Math.min(c.side, img.width, img.height);
+  return {
+    side,
+    x: Math.min(Math.max(c.x, 0), img.width - side),
+    y: Math.min(Math.max(c.y, 0), img.height - side),
+  };
+}
+
+/** Draws the chosen square of the photo into a small JPEG data URL. */
+export function cropPhoto(bitmap: PhotoSource, crop: Crop, size = 320, quality = 0.82): string {
+  const { x: sx, y: sy, side } = clampCrop(bitmap, crop);
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("This browser can't process photos.");
   ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, size, size);
-  if ("close" in bitmap && typeof bitmap.close === "function") bitmap.close();
   return canvas.toDataURL("image/jpeg", quality);
 }
 

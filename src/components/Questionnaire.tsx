@@ -132,7 +132,24 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
         <h2 id="review-title" className="font-display text-3xl font-bold">
           Looking good!
         </h2>
-        <p className="text-muted">Your answers stay secret until they come up in the game. Tap any answer to change it.</p>
+        {(() => {
+          const missing = items.filter((i) => !i.answer.trim()).length;
+          return (
+            <div className="panel p-4 flex flex-col gap-3">
+              <p className="text-muted">
+                {missing === 0
+                  ? `All ${items.length} answered. Your answers stay secret until they come up in the game.`
+                  : `${missing} still need${missing === 1 ? "s" : ""} an answer. Tap ${missing === 1 ? "it" : "them"} below.`}
+              </p>
+              {error && <Banner kind="error">{error}</Banner>}
+              <button className="btn btn-primary" onClick={ready} disabled={busy || missing > 0}>
+                {busy ? "Saving…" : "I'm ready!"}
+              </button>
+            </div>
+          );
+        })()}
+        <h3 className="font-display text-xl mt-2">Check your answers</h3>
+        <p className="text-muted -mt-3 text-sm">Tap any answer to change it.</p>
         <ol className="flex flex-col gap-2">
           {items.map((it, i) => (
             <li key={it.slot}>
@@ -145,9 +162,8 @@ export function Questionnaire({ code, onReady }: { code: string; onReady: () => 
             </li>
           ))}
         </ol>
-        {error && <Banner kind="error">{error}</Banner>}
-        <button className="btn btn-primary" onClick={ready} disabled={busy || items.some((i) => !i.answer.trim())}>
-          {busy ? "Saving…" : "I'm ready!"}
+        <button className="btn btn-ghost" onClick={ready} disabled={busy || items.some((i) => !i.answer.trim())}>
+          {busy ? "Saving…" : "All good, ready to play"}
         </button>
       </section>
     );
