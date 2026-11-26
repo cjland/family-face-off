@@ -282,16 +282,6 @@ function Display() {
       if (serverNow < opensAt + 3000) {
         // The "get ready" line, unless the TV only noticed the question once the numbers had started.
         if (serverNow < opensAt - state.countdownSeconds * 1000 - 500) void a.intro(state.code, r.number, r.total);
-        // Count down with the big numbers (only the ones he has room for after the intro).
-        for (const n of [5, 4, 3, 2, 1] as const) {
-          const at = opensAt - n * 1000;
-          if (at > serverNow)
-            timers.push(
-              setTimeout(() => {
-                if (latest.current?.phase === "QUESTION" && latest.current.round?.id === r.id && !latest.current.round.paused) void a.count(n);
-              }, at - serverNow),
-            );
-        }
         // "Go!" and read the question as it appears (after the countdown).
         timers.push(
           setTimeout(() => {
@@ -957,8 +947,11 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   const remaining =
     round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.min(round.durationMs, Math.max(0, new Date(round.deadlineAt).getTime() - now));
   const secs = Math.ceil(remaining / 1000);
-  const onCountdownTick = () => {
+  // Each big countdown number: a tick, and the announcer says it as it appears.
+  const announcer = useAnnouncer();
+  const onCountdownTick = (n: number) => {
     if (sfx.current?.enabled) sfx.current.tick();
+    if (n >= 1 && n <= 5) void announcer?.count(n);
   };
   const lastTick = useRef<number>(-1);
   useEffect(() => {

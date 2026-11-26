@@ -81,7 +81,9 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const host = await hostCtx.newPage();
   await hostLogin(host);
-  await host.getByRole("button", { name: "Create game" }).click();
+  // This test drives each reveal by hand, so turn the default auto reveal off.
+  await host.getByText("Auto reveal").click();
+  await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;
 
@@ -226,11 +228,11 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const host = await hostCtx.newPage();
   await hostLogin(host);
-  await host.getByText("Auto reveal").click();
+  // Auto reveal is on by default; turn on auto next too.
   await host.getByText("Auto next question").click();
   await host.getByLabel("Seconds per question").fill("8");
   await host.getByRole("radio", { name: "Thanksgiving" }).check({ force: true });
-  await host.getByRole("button", { name: "Create game" }).click();
+  await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   await hostAction(host, /Add 4 demo players/);
   await expect(host.getByText("4 ready")).toBeVisible();

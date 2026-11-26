@@ -141,7 +141,7 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   roundCount: 20,
   questionSeconds: 20,
   speedBonus: 0,
-  autoReveal: false,
+  autoReveal: true,
   overtimeSeconds: 5,
   autoNext: false,
   aiDistractors: false,
@@ -197,10 +197,13 @@ export function SettingsForm({
   value,
   onChange,
   aiAvailable,
+  aside,
 }: {
   value: SettingsDraft;
   onChange: (v: SettingsDraft) => void;
   aiAvailable: boolean;
+  /** Extra content under the scoring options (the setup page puts a Create game button here). */
+  aside?: React.ReactNode;
 }) {
   const set = <K extends keyof SettingsDraft>(k: K, v: SettingsDraft[K]) =>
     onChange({ ...value, [k]: v });
@@ -271,6 +274,7 @@ export function SettingsForm({
             onChange={(v) => set("fastestBonus", v)}
           />
         </div>
+        {aside && <div className="pt-2">{aside}</div>}
       </div>
       <fieldset className="lg:col-span-2">
         <legend className="font-semibold mb-1">

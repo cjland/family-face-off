@@ -6,7 +6,7 @@ test("How to play walkthrough on the TV lobby", async ({ browser }) => {
   await host.goto("/host");
   await host.getByLabel("Host password").fill(process.env.HOST_PASSWORD!);
   await host.getByRole("button", { name: "Sign in" }).click();
-  await host.getByRole("button", { name: "Create game" }).click();
+  await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const href = await host.getByRole("link", { name: /Open TV display/ }).getAttribute("href");
   const tv = await ctx.newPage();

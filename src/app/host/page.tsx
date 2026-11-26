@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_DRAFT, SettingsForm, type SettingsDraft } from "@/components/SettingsForm";
+import {
+  DEFAULT_DRAFT,
+  SettingsForm,
+  type SettingsDraft,
+} from "@/components/SettingsForm";
 import { Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
 
@@ -45,7 +49,9 @@ function Login({ onDone }: { onDone: () => void }) {
           await api("/api/host/login", { method: "POST", body: { password } });
           onDone();
         } catch (err) {
-          setError(err instanceof ApiClientError ? err.message : "Login failed.");
+          setError(
+            err instanceof ApiClientError ? err.message : "Login failed.",
+          );
         } finally {
           setBusy(false);
         }
@@ -55,7 +61,15 @@ function Login({ onDone }: { onDone: () => void }) {
       <label htmlFor="pw" className="font-semibold">
         Host password
       </label>
-      <input id="pw" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <input
+        id="pw"
+        className="input"
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
       {error && <Banner kind="error">{error}</Banner>}
       <button className="btn btn-primary" disabled={busy || !password}>
         {busy ? "Signing in…" : "Sign in"}
@@ -76,19 +90,34 @@ export default function HostDashboard() {
   const [title, setTitle] = useState("Family Face-Off");
   const [draft, setDraft] = useState<SettingsDraft>(DEFAULT_DRAFT);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    kind: "error" | "success";
+    text: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     try {
       const m = await api<Me>("/api/host/me");
       setMe(m);
-      const [g, f] = await Promise.all([api<{ games: GameRow[] }>("/api/games"), api<{ families: FamilyRow[] }>("/api/families")]);
+      const [g, f] = await Promise.all([
+        api<{ games: GameRow[] }>("/api/games"),
+        api<{ families: FamilyRow[] }>("/api/families"),
+      ]);
       setGames(g.games);
       setFamilies(f.families);
-      setFamilyId((cur) => cur || (f.families.find((x) => x.name === "Land") ?? f.families[0])?.id || "");
+      setFamilyId(
+        (cur) =>
+          cur ||
+          (f.families.find((x) => x.name === "Land") ?? f.families[0])?.id ||
+          "",
+      );
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 401) setMe(null);
-      else setMessage({ kind: "error", text: err instanceof Error ? err.message : "Could not load games." });
+      else
+        setMessage({
+          kind: "error",
+          text: err instanceof Error ? err.message : "Could not load games.",
+        });
     } finally {
       setChecked(true);
     }
@@ -107,9 +136,36 @@ export default function HostDashboard() {
     );
   }
 
+  const createGame = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api<{ code: string }>("/api/games", {
+        method: "POST",
+        body: { title, settings: draft, familyId: familyId || undefined },
+      });
+      router.push(`/host/${res.code}`);
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Could not create the game.",
+      });
+      setBusy(false);
+    }
+  };
+  const createButton = (
+    <button
+      className="btn btn-primary self-start"
+      disabled={busy}
+      onClick={createGame}
+    >
+      {busy ? "Creating…" : "Create game"}
+    </button>
+  );
+
   return (
     <Stage theme={draft.theme}>
-      <main className="mx-auto max-w-6xl px-5 py-8 flex flex-col gap-8">
+      <main className="mx-auto max-w-[1760px] px-5 py-8 flex flex-col gap-8">
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <Link href="/" aria-label="Home">
             <TitleMark title="Family Face-Off" theme={draft.theme} size="sm" />
@@ -118,7 +174,9 @@ export default function HostDashboard() {
             <button
               className="btn btn-ghost !text-base"
               onClick={async () => {
-                await api("/api/host/logout", { method: "POST" }).catch(() => {});
+                await api("/api/host/logout", { method: "POST" }).catch(
+                  () => {},
+                );
                 setMe(null);
               }}
             >
@@ -134,137 +192,211 @@ export default function HostDashboard() {
         ) : (
           <>
             {message && <Banner kind={message.kind}>{message.text}</Banner>}
-            <section className="panel p-6 flex flex-col gap-5" aria-labelledby="new-game">
-              <h2 id="new-game" className="font-display text-3xl font-bold">
-                New game
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <label className="flex flex-col gap-1">
-                  <span className="font-semibold">Family</span>
-                  <select className="input" value={familyId} onChange={(e) => setFamilyId(e.target.value)}>
-                    {familiesList.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        The {f.name} Family
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <form
-                  className="flex flex-col gap-1"
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!newFamily.trim()) return;
-                    try {
-                      const r = await api<{ family: { id: string; name: string } }>("/api/families", { method: "POST", body: { name: newFamily } });
-                      setNewFamily("");
-                      setFamilyId(r.family.id);
-                      setMessage({ kind: "success", text: `Added the ${r.family.name} family.` });
-                      void load();
-                    } catch (err) {
-                      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Couldn't add that family." });
-                    }
-                  }}
-                >
-                  <label htmlFor="newFamily" className="font-semibold">
-                    Add a family
-                  </label>
-                  <div className="flex gap-2">
-                    <input id="newFamily" className="input" maxLength={40} placeholder="e.g. Rodriguez" value={newFamily} onChange={(e) => setNewFamily(e.target.value)} />
-                    <button className="btn btn-ghost !text-base" type="submit" disabled={!newFamily.trim()}>
-                      Add
-                    </button>
-                  </div>
-                </form>
-                <label className="flex flex-col gap-1">
-                  <span className="font-semibold">Title</span>
-                  <input className="input" maxLength={60} value={title} onChange={(e) => setTitle(e.target.value)} />
-                </label>
-              </div>
-              <SettingsForm value={draft} onChange={setDraft} aiAvailable={me.aiAvailable} />
-              <button
-                className="btn btn-primary self-start"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  setMessage(null);
-                  try {
-                    const res = await api<{ code: string }>("/api/games", { method: "POST", body: { title, settings: draft, familyId: familyId || undefined } });
-                    router.push(`/host/${res.code}`);
-                  } catch (err) {
-                    setMessage({ kind: "error", text: err instanceof Error ? err.message : "Could not create the game." });
-                    setBusy(false);
-                  }
-                }}
+            <div className="grid gap-8 2xl:grid-cols-[minmax(0,1fr)_460px] items-start">
+              <section
+                className="panel p-6 flex flex-col gap-5"
+                aria-labelledby="new-game"
               >
-                {busy ? "Creating…" : "Create game"}
-              </button>
-            </section>
-
-            <section className="panel p-6 flex flex-col gap-4" aria-labelledby="recent">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 id="recent" className="font-display text-3xl font-bold">
-                  Recent games
+                <h2 id="new-game" className="font-display text-3xl font-bold">
+                  New game
                 </h2>
-                <button
-                  className="btn btn-ghost !text-base"
-                  onClick={async () => {
-                    const r = await api<{ deletedGames: number }>("/api/host/cleanup", { method: "POST" });
-                    setMessage({ kind: "success", text: `Cleanup done. Removed ${r.deletedGames} expired game(s).` });
-                    void load();
-                  }}
-                >
-                  Delete expired data
-                </button>
-              </div>
-              <p className="text-sm text-muted">Games and everyone&apos;s answers are kept for 7 days, or until you delete them here.</p>
-              {familiesList.length > 1 && (
-                <div className="flex gap-2 flex-wrap" role="group" aria-label="Filter by family">
-                  {[{ id: "all", name: "All families" }, ...familiesList].map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      className={`btn ${filter === f.id ? "btn-primary" : "btn-ghost"} !text-sm !min-h-[40px]`}
-                      aria-pressed={filter === f.id}
-                      onClick={() => setFilter(f.id)}
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <label className="flex flex-col gap-1">
+                    <span className="font-semibold">Family</span>
+                    <select
+                      className="input"
+                      value={familyId}
+                      onChange={(e) => setFamilyId(e.target.value)}
                     >
-                      {f.id === "all" ? f.name : `The ${f.name} Family`}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {gamesList.length === 0 ? (
-                <p className="text-muted">No games yet.</p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {gamesList.filter((g) => filter === "all" || g.familyId === filter).map((g) => (
-                    <li key={g.code} className="flex items-center gap-3 rounded-xl bg-black/25 px-4 py-3 flex-wrap">
-                      <span className="font-display text-2xl font-bold tracking-widest">{g.code}</span>
-                      <span className="flex-1 min-w-[10ch]">
-                        <span className="block font-semibold">
-                          {g.title} <span className="text-accent-2 font-normal">· The {g.familyName} Family</span>
-                        </span>
-                        <span className="text-sm text-muted">
-                          {PHASE_LABEL[g.phase] ?? g.phase} · {g.playerCount} players · {new Date(g.createdAt).toLocaleString()}
-                        </span>
-                      </span>
-                      <Link className="btn btn-ghost !text-base" href={`/host/${g.code}`}>
-                        Open
-                      </Link>
+                      {familiesList.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          The {f.name} Family
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <form
+                    className="flex flex-col gap-1"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!newFamily.trim()) return;
+                      try {
+                        const r = await api<{
+                          family: { id: string; name: string };
+                        }>("/api/families", {
+                          method: "POST",
+                          body: { name: newFamily },
+                        });
+                        setNewFamily("");
+                        setFamilyId(r.family.id);
+                        setMessage({
+                          kind: "success",
+                          text: `Added the ${r.family.name} family.`,
+                        });
+                        void load();
+                      } catch (err) {
+                        setMessage({
+                          kind: "error",
+                          text:
+                            err instanceof Error
+                              ? err.message
+                              : "Couldn't add that family.",
+                        });
+                      }
+                    }}
+                  >
+                    <label htmlFor="newFamily" className="font-semibold">
+                      Add a family
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="newFamily"
+                        className="input"
+                        maxLength={40}
+                        placeholder="e.g. Rodriguez"
+                        value={newFamily}
+                        onChange={(e) => setNewFamily(e.target.value)}
+                      />
                       <button
-                        className="btn btn-danger !text-base"
-                        onClick={async () => {
-                          if (!window.confirm(`Delete game ${g.code} and all of its answers? This can't be undone.`)) return;
-                          await api(`/api/games/${g.code}`, { method: "DELETE" });
-                          void load();
-                        }}
+                        className="btn btn-ghost !text-base"
+                        type="submit"
+                        disabled={!newFamily.trim()}
                       >
-                        Delete
+                        Add
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                    </div>
+                  </form>
+                  <label className="flex flex-col gap-1">
+                    <span className="font-semibold">Title</span>
+                    <input
+                      className="input"
+                      maxLength={60}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <SettingsForm
+                  value={draft}
+                  onChange={setDraft}
+                  aiAvailable={me.aiAvailable}
+                  aside={createButton}
+                />
+                {createButton}
+              </section>
+
+              {/* On very wide screens recent games sit in a column on the right and scroll on their own. */}
+              <section
+                className="panel p-6 flex flex-col gap-4 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100dvh-3rem)] 2xl:overflow-y-auto"
+                aria-labelledby="recent"
+              >
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <h2 id="recent" className="font-display text-3xl font-bold">
+                    Recent games
+                  </h2>
+                  <button
+                    className="btn btn-ghost !text-base"
+                    onClick={async () => {
+                      const r = await api<{ deletedGames: number }>(
+                        "/api/host/cleanup",
+                        { method: "POST" },
+                      );
+                      setMessage({
+                        kind: "success",
+                        text: `Cleanup done. Removed ${r.deletedGames} expired game(s).`,
+                      });
+                      void load();
+                    }}
+                  >
+                    Delete expired data
+                  </button>
+                </div>
+                <p className="text-sm text-muted">
+                  Games and everyone&apos;s answers are kept for 7 days, or
+                  until you delete them here.
+                </p>
+                {familiesList.length > 1 && (
+                  <div
+                    className="flex gap-2 flex-wrap"
+                    role="group"
+                    aria-label="Filter by family"
+                  >
+                    {[{ id: "all", name: "All families" }, ...familiesList].map(
+                      (f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          className={`btn ${filter === f.id ? "btn-primary" : "btn-ghost"} !text-sm !min-h-[40px]`}
+                          aria-pressed={filter === f.id}
+                          onClick={() => setFilter(f.id)}
+                        >
+                          {f.id === "all" ? f.name : `The ${f.name} Family`}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                )}
+                {gamesList.length === 0 ? (
+                  <p className="text-muted">No games yet.</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {gamesList
+                      .filter((g) => filter === "all" || g.familyId === filter)
+                      .map((g) => (
+                        <li
+                          key={g.code}
+                          className="flex items-center gap-2 rounded-xl bg-black/25 px-4 py-3"
+                        >
+                          <span className="flex-1 min-w-0">
+                            <span className="flex items-baseline gap-2 min-w-0">
+                              <span className="font-display text-xl font-bold tracking-widest">
+                                {g.code}
+                              </span>
+                              <span className="truncate font-semibold">{g.title}</span>
+                            </span>
+                            <span className="block truncate text-sm text-accent-2">
+                              The {g.familyName} Family
+                            </span>
+                            <span className="block text-sm text-muted">
+                              {PHASE_LABEL[g.phase] ?? g.phase} · {g.playerCount}{" "}
+                              players ·{" "}
+                              {new Date(g.createdAt).toLocaleString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </span>
+                          <Link
+                            className="btn btn-ghost !text-sm !min-h-[44px] !px-4"
+                            href={`/host/${g.code}`}
+                          >
+                            Open
+                          </Link>
+                          <button
+                            className="btn btn-danger !text-sm !min-h-[44px] !px-4"
+                            onClick={async () => {
+                              if (
+                                !window.confirm(
+                                  `Delete game ${g.code} and all of its answers? This can't be undone.`,
+                                )
+                              )
+                                return;
+                              await api(`/api/games/${g.code}`, {
+                                method: "DELETE",
+                              });
+                              void load();
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </section>
+            </div>
           </>
         )}
       </main>

@@ -14,7 +14,7 @@ export const settingsSchema = z
     questionSeconds: z.number().int().min(5).max(120).default(20),
     /** Max speed bonus. 0 = off (default). */
     speedBonus: z.number().int().min(0).max(500).default(0),
-    autoReveal: z.boolean().default(false),
+    autoReveal: z.boolean().default(true),
     /** With auto reveal: extra seconds to wait for late answers after the timer runs out. */
     overtimeSeconds: z.number().int().min(0).max(30).default(5),
     /** Full-screen "5, 4, 3, 2, 1" before each question; answers open when it hits zero. */

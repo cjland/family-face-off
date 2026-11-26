@@ -64,7 +64,7 @@ test("README screenshots", async ({ browser }) => {
     const label = (await cb.evaluate((el) => el.closest("label")?.textContent ?? "")) || "";
     if (/Speed vs|Quick or slow|last five|Hardest questions|hardest to guess|fooled/.test(label) && !(await cb.isChecked())) await cb.check();
   }
-  await host.getByRole("button", { name: "Create game" }).click();
+  await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;
 

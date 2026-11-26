@@ -100,7 +100,7 @@ An **announcer voice** talks on the TV through the whole game. The music dips wh
 |---|---|
 | Lobby, every 25 seconds | "We'll give everyone a few more seconds to join." |
 | "Get ready!" before the countdown | "I hope everyone's ready…" ("Let the fun begin!" for question 1, "Here it is… the final question!" for the last). The 5-4-3-2-1 waits until he's done |
-| Countdown | "Five! Four! Three! Two! One! Go!" |
+| Countdown | "Five! Four! Three! Two! One! Go!", each number said the moment it appears on the TV |
 | Question appears | The question itself, then "Pick the best answer!" |
 | While people choose | "10 seconds!" and "Everyone's locked in!" |
 | Reveal | A drumroll or reveal line |
@@ -217,7 +217,7 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Announcer voice | On | Reads the questions aloud and calls out the big moments. Music dips while he talks. Needs TV sound on |
 | TV animations | On | Countdowns, races, pop-ins and confetti on the TV |
 | Tease slowpokes | On | Named, good-natured taunts on the TV |
-| Auto reveal | Off | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
+| Auto reveal | On, +5s | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
 | Auto next question | Off | Move on 8 seconds after each reveal |
 | AI wrong-answer helper | Off | Only shown if OpenRouter is set up (see below) |
 

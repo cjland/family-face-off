@@ -50,6 +50,8 @@ export class Announcer {
     if (this.manifest) return this.manifest;
     try {
       this.manifest = (await (await fetch("/audio/manifest.json")).json()) as Manifest;
+      // Decode the countdown numbers up front so each one plays the instant its number appears.
+      Object.values(this.manifest.countdown?.numbers ?? {}).forEach((c) => c && void this.buffer(c));
     } catch {
       this.manifest = null;
     }
@@ -170,12 +172,15 @@ export class Announcer {
     return this.say([c]);
   }
 
-  /** One countdown number, on the same clock as the big number on screen. Skipped if he's mid-line. */
-  async count(n: 5 | 4 | 3 | 2 | 1) {
+  /**
+   * One countdown number, called the moment that number appears on the TV so voice and screen
+   * stay together. Always plays: it cuts off anything still being said.
+   */
+  async count(n: number) {
     const m = await this.load();
     const c = m?.countdown?.numbers[String(n) as "5"];
-    if (!c || this.busy) return;
-    void this.play(c, this.token);
+    if (!c) return;
+    void this.say([c]);
   }
 
   /** As the question appears: "Go!", the question itself, then a "pick an answer" prompt. */

@@ -11,7 +11,7 @@ test("someone walks away: host can reveal without them once time is up", async (
   await host.goto("/host");
   await host.getByLabel("Host password").fill(process.env.HOST_PASSWORD!);
   await host.getByRole("button", { name: "Sign in" }).click();
-  await host.getByRole("button", { name: "Create game" }).click();
+  await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;
   const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });

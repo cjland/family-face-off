@@ -18,8 +18,9 @@ function intervalFor(phase: Phase | undefined, hidden: boolean): number {
     case "FINISHED":
     case "CANCELLED":
       return 15000;
+    // Lobby: often enough that the first question's "Get ready!" isn't missed when the game starts.
     default:
-      return 3500;
+      return 2000;
   }
 }
 
