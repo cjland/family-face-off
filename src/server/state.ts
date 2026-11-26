@@ -130,6 +130,8 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       revealSeconds: settings.revealSeconds,
       roundCount: settings.roundCount,
       perPlayer: settings.perPlayer ?? null,
+      plannedPlayers: settings.plannedPlayers ?? null,
+      fastestBonus: settings.fastestBonus,
     },
     counts: { players: activePlayers.length, ready: activePlayers.filter((p) => p.readyAt).length },
     lobby: null,

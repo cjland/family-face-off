@@ -100,15 +100,15 @@ test("README screenshots", async ({ browser }) => {
 
   const rounds = 6;
   for (let q = 1; q <= rounds; q++) {
-    await expect(tv.getByRole("status", { name: /starts in/ })).toBeVisible();
+    await expect(tv.getByRole("status", { name: /starts in|get ready/ })).toBeVisible();
     if (q === 1) {
       await tv.waitForTimeout(700);
       await shot(tv, "tv-countdown");
-      await expect(june.getByRole("status", { name: /starts in/ })).toBeVisible();
+      await expect(june.getByRole("status", { name: /starts in|get ready/ })).toBeVisible();
       await june.waitForTimeout(500);
       await shot(june, "phone-countdown");
     }
-    await expect(tv.getByRole("status", { name: /starts in/ })).toHaveCount(0, { timeout: 15_000 });
+    await expect(tv.getByRole("status", { name: /starts in|get ready/ })).toHaveCount(0, { timeout: 15_000 });
     for (const [p, letter] of [
       [june, q % 2 ? "B" : "A"],
       [ray, "C"],

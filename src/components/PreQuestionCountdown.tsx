@@ -25,14 +25,16 @@ export function PreQuestionCountdown({
   const opensAt = round.opensAt ? new Date(round.opensAt).getTime() : 0;
   const now = useServerNow(offsetMs, !round.paused && opensAt > 0, 100);
   const left = !round.paused && now > 0 ? opensAt - now : 0;
-  const n = Math.min(Math.max(1, seconds), Math.ceil(left / 1000));
+  const n = Math.ceil(left / 1000);
+  // Before the 5-4-3-2-1 there's a short "Get ready!" while the announcer warms everyone up.
+  const ready = n > Math.max(1, seconds);
   const last = useRef(-1);
   useEffect(() => {
-    if (n > 0 && n !== last.current) {
+    if (!ready && n > 0 && n !== last.current) {
       last.current = n;
       onTick?.(n);
     }
-  }, [n, onTick]);
+  }, [n, ready, onTick]);
   if (left <= 0 || n <= 0) return null;
   const tv = variant === "tv";
   return (
@@ -40,19 +42,27 @@ export function PreQuestionCountdown({
       className={`${tv ? "absolute" : "fixed"} inset-0 z-40 grid place-items-center bg-[radial-gradient(circle_at_center,#2a1660,#0b0620)]`}
       role="status"
       aria-live="assertive"
-      aria-label={`Question ${round.number} starts in ${n}`}
+      aria-label={ready ? `Question ${round.number}: get ready` : `Question ${round.number} starts in ${n}`}
     >
       <div className="flex flex-col items-center text-center px-6">
         <p className={`font-display text-accent-2 ${tv ? "text-6xl" : "text-2xl"}`}>
           Question {round.number} of {round.total}
         </p>
-        <span
-          key={n}
-          className={`countdown-pop font-display font-bold gold-text leading-none tabular-nums ${tv ? "text-[22rem]" : "text-[11rem]"}`}
-        >
-          {n}
-        </span>
-        <p className={`font-display font-bold ${tv ? "text-7xl" : "text-3xl"}`}>Get ready!</p>
+        {ready ? (
+          <span key="ready" className={`countdown-pop font-display font-bold gold-text leading-none ${tv ? "text-[11rem] py-24" : "text-6xl py-16"}`}>
+            Get ready!
+          </span>
+        ) : (
+          <>
+            <span
+              key={n}
+              className={`countdown-pop font-display font-bold gold-text leading-none tabular-nums ${tv ? "text-[22rem]" : "text-[11rem]"}`}
+            >
+              {n}
+            </span>
+            <p className={`font-display font-bold ${tv ? "text-7xl" : "text-3xl"}`}>Get ready!</p>
+          </>
+        )}
       </div>
     </div>
   );

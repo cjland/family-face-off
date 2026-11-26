@@ -38,6 +38,10 @@ export const settingsSchema = z
     boards: z.array(z.enum(BOARD_IDS)).min(1).default(DEFAULT_BOARDS),
     /** Questions about each person, chosen by the host at start. Overrides roundCount. */
     perPlayer: z.number().int().min(1).max(8).optional(),
+    /** How many people the host expects (only for planning the game length on the setup screen). */
+    plannedPlayers: z.number().int().min(3).max(50).optional(),
+    /** The fastest right answer each round gets a random 25–50 bonus (on by default). */
+    fastestBonus: z.boolean().default(true),
   })
   .strict();
 

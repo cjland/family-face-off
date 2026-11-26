@@ -280,7 +280,8 @@ function Display() {
       void a.preload(r.promptId);
       // Joined late (TV refreshed mid-question)? Stay quiet rather than talk over the game.
       if (serverNow < opensAt + 3000) {
-        if (serverNow < opensAt) void a.intro(r.number, r.total);
+        // The "get ready" line, unless the TV only noticed the question once the numbers had started.
+        if (serverNow < opensAt - state.countdownSeconds * 1000 - 500) void a.intro(state.code, r.number, r.total);
         // Count down with the big numbers (only the ones he has room for after the intro).
         for (const n of [5, 4, 3, 2, 1] as const) {
           const at = opensAt - n * 1000;
@@ -463,6 +464,7 @@ function TvHeader({ state, center, right }: { state: GameStateDTO; center?: Reac
 function TvFooter({ state, children }: { state: GameStateDTO; children?: React.ReactNode }) {
   return (
     <div className="absolute inset-x-14 bottom-12 h-[96px] flex items-center gap-6">
+      <PauseButton state={state} />
       {state.phase !== "LOBBY" && state.phase !== "FINISHED" && <RejoinQr code={state.code} />}
       <div className="flex-1 min-w-0 flex items-center gap-6">{children}</div>
       <NextArrow state={state} />
@@ -471,6 +473,111 @@ function TvFooter({ state, children }: { state: GameStateDTO; children?: React.R
 }
 
 /** Small corner QR so anyone who closed their browser can scan back in (their phone remembers them). */
+/** Host on the TV: pause/resume the question (also the P key). Sits left of the rejoin QR. */
+function PauseButton({ state }: { state: GameStateDTO }) {
+  const [busy, setBusy] = useState(false);
+  const show = state.canControl && state.phase === "QUESTION" && Boolean(state.round);
+  const paused = Boolean(state.round?.paused);
+  const toggle = useCallback(() => {
+    if (!show || busy) return;
+    setBusy(true);
+    api(`/api/games/${state.code}/action`, { method: "POST", body: { action: paused ? "resume" : "pause", expectedVersion: state.version } })
+      .catch(() => undefined)
+      .finally(() => setTimeout(() => setBusy(false), 600));
+  }, [show, busy, paused, state.code, state.version]);
+  useEffect(() => {
+    if (!show) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+      if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        toggle();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [show, toggle]);
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.currentTarget.blur();
+        toggle();
+      }}
+      disabled={busy}
+      // Above the "Paused" dimmer so it can be pressed to resume.
+      className={`relative z-40 flex-none btn ${paused ? "btn-primary" : "btn-ghost"} !min-h-[76px] !px-6 !text-2xl whitespace-nowrap`}
+      aria-label={paused ? "Resume (or press P)" : "Pause (or press P)"}
+    >
+      {paused ? "▶ Resume" : "⏸ Pause"}
+    </button>
+  );
+}
+
+/**
+ * The TV isn't signed in as host? A small key opens a password box right on the TV, so the host
+ * can start, pause and advance the game from fullscreen.
+ */
+function HostSignIn({ compact = false }: { compact?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`flex-none btn btn-ghost ${compact ? "!min-h-[56px] !px-4 !text-lg" : "!min-h-[76px] !px-6 !text-2xl"} whitespace-nowrap opacity-70 hover:opacity-100`}
+        aria-label="Host controls: sign in on this TV"
+      >
+        🔑 Host controls
+      </button>
+    );
+  }
+  return (
+    <form
+      className="flex-none panel-strong p-3 flex items-center gap-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setErr(null);
+        try {
+          await api("/api/host/login", { method: "POST", body: { password: pw } });
+          setOpen(false);
+          setPw("");
+        } catch (e2) {
+          setErr(e2 instanceof Error ? e2.message : "Couldn't sign in");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label className="sr-only" htmlFor="tv-host-pw">
+        Host password
+      </label>
+      <input
+        id="tv-host-pw"
+        type="password"
+        autoFocus
+        autoComplete="current-password"
+        className="input !w-64 !text-xl"
+        placeholder="Host password"
+        value={pw}
+        onChange={(e) => setPw(e.target.value)}
+      />
+      <button type="submit" className="btn btn-primary !text-xl" disabled={!pw || busy}>
+        {busy ? "…" : "Sign in"}
+      </button>
+      <button type="button" className="btn btn-ghost !text-xl" onClick={() => setOpen(false)} aria-label="Cancel">
+        ✕
+      </button>
+      {err && <span className="text-lg text-bad max-w-[240px] truncate">{err}</span>}
+    </form>
+  );
+}
+
 function RejoinQr({ code }: { code: string }) {
   const url = useMemo(() => joinUrlFor(code), [code]);
   return (
@@ -537,6 +644,7 @@ function NextArrow({ state }: { state: GameStateDTO }) {
   }, [enabled, go, startOpen]);
   // Someone walked away? Once time is up, a small arrow lets the host reveal without them.
   // It takes two taps (and no keyboard shortcut) so it can't happen by accident.
+  if (!state.canControl) return state.phase === "FINISHED" ? null : <HostSignIn compact={state.phase !== "LOBBY"} />;
   if (!enabled) {
     const timeUp = state.phase === "QUESTION" && round && !round.paused && round.remainingMs <= 0;
     if (state.canControl && timeUp && !allIn) return <RevealAnyway state={state} />;

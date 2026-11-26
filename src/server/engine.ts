@@ -16,6 +16,7 @@ import {
 import { ApiError } from "@/lib/errors";
 import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
 import { hashString } from "@/lib/prng";
+import { introDurationMs } from "@/server/introTiming";
 import { randomInt } from "node:crypto";
 import { FASTEST_BONUS_MAX, FASTEST_BONUS_MIN, fastestCorrect, pointsFor } from "@/lib/scoring";
 import { MIN_PLAYERS, parseSettings } from "@/lib/settings";
@@ -161,7 +162,8 @@ export async function previewRounds(db: DB, game: Game) {
     seed: game.id,
   };
   const maxPerPlayer = maxPerSubject(base);
-  const suggested = Math.max(1, Math.min(maxPerPlayer, roster.length >= 10 ? 2 : roster.length >= 6 ? 3 : 4));
+  // The host's plan from the setup screen if there is one, otherwise a sensible default.
+  const suggested = Math.max(1, Math.min(maxPerPlayer, settings.perPlayer ?? (roster.length >= 10 ? 2 : roster.length >= 6 ? 3 : 4)));
   return {
     readyPlayers: roster.length,
     totalPlayers: input.roster.length,
@@ -248,8 +250,13 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
 
 // ---------- Transitions (all inside a transaction holding the game row lock) ----------
 
-/** Extra time before the 5-4-3-2-1 starts, covering the TV's and phones' polling delay. */
-export const COUNTDOWN_LEAD_MS = 2500;
+/**
+ * Time before the 5-4-3-2-1 starts: covers the TV's and phones' polling delay, plus the
+ * announcer's "get ready" line when the voice is on, so the countdown waits until he's done.
+ */
+export const POLL_MARGIN_MS = 1500;
+export const COUNTDOWN_LEAD_MS = 2000; // with the voice off
+const AFTER_INTRO_MS = 400;
 
 async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
   const [next] = await tx
@@ -266,8 +273,17 @@ async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
   // "opens" a few seconds from now; answers are refused until then and the timer starts after it.
   // Screens notice a new question on their next poll (about 1s, plus network time), so add a lead-in;
   // they hold the first number until the real countdown starts, so nobody misses the "5".
-  const countdownMs = parseSettings(game.settings).countdownSeconds * 1000;
-  const opensAt = new Date(now.getTime() + (countdownMs > 0 ? countdownMs + COUNTDOWN_LEAD_MS : 0));
+  const settings = parseSettings(game.settings);
+  const countdownMs = settings.countdownSeconds * 1000;
+  let leadMs = COUNTDOWN_LEAD_MS;
+  if (countdownMs > 0 && settings.voice && settings.sound) {
+    const all = await tx.select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status }).from(rounds).where(eq(rounds.gameId, game.id));
+    const counted = all.filter((x) => x.status !== "VOID" && x.status !== "RESERVE").sort((a, b) => a.ordinal - b.ordinal);
+    const number = counted.findIndex((x) => x.id === next.id) + 1;
+    const intro = introDurationMs(game.code, number, counted.length);
+    if (intro > 0) leadMs = Math.max(COUNTDOWN_LEAD_MS, POLL_MARGIN_MS + intro + AFTER_INTRO_MS);
+  }
+  const opensAt = new Date(now.getTime() + (countdownMs > 0 ? countdownMs + leadMs : 0));
   await tx
     .update(rounds)
     .set({ status: "OPEN", openedAt: opensAt, deadlineAt: new Date(opensAt.getTime() + next.durationMs), pausedAt: null, remainingMs: null })
@@ -311,7 +327,7 @@ async function revealRound(tx: DB, game: Game, round: Round, now: Date): Promise
           speedBonus: settings.speedBonus,
           remainingMs: g ? round.durationMs - g.elapsedMs : 0,
           durationMs: round.durationMs,
-        }) + (correct && fastest.has(p.id) ? bonus : 0);
+        }) + (settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
       return { roundId: round.id, playerId: p.id, points, isCorrect: correct };
     });
   if (events.length) await tx.insert(scoreEvents).values(events).onConflictDoNothing();

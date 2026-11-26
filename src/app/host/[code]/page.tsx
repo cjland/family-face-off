@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMinutes, plannedMinutes, plannedQuestions } from "@/lib/plan";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -222,6 +223,9 @@ function LobbyControls({
     animations: state.animations,
     voice: state.voice,
     boards: state.boards,
+    perPlayer: state.settings.perPlayer ?? undefined,
+    plannedPlayers: state.settings.plannedPlayers ?? undefined,
+    fastestBonus: state.settings.fastestBonus,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;
@@ -356,8 +360,8 @@ function LobbyControls({
                   ))}
                 </div>
                 <p className="text-lg">
-                  {perPlayer} × {startDialog.readyPlayers} people = <strong>{perPlayer * startDialog.readyPlayers} questions</strong>, about{" "}
-                  {Math.max(1, Math.round((perPlayer * startDialog.readyPlayers * (startDialog.questionSeconds + 12)) / 60))} minutes.
+                  {perPlayer} × {startDialog.readyPlayers} people = <strong>{plannedQuestions(startDialog.readyPlayers, perPlayer)} questions</strong>, about{" "}
+                  {formatMinutes(plannedMinutes(plannedQuestions(startDialog.readyPlayers, perPlayer), startDialog.questionSeconds))}.
                 </p>
                 <p className="text-sm text-muted">
                   Up to {startDialog.maxPerPlayer} per person is possible without ever repeating a question.

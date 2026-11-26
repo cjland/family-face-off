@@ -99,8 +99,8 @@ An **announcer voice** talks on the TV through the whole game. The music dips wh
 | When | He says |
 |---|---|
 | Lobby, every 25 seconds | "We'll give everyone a few more seconds to join." |
-| Start of the 5-4-3-2-1 | A lead-in and the question number ("Question number three!"), or "Get those phones ready…" from question 11 on |
-| Countdown | The numbers he has room for, then "Go!" |
+| "Get ready!" before the countdown | "I hope everyone's ready…" ("Let the fun begin!" for question 1, "Here it is… the final question!" for the last). The 5-4-3-2-1 waits until he's done |
+| Countdown | "Five! Four! Three! Two! One! Go!" |
 | Question appears | The question itself, then "Pick the best answer!" |
 | While people choose | "10 seconds!" and "Everyone's locked in!" |
 | Reveal | A drumroll or reveal line |
@@ -176,10 +176,11 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 
 | To… | Do this |
 |---|---|
+| Run the game from the TV | If the TV isn't signed in as host, press **🔑 Host controls** at the bottom right and type the host password. The TV then has Start, Next and Pause, even in fullscreen. |
 | Move to the next step | The big ➜ button at the bottom of the TV, or **→**, **Space**, **Enter** or a presentation clicker. The host screen has the same buttons. |
 | Wait for everyone | The TV won't reveal until everyone has locked in, so nobody gets skipped by accident. |
 | Move on without someone who walked away | Once time is up, a small **⏭** appears next to the SHAME ALERT. Tap it twice to reveal without them. |
-| Pause | **❚❚ Pause** on the host screen freezes the timer everywhere. |
+| Pause | **⏸ Pause** at the bottom left of the TV (or the **P** key), or **❚❚ Pause** on the host screen. It freezes the timer everywhere. |
 | Skip a question | **Skip question** on the host screen (no points awarded). |
 | Look at a leaderboard page | Click its tab on the TV. It holds for 20 seconds, then rotation continues. |
 | Turn TV sound or animations off | **TV sound** and **TV animations** in the game settings (both on by default; animations play even if the computer is set to reduce motion). |
@@ -207,8 +208,9 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Setting | Default | What it does |
 |---|---|---|
 | Theme | Classic game show | Or Thanksgiving: warm colors, falling leaves, Thanksgiving questions |
-| Questions per person | Chosen at start | How many questions about each player (no question is ever repeated) |
+| Plan the game | 12 people, 3 each | Enter about how many people are coming and pick 3–8 questions about each person. Each choice shows the total questions and roughly how long the game takes (about 30 seconds per question on top of the answer time). You can change it when you press Start |
 | Seconds per question | 20 | 5–120 seconds |
+| Speed bonus | On | The fastest right answer each round gets a surprise 25–50 extra points |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
 | Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
 | TV sound | On | Beeps, pops, "Hurry up!", music and the announcer. The TV needs one click or key press before browsers allow sound |

@@ -8,6 +8,8 @@
  * countdown numbers he has room for, then "Go!" → [the question] → [a "pick an answer" prompt]
  * as the question appears. Questions without a clip get a "read it on the screen" line instead.
  */
+import { introIndex, introPool } from "@/lib/introClip";
+
 type Clip = { file: string; durationMs: number; text: string };
 type Manifest = {
   basePath: string;
@@ -155,16 +157,17 @@ export class Announcer {
   }
 
   /**
-   * Start of the countdown: "Things are heating up!" … "Question number three!" Numbers exist for
-   * 1–10; after that he says "Get those phones ready…" instead.
+   * The "Get ready!" moment before the 5-4-3-2-1: "I hope everyone's ready…" (or "Let the fun
+   * begin!" for the first question and "Here it is… the final question!" for the last). The
+   * server picked the same line and holds the countdown until it's over.
    */
-  async intro(number: number, total: number) {
+  async intro(code: string, number: number, total: number) {
     const m = await this.load();
     if (!m) return;
-    const lead =
-      number === 1 ? this.pick(m.leadin.first, "leadin") : number === total ? this.pick(m.leadin.final, "leadin") : this.pick(m.leadin.general, "leadin");
-    const second = m.number[String(number)] ?? this.pick(m.countdown?.intro ?? [], "cd-intro");
-    return this.say([lead, second]);
+    const kind = introPool(number, total);
+    const pool = kind === "first" ? m.leadin.first : kind === "final" ? m.leadin.final : (m.countdown?.intro ?? []);
+    const c = pool[introIndex(code, number, pool.length)] ?? null;
+    return this.say([c]);
   }
 
   /** One countdown number, on the same clock as the big number on screen. Skipped if he's mid-line. */

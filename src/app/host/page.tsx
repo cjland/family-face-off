@@ -109,7 +109,7 @@ export default function HostDashboard() {
 
   return (
     <Stage theme={draft.theme}>
-      <main className="mx-auto max-w-4xl px-5 py-8 flex flex-col gap-8">
+      <main className="mx-auto max-w-6xl px-5 py-8 flex flex-col gap-8">
         <header className="flex items-center justify-between gap-4 flex-wrap">
           <Link href="/" aria-label="Home">
             <TitleMark title="Family Face-Off" theme={draft.theme} size="sm" />
@@ -138,7 +138,7 @@ export default function HostDashboard() {
               <h2 id="new-game" className="font-display text-3xl font-bold">
                 New game
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <label className="flex flex-col gap-1">
                   <span className="font-semibold">Family</span>
                   <select className="input" value={familyId} onChange={(e) => setFamilyId(e.target.value)}>
@@ -175,11 +175,11 @@ export default function HostDashboard() {
                     </button>
                   </div>
                 </form>
+                <label className="flex flex-col gap-1">
+                  <span className="font-semibold">Title</span>
+                  <input className="input" maxLength={60} value={title} onChange={(e) => setTitle(e.target.value)} />
+                </label>
               </div>
-              <label className="flex flex-col gap-1">
-                <span className="font-semibold">Title</span>
-                <input className="input" maxLength={60} value={title} onChange={(e) => setTitle(e.target.value)} />
-              </label>
               <SettingsForm value={draft} onChange={setDraft} aiAvailable={me.aiAvailable} />
               <button
                 className="btn btn-primary self-start"

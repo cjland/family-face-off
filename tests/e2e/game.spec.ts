@@ -2,7 +2,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 /** Each question starts with a full-screen 5-4-3-2-1; wait until answers are open. */
 async function countdownDone(page: Page) {
-  await expect(page.getByRole("status", { name: /starts in/ })).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole("status", { name: /starts in|get ready/ })).toHaveCount(0, { timeout: 15_000 });
 }
 
 /**
@@ -81,7 +81,6 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const host = await hostCtx.newPage();
   await hostLogin(host);
-  await host.getByLabel("Questions (if not set at start)").fill("3");
   await host.getByRole("button", { name: "Create game" }).click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;
@@ -145,7 +144,7 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   await expect(tv.getByText("Get ready!")).toBeVisible();
   await hostAction(host, "Start first question");
   await expect(tv.getByText(/Question 1 of 3/).first()).toBeVisible();
-  await expect(tv.getByRole("status", { name: /starts in/ })).toBeVisible();
+  await expect(tv.getByRole("status", { name: /starts in|get ready/ })).toBeVisible();
   await shot(tv, "tv-countdown");
   await shot(p1, "phone-countdown");
   await countdownDone(tv);

@@ -202,6 +202,8 @@ export type GameStateDTO = {
     revealSeconds: number;
     roundCount: number;
     perPlayer: number | null;
+    plannedPlayers: number | null;
+    fastestBonus: boolean;
   };
   counts: { players: number; ready: number };
   lobby: LobbyPlayerDTO[] | null;

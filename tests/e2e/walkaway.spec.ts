@@ -2,7 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 /** Each question starts with a full-screen 5-4-3-2-1; wait until answers are open. */
 async function countdownDone(page: Page) {
-  await expect(page.getByRole("status", { name: /starts in/ })).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole("status", { name: /starts in|get ready/ })).toHaveCount(0, { timeout: 15_000 });
 }
 test("someone walks away: host can reveal without them once time is up", async ({ browser }) => {
   test.setTimeout(240000);
