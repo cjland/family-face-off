@@ -730,6 +730,8 @@ function joinNames(names: string[]) {
   return `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
 }
 
+const HURRY_EVERY_S = 8;
+
 function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: number; sfx: React.RefObject<Sfx | null> }) {
   const round = state.round!;
   const now = useServerNow(offsetMs, !round.paused, 100);
@@ -767,16 +769,9 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
         joinNames(shameTargets.map((l) => l.name)),
       )
     : null;
-  const sirenPlayed = useRef(false);
-  useEffect(() => {
-    if (shameTargets.length && !sirenPlayed.current) {
-      sirenPlayed.current = true;
-      if (sfx.current?.enabled) sfx.current.shame();
-    }
-  }, [shameTargets.length, sfx]);
-  // While someone is still holding things up: "Hurry up!" every 5 seconds, starting
-  // just after the siren (2s in), until they answer or the round is revealed.
-  const hurryBucket = shameTargets.length && overtimeSecs >= 2 ? Math.floor((overtimeSecs - 2) / 5) : -1;
+  // While someone is still holding things up: "Hurry up!" the moment time runs out, then
+  // every 8 seconds until they answer or the round is revealed. (No siren.)
+  const hurryBucket = shameTargets.length ? Math.floor(overtimeSecs / HURRY_EVERY_S) : -1;
   const lastHurry = useRef(-1);
   useEffect(() => {
     if (hurryBucket >= 0 && hurryBucket !== lastHurry.current) {

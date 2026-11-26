@@ -166,7 +166,7 @@ export function SettingsForm({
         <Toggle
           id="sound"
           label="TV sound"
-          hint="Beeps, lock-in pops, the SHAME ALERT siren, “Hurry up!” and music. Browsers need one click or key press on the TV before they allow sound."
+          hint="Beeps, lock-in pops, “Hurry up!” and music. Browsers need one click or key press on the TV before they allow sound."
           checked={value.sound}
           onChange={(v) => set("sound", v)}
         />
