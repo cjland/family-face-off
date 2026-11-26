@@ -971,6 +971,106 @@
       "file": "questions/q109.mp3",
       "durationMs": 2586,
       "text": "If you were president, what would you do first?"
+    },
+    "b001": {
+      "file": "questions/b001.mp3",
+      "durationMs": 3187,
+      "text": "In what month is Thanksgiving celebrated in the United States?"
+    },
+    "b002": {
+      "file": "questions/b002.mp3",
+      "durationMs": 2743,
+      "text": "On which day of the week does Thanksgiving always fall?"
+    },
+    "b003": {
+      "file": "questions/b003.mp3",
+      "durationMs": 3527,
+      "text": "Which bird is the traditional centerpiece of the Thanksgiving meal?"
+    },
+    "b004": {
+      "file": "questions/b004.mp3",
+      "durationMs": 2743,
+      "text": "Which city hosts the Macy's Thanksgiving Day Parade?"
+    },
+    "b005": {
+      "file": "questions/b005.mp3",
+      "durationMs": 3187,
+      "text": "Which sport is traditionally watched on Thanksgiving Day?"
+    },
+    "b006": {
+      "file": "questions/b006.mp3",
+      "durationMs": 3161,
+      "text": "Which berry is used to make a classic Thanksgiving sauce?"
+    },
+    "b007": {
+      "file": "questions/b007.mp3",
+      "durationMs": 3370,
+      "text": "What was the name of the ship that brought the Pilgrims to America?"
+    },
+    "b008": {
+      "file": "questions/b008.mp3",
+      "durationMs": 2769,
+      "text": "In what year did the Pilgrims arrive on the Mayflower?"
+    },
+    "b009": {
+      "file": "questions/b009.mp3",
+      "durationMs": 4911,
+      "text": "Which Native American people shared the sixteen twenty-one harvest feast with the Pilgrims?"
+    },
+    "b010": {
+      "file": "questions/b010.mp3",
+      "durationMs": 3709,
+      "text": "Which president made Thanksgiving a national holiday in eighteen sixty-three?"
+    },
+    "b011": {
+      "file": "questions/b011.mp3",
+      "durationMs": 5277,
+      "text": "Which N F L team has hosted a Thanksgiving Day game almost every year since nineteen thirty-four?"
+    },
+    "b012": {
+      "file": "questions/b012.mp3",
+      "durationMs": 2325,
+      "text": "What colony did the Pilgrims establish?"
+    },
+    "b013": {
+      "file": "questions/b013.mp3",
+      "durationMs": 3187,
+      "text": "Which Native American taught the Pilgrims how to plant corn?"
+    },
+    "b014": {
+      "file": "questions/b014.mp3",
+      "durationMs": 4415,
+      "text": "Which president issued the first national Thanksgiving proclamation in seventeen eighty-nine?"
+    },
+    "b015": {
+      "file": "questions/b015.mp3",
+      "durationMs": 4362,
+      "text": "Which writer campaigned for seventeen years to make Thanksgiving a national holiday?"
+    },
+    "b016": {
+      "file": "questions/b016.mp3",
+      "durationMs": 4780,
+      "text": "Which president moved Thanksgiving a week earlier, leading critics to call it Franksgiving?"
+    },
+    "b017": {
+      "file": "questions/b017.mp3",
+      "durationMs": 3788,
+      "text": "In what year did Congress fix Thanksgiving as the fourth Thursday in November?"
+    },
+    "b018": {
+      "file": "questions/b018.mp3",
+      "durationMs": 3579,
+      "text": "In what year was the first Macy's Thanksgiving Day Parade held?"
+    },
+    "b019": {
+      "file": "questions/b019.mp3",
+      "durationMs": 3944,
+      "text": "Which Plymouth Colony governor wrote the book, Of Plymouth Plantation?"
+    },
+    "b020": {
+      "file": "questions/b020.mp3",
+      "durationMs": 4206,
+      "text": "Which president made the White House turkey pardon an official annual tradition?"
     }
   },
   "countdown": {
@@ -1150,5 +1250,82 @@
       "durationMs": 2456,
       "text": "This one's a mystery to me. Check the screen!"
     }
-  ]
+  ],
+  "bonus": {
+    "intro": [
+      {
+        "file": "bonus/intro/01.mp3",
+        "durationMs": 1855,
+        "text": "It's time for a bonus question!"
+      },
+      {
+        "file": "bonus/intro/02.mp3",
+        "durationMs": 1071,
+        "text": "Bonus question!"
+      },
+      {
+        "file": "bonus/intro/03.mp3",
+        "durationMs": 2116,
+        "text": "Ooh, we've got a bonus question!"
+      },
+      {
+        "file": "bonus/intro/04.mp3",
+        "durationMs": 2926,
+        "text": "Hold on to your pie... it's a bonus question!"
+      }
+    ],
+    "easy": [
+      {
+        "file": "bonus/easy/01.mp3",
+        "durationMs": 3709,
+        "text": "This one's an easy one... but it's still worth extra points!"
+      },
+      {
+        "file": "bonus/easy/02.mp3",
+        "durationMs": 2926,
+        "text": "Let's start you off easy. Extra points on the line!"
+      }
+    ],
+    "medium": [
+      {
+        "file": "bonus/medium/01.mp3",
+        "durationMs": 3657,
+        "text": "This one's a little tougher... and it's worth even more points!"
+      },
+      {
+        "file": "bonus/medium/02.mp3",
+        "durationMs": 3161,
+        "text": "Medium difficulty... more points up for grabs!"
+      }
+    ],
+    "hard": [
+      {
+        "file": "bonus/hard/01.mp3",
+        "durationMs": 3056,
+        "text": "Here's a tough one... and it's worth big points!"
+      },
+      {
+        "file": "bonus/hard/02.mp3",
+        "durationMs": 2743,
+        "text": "This is a hard one, folks. Big points on the line!"
+      }
+    ],
+    "reveal": [
+      {
+        "file": "bonus/reveal/01.mp3",
+        "durationMs": 1567,
+        "text": "Let's see who got it right!"
+      },
+      {
+        "file": "bonus/reveal/02.mp3",
+        "durationMs": 1750,
+        "text": "The correct answer is..."
+      },
+      {
+        "file": "bonus/reveal/03.mp3",
+        "durationMs": 2638,
+        "text": "Did you know this one? Let's find out!"
+      }
+    ]
+  }
 }

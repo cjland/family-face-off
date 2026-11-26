@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import type { DB } from "@/db/client";
 import {
+  bonusQuestions,
   games,
   guesses,
   playerPrompts,
@@ -15,8 +16,9 @@ import {
 } from "@/db/schema";
 import { ApiError } from "@/lib/errors";
 import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
-import { hashString } from "@/lib/prng";
-import { introDurationMs } from "@/server/introTiming";
+import { hashString, createRng } from "@/lib/prng";
+import { BONUS_POINTS, bonusSlots, defaultBonusCount, interleave, pickBonus, type BonusDifficulty } from "@/lib/bonus";
+import { bonusIntroDurationMs, introDurationMs } from "@/server/introTiming";
 import { randomInt } from "node:crypto";
 import { FASTEST_BONUS_MAX, FASTEST_BONUS_MIN, fastestCorrect, pointsFor } from "@/lib/scoring";
 import { MIN_PLAYERS, parseSettings } from "@/lib/settings";
@@ -199,6 +201,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
     }
   }
 
+  const seed = opts.seed ?? `${gameId}:${Date.now()}`;
   const result = generateQuiz({
     players: input.roster,
     answers: input.answers,
@@ -207,8 +210,23 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
     roundCount: settings.roundCount,
     perSubject: settings.perPlayer,
     reserveCount: settings.replaceSkipped ? RESERVE_ROUNDS : 0,
-    seed: opts.seed ?? `${gameId}:${Date.now()}`,
+    seed,
   });
+
+  // Bonus trivia in the middle of the game (fresh ones for this family first).
+  let bonus: (typeof bonusQuestions.$inferSelect)[] = [];
+  if (settings.bonusQuestions) {
+    const bank = await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)).orderBy(asc(bonusQuestions.sortOrder));
+    const recent = game.familyId
+      ? await db
+          .select({ id: rounds.bonusQuestionId })
+          .from(rounds)
+          .innerJoin(games, eq(games.id, rounds.gameId))
+          .where(and(eq(games.familyId, game.familyId), sql`${rounds.bonusQuestionId} is not null`, sql`${games.id} <> ${gameId}`))
+      : [];
+    const want = Math.min(settings.bonusCount ?? defaultBonusCount(settings.perPlayer), Math.max(0, result.rounds.length - 1));
+    bonus = pickBonus(bank, want, String(seed), new Set(recent.map((x) => x.id!).filter(Boolean)));
+  }
 
   await db.transaction(async (tx) => {
     const { game: locked } = await lockGame(tx, gameId, "update");
@@ -221,24 +239,48 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
       return;
     }
     const durationMs = settings.questionSeconds * 1000;
-    const all = [...result.rounds.map((r) => ({ r, status: "PENDING" as const })), ...result.reserves.map((r) => ({ r, status: "RESERVE" as const }))];
-    await tx.insert(rounds).values(
-      all.map(({ r, status }, i) => ({
+    const rng = createRng(`${String(seed)}:bonus-options`);
+    const optId = () => "o_" + Math.floor(rng() * 36 ** 6).toString(36).padStart(6, "0");
+    const regularRow = (r: (typeof result.rounds)[number], status: "PENDING" | "RESERVE") => ({
+      gameId,
+      subjectPlayerId: r.subjectPlayerId,
+      sourcePlayerPromptId: r.sourcePlayerPromptId,
+      type: r.type,
+      questionText: r.questionText,
+      promptText: r.promptText,
+      answerText: r.answerText,
+      options: r.options,
+      correctOptionId: r.correctOptionId,
+      excludedPlayerIds: r.excludedPlayerIds,
+      status,
+      durationMs,
+    });
+    const bonusRow = (b: (typeof bonus)[number]) => {
+      const options = b.options.map((label) => ({ id: optId(), label }));
+      const difficulty = b.difficulty as BonusDifficulty;
+      return {
         gameId,
-        ordinal: i + 1,
-        subjectPlayerId: r.subjectPlayerId,
-        sourcePlayerPromptId: r.sourcePlayerPromptId,
-        type: r.type,
-        questionText: r.questionText,
-        promptText: r.promptText,
-        answerText: r.answerText,
-        options: r.options,
-        correctOptionId: r.correctOptionId,
-        excludedPlayerIds: r.excludedPlayerIds,
-        status,
-        durationMs,
-      })),
+        subjectPlayerId: null,
+        sourcePlayerPromptId: null,
+        bonusQuestionId: b.id,
+        bonusPoints: BONUS_POINTS[difficulty] ?? BONUS_POINTS.medium,
+        bonusDifficulty: difficulty,
+        type: "WHAT_ANSWER" as const,
+        questionText: b.question,
+        promptText: b.question,
+        answerText: b.options[b.correctIndex],
+        options,
+        correctOptionId: options[b.correctIndex].id,
+        excludedPlayerIds: [] as string[],
+        status: "PENDING" as const,
+        durationMs: b.timeSeconds * 1000,
+      };
+    };
+    const ordered = interleave(result.rounds, bonus, bonusSlots(result.rounds.length, bonus.length)).map((x) =>
+      x.kind === "regular" ? regularRow(x.item, "PENDING") : bonusRow(x.item),
     );
+    const all = [...ordered, ...result.reserves.map((r) => regularRow(r, "RESERVE"))];
+    await tx.insert(rounds).values(all.map((row, i) => ({ ...row, ordinal: i + 1 })));
     const note =
       result.rounds.length < result.requested
         ? `Only ${result.rounds.length} different questions could be built from everyone's answers (asked for ${result.requested}). No question is repeated.`
@@ -277,10 +319,19 @@ async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
   const countdownMs = settings.countdownSeconds * 1000;
   let leadMs = COUNTDOWN_LEAD_MS;
   if (countdownMs > 0 && settings.voice && settings.sound) {
-    const all = await tx.select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status }).from(rounds).where(eq(rounds.gameId, game.id));
-    const counted = all.filter((x) => x.status !== "VOID" && x.status !== "RESERVE").sort((a, b) => a.ordinal - b.ordinal);
-    const number = counted.findIndex((x) => x.id === next.id) + 1;
-    const intro = introDurationMs(game.code, number, counted.length);
+    const all = await tx
+      .select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status, bonus: rounds.bonusQuestionId })
+      .from(rounds)
+      .where(eq(rounds.gameId, game.id));
+    const intro = next.bonusDifficulty
+      ? bonusIntroDurationMs(game.code, next.ordinal, next.bonusDifficulty)
+      : (() => {
+          const counted = all
+            .filter((x) => x.status !== "VOID" && x.status !== "RESERVE" && !x.bonus)
+            .sort((a, b) => a.ordinal - b.ordinal);
+          const number = counted.findIndex((x) => x.id === next.id) + 1;
+          return introDurationMs(game.code, number, counted.length);
+        })();
     if (intro > 0) leadMs = Math.max(COUNTDOWN_LEAD_MS, POLL_MARGIN_MS + intro + AFTER_INTRO_MS);
   }
   const opensAt = new Date(now.getTime() + (countdownMs > 0 ? countdownMs + leadMs : 0));
@@ -321,13 +372,17 @@ async function revealRound(tx: DB, game: Game, round: Round, now: Date): Promise
     .map((p) => {
       const g = byPlayer.get(p.id);
       const correct = Boolean(g && g.optionId === round.correctOptionId);
-      const points =
-        pointsFor({
-          correct,
-          speedBonus: settings.speedBonus,
-          remainingMs: g ? round.durationMs - g.elapsedMs : 0,
-          durationMs: round.durationMs,
-        }) + (settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
+      const base = round.bonusPoints
+        ? correct
+          ? round.bonusPoints
+          : 0
+        : pointsFor({
+            correct,
+            speedBonus: settings.speedBonus,
+            remainingMs: g ? round.durationMs - g.elapsedMs : 0,
+            durationMs: round.durationMs,
+          });
+      const points = base + (settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
       return { roundId: round.id, playerId: p.id, points, isCorrect: correct };
     });
   if (events.length) await tx.insert(scoreEvents).values(events).onConflictDoNothing();

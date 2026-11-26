@@ -6,6 +6,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { PROMPT_BANK } from "../src/lib/promptBank";
+import { BONUS_QUESTIONS } from "../src/data/bonusQuestions";
 
 const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: { tag: string; when: number }[] };
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
@@ -27,6 +28,12 @@ out += PROMPT_BANK.map(
 ).join(",\n");
 out += `\nON CONFLICT (id) DO UPDATE SET text = excluded.text, question_template = excluded.question_template, category = excluded.category, common = excluded.common, sort_order = excluded.sort_order, fallback_options = excluded.fallback_options, options = excluded.options, active = excluded.active, seasonal = excluded.seasonal;\n\n`;
 out += `-- Retire questions no longer in the bank (kept for old games, never assigned again)\nUPDATE prompts SET active = false, common = false WHERE id NOT IN (${PROMPT_BANK.map((p) => q(p.id)).join(", ")});\n\n`;
-out += `SELECT count(*) FILTER (WHERE active) AS questions_ready FROM prompts;\n`;
+out += `-- Bonus trivia questions from src/data/bonusQuestions.ts (safe to re-run)\nINSERT INTO bonus_questions (id, question, options, correct_index, difficulty, points, time_seconds, category, active, seasonal, sort_order) VALUES\n`;
+out += BONUS_QUESTIONS.map(
+  (b, i) =>
+    `  (${q(b.id)}, ${q(b.question)}, ${q(JSON.stringify(b.options))}::jsonb, ${b.correct}, ${q(b.difficulty)}, ${b.points}, ${b.timeSeconds}, ${q(b.category)}, ${b.active}, ${b.seasonal === null ? "NULL" : q(b.seasonal)}, ${i})`,
+).join(",\n");
+out += `\nON CONFLICT (id) DO UPDATE SET question = excluded.question, options = excluded.options, correct_index = excluded.correct_index, difficulty = excluded.difficulty, points = excluded.points, time_seconds = excluded.time_seconds, category = excluded.category, active = excluded.active, seasonal = excluded.seasonal, sort_order = excluded.sort_order;\n\n`;
+out += `SELECT (SELECT count(*) FROM prompts WHERE active) AS questions_ready, (SELECT count(*) FROM bonus_questions WHERE active) AS bonus_questions_ready;\n`;
 writeFileSync("neon-setup.sql", out);
 console.log("Wrote neon-setup.sql");

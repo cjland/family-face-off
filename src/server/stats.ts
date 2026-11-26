@@ -79,6 +79,7 @@ export async function computeStats(db: DB, gameId: string, standings: StandingDT
   // Biggest mystery / open book: how often people guessed each subject correctly.
   const bySubject = new Map<string, { right: number; total: number }>();
   for (const r of revealed) {
+    if (!r.subject) continue; // bonus trivia isn't about anyone
     const e = bySubject.get(r.subject) ?? { right: 0, total: 0 };
     const gs = allGuesses.filter((g) => g.roundId === r.id);
     e.right += gs.filter((g) => g.optionId === r.correctOptionId).length;
@@ -135,7 +136,7 @@ async function leaderRun(
   db: DB,
   gameId: string,
   standings: StandingDTO[],
-  revealed: { id: string; ordinal: number; subject: string; correctOptionId: string; excluded: string[] }[],
+  revealed: { id: string; ordinal: number; subject: string | null; correctOptionId: string; excluded: string[] }[],
   allGuesses: { roundId: string; playerId: string; optionId: string; elapsedMs: number }[],
 ): Promise<LeaderRunDTO | null> {
   const top = standings[0];

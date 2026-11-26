@@ -9,6 +9,15 @@ import {
   plannedMinutes,
   plannedQuestions,
 } from "@/lib/plan";
+import { BONUS_POINTS, defaultBonusCount } from "@/lib/bonus";
+
+/** Bonus trivia questions in a game with this many regular questions (never first or last). */
+function bonusFor(value: SettingsDraft, perPerson: number, regular: number) {
+  if (!value.bonusQuestions) return 0;
+  return Math.max(0, Math.min(value.bonusCount ?? defaultBonusCount(perPerson), regular - 1));
+}
+/** A bonus question takes about 20 seconds to answer, plus the usual countdown, reveal and leaderboard. */
+const BONUS_SECONDS = 20;
 
 const PER_PERSON = [3, 4, 5, 6, 7, 8];
 
@@ -76,6 +85,8 @@ function Planner({
         </div>
         {PER_PERSON.map((k) => {
           const q = plannedQuestions(people, k);
+          const b = bonusFor(value, k, q);
+          const minutes = plannedMinutes(q, value.questionSeconds) + Math.round((b * (BONUS_SECONDS + OVERHEAD_SECONDS_PER_QUESTION)) / 60);
           const on = per === k;
           return (
             <button
@@ -92,14 +103,11 @@ function Planner({
             >
               <span className="font-display text-lg font-bold">{k} each</span>
               <span className="tabular-nums">
-                {q}{" "}
-                {q === MAX_QUESTIONS && people * k > MAX_QUESTIONS
-                  ? "(max)"
-                  : ""}
+                {q}
+                {q === MAX_QUESTIONS && people * k > MAX_QUESTIONS ? " (max)" : ""}
+                {b > 0 && <span className="text-accent-2"> + {b} 🎁</span>}
               </span>
-              <span className="tabular-nums">
-                {formatMinutes(plannedMinutes(q, value.questionSeconds))}
-              </span>
+              <span className="tabular-nums">{formatMinutes(minutes)}</span>
             </button>
           );
         })}
@@ -134,6 +142,8 @@ export type SettingsDraft = Pick<
   | "perPlayer"
   | "plannedPlayers"
   | "fastestBonus"
+  | "bonusQuestions"
+  | "bonusCount"
 >;
 
 export const DEFAULT_DRAFT: SettingsDraft = {
@@ -154,6 +164,7 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   perPlayer: 3,
   plannedPlayers: 12,
   fastestBonus: true,
+  bonusQuestions: true,
 };
 
 const MUSIC_LABELS: [MusicStyle, string][] = [
@@ -273,6 +284,31 @@ export function SettingsForm({
             checked={value.fastestBonus}
             onChange={(v) => set("fastestBonus", v)}
           />
+          <Toggle
+            id="bonusQuestions"
+            label="🎁 Bonus trivia questions"
+            hint={`Thanksgiving trivia slipped into the middle of the game, easy to hard. Everyone plays. A right answer is worth ${BONUS_POINTS.easy.toLocaleString()} / ${BONUS_POINTS.medium.toLocaleString()} / ${BONUS_POINTS.hard.toLocaleString()} (easy / medium / hard).`}
+            checked={value.bonusQuestions}
+            onChange={(v) => set("bonusQuestions", v)}
+          />
+          {value.bonusQuestions && (
+            <div className="flex items-center gap-2 flex-wrap pl-9" role="radiogroup" aria-label="How many bonus questions">
+              <span className="text-sm text-muted">How many</span>
+              {[undefined, 1, 2, 3, 4, 5, 6, 8].map((n) => (
+                <button
+                  key={n ?? "auto"}
+                  type="button"
+                  role="radio"
+                  aria-checked={value.bonusCount === n}
+                  className={`btn ${value.bonusCount === n ? "btn-primary" : "btn-ghost"} !min-h-[40px] !px-3 !text-sm`}
+                  onClick={() => set("bonusCount", n)}
+                  title={n === undefined ? "One each time through everyone (same as questions per person)" : undefined}
+                >
+                  {n ?? "Auto"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         {aside && <div className="pt-2">{aside}</div>}
       </div>

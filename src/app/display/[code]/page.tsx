@@ -1,5 +1,6 @@
 "use client";
 
+import { BONUS_PERSON, BONUS_PIECE, DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
 import confetti from "canvas-confetti";
 import { useParams, useSearchParams } from "next/navigation";
 import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -281,7 +282,10 @@ function Display() {
       // Joined late (TV refreshed mid-question)? Stay quiet rather than talk over the game.
       if (serverNow < opensAt + 3000) {
         // The "get ready" line, unless the TV only noticed the question once the numbers had started.
-        if (serverNow < opensAt - state.countdownSeconds * 1000 - 500) void a.intro(state.code, r.number, r.total);
+        if (serverNow < opensAt - state.countdownSeconds * 1000 - 500) {
+          if (r.bonus) void a.bonusIntro(state.code, r.bonus.ordinal, r.bonus.difficulty);
+          else void a.intro(state.code, r.number, r.total);
+        }
         // "Go!" and read the question as it appears (after the countdown).
         timers.push(
           setTimeout(() => {
@@ -302,7 +306,8 @@ function Display() {
         }
       }
     } else if (phaseChanged && state.phase === "REVEAL") {
-      void a.extra(Math.random() < 0.5 ? "drumroll" : "reveal", true);
+      if (r?.bonus) void a.bonusReveal();
+      else void a.extra(Math.random() < 0.5 ? "drumroll" : "reveal", true);
     } else if (phaseChanged && state.phase === "LEADERBOARD") {
       void a.line("leaderboard", { interrupt: true });
     }
@@ -1021,7 +1026,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
 
   return (
     <div className="h-full">
-      <TvHeader state={state} right={`Question ${round.number} of ${round.total}`} />
+      <TvHeader state={state} right={roundLabel(round)} />
       <div className="absolute top-[110px] inset-x-14 bottom-[180px] flex flex-col gap-5">
         <div className="flex-1 flex items-center gap-10 min-h-0">
           {secret ? (
@@ -1031,6 +1036,13 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               aria-label="Mystery player"
             >
               ?
+            </div>
+          ) : round.bonus ? (
+            <div className="flex-none flex flex-col items-center gap-3 pop-in">
+              <Avatar name="Bonus" piece={BONUS_PIECE} size={220} />
+              <span className="panel-strong px-5 py-2 font-display text-3xl font-bold text-accent-2 whitespace-nowrap">
+                {DIFFICULTY_LABEL[round.bonus.difficulty]} · +{round.bonus.points.toLocaleString()}
+              </span>
             </div>
           ) : (
             subject && (
@@ -1136,6 +1148,8 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               </span>
             </span>
           </div>
+        ) : round.bonus ? (
+          <span className="text-2xl text-muted">Bonus trivia! Everyone plays · a right answer is worth {round.bonus.points.toLocaleString()}</span>
         ) : secret ? (
           <span className="text-2xl text-muted">One mystery person sits this one out 🤫</span>
         ) : subject && (
@@ -1278,20 +1292,24 @@ function TvReveal({ state }: { state: GameStateDTO }) {
       : rs.correct === rs.eligible
         ? "Everyone got it! 🎉"
         : rs.correct === 0
-          ? `Nobody got it. ${reveal.subjectName} fooled the whole family!`
+          ? round.bonus
+            ? "Nobody got it. That was a tough one!"
+            : `Nobody got it. ${reveal.subjectName} fooled the whole family!`
           : `${rs.correct} of ${rs.eligible} got it right`;
 
   return (
     <div className="h-full">
-      <TvHeader state={state} right={`Question ${round.number} of ${round.total}`} />
+      <TvHeader state={state} right={roundLabel(round)} />
       <div className="absolute top-[115px] left-14 w-[1150px] bottom-[176px] flex flex-col gap-4 overflow-hidden px-2 pb-2">
         <p className="text-3xl text-muted leading-tight">{round.questionText}</p>
         <div className="panel-strong px-7 py-5 pop-in flex items-center gap-6">
-          <Avatar name={reveal.subjectName} piece={reveal.subjectPiece} size={120} />
+          <Avatar name={reveal.subjectName || "Bonus"} piece={round.bonus ? BONUS_PIECE : reveal.subjectPiece} size={120} />
           <div className="min-w-0">
             <p className="text-2xl text-muted">Correct answer</p>
             <p className="font-display text-6xl font-bold gold-text leading-tight break-words">{correct?.label ?? reveal.answerText}</p>
-            <p className="font-display text-3xl mt-1">{reveal.subjectName} submitted this!</p>
+            <p className="font-display text-3xl mt-1">
+              {round.bonus ? `Bonus! +${round.bonus.points.toLocaleString()} for each right answer` : `${reveal.subjectName} submitted this!`}
+            </p>
           </div>
         </div>
         <p className="font-display text-3xl text-accent-2">How everyone answered</p>
@@ -1431,7 +1449,7 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
   }, [current, announcer]);
   return (
     <div className="h-full">
-      <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
+      <TvHeader state={state} center={round ? (round.bonus ? "After the bonus question" : `After question ${round.number} of ${round.total}`) : "Leaderboard"} />
       <div className="absolute top-[120px] inset-x-14 bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col items-center gap-2">
           <h2 key={current} className="font-display text-7xl font-bold gold-text text-center pop-in">
@@ -1969,7 +1987,7 @@ function currentAsHistory(state: GameStateDTO): HistoryEntry {
     number: round.number,
     roundId: round.id,
     questionText: round.questionText,
-    subject: { playerId: round.subjectPlayerId ?? "", name: reveal.subjectName, piece: reveal.subjectPiece },
+    subject: round.bonus ? { ...BONUS_PERSON } : { playerId: round.subjectPlayerId ?? "", name: reveal.subjectName, piece: reveal.subjectPiece },
     answer: round.options.find((o) => o.id === reveal.correctOptionId)?.label ?? reveal.answerText,
     durationMs: round.durationMs,
     right: reveal.roundStats.correct,
@@ -2020,7 +2038,7 @@ function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => 
             </p>
             <p className="font-display text-4xl font-bold truncate">
               <span className="gold-text">{h.answer}</span>
-              <span className="text-2xl text-muted font-sans font-normal"> · {h.subject.name}&apos;s answer</span>
+              {h.subject.piece !== BONUS_PIECE && <span className="text-2xl text-muted font-sans font-normal"> · {h.subject.name}&apos;s answer</span>}
             </p>
           </div>
           <span className="font-display text-3xl text-accent-2 whitespace-nowrap">

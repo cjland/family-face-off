@@ -83,6 +83,8 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   await hostLogin(host);
   // This test drives each reveal by hand, so turn the default auto reveal off.
   await host.getByText("Auto reveal").click();
+  // It counts exactly three numbered questions, so no bonus trivia here (covered by integration tests).
+  await host.getByText("🎁 Bonus trivia questions").click();
   await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;

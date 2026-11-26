@@ -104,6 +104,7 @@ An **announcer voice** talks on the TV through the whole game. The music dips wh
 | Question appears | The question itself, then "Pick the best answer!" |
 | While people choose | "10 seconds!" and "Everyone's locked in!" |
 | Reveal | A drumroll or reveal line |
+| Bonus question | "It's time for a bonus question!" and a difficulty line ("This one's a little tougher… and it's worth even more points!") before the countdown, then "Let's see who got it right!" at the reveal |
 | Leaderboard | "Let's check out the leaderboard!", then "Who knew them best?" when the This round page comes up |
 | End of the game | "Are we ready to crown our winner?" over the awards, "And your Family Face-Off champion is…" as the podium appears, then a game-over line |
 
@@ -211,6 +212,7 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Plan the game | 12 people, 3 each | Enter about how many people are coming and pick 3–8 questions about each person. Each choice shows the total questions and roughly how long the game takes (about 30 seconds per question on top of the answer time). You can change it when you press Start |
 | Seconds per question | 20 | 5–120 seconds |
 | Speed bonus | On | The fastest right answer each round gets a surprise 25–50 extra points |
+| 🎁 Bonus trivia questions | On, Auto | Thanksgiving trivia in the middle of the game (see below). **Auto** means one each time through everyone (the same as questions per person), or pick 1–8 |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
 | Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
 | TV sound | On | Beeps, pops, "Hurry up!", music and the announcer. The TV needs one click or key press before browsers allow sound |
@@ -220,6 +222,17 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Auto reveal | On, +5s | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
 | Auto next question | Off | Move on 8 seconds after each reveal |
 | AI wrong-answer helper | Off | Only shown if OpenRouter is set up (see below) |
+
+### 🎁 Bonus questions
+
+Bonus questions are Thanksgiving trivia with one right answer (like "Which city hosts the Macy's Thanksgiving Day Parade?"), mixed into the game:
+
+- They're spread through the middle of the game, never first or last, and go from easy to hard so the big points come late.
+- Everyone plays (nobody sits out), and they don't count toward "Question 3 of 24".
+- A right answer is worth **1,500** (easy), **2,000** (medium) or **2,500** (hard), plus the speed bonus. A normal question is worth 1,000.
+- Answer time is 15, 20 or 25 seconds, by difficulty.
+- The game prefers questions your family hasn't had in earlier games.
+- There are 20 of them (`b001`–`b020`), in `src/data/bonusQuestions.ts` and the `bonus_questions` table. Each has an announcer clip in `public/audio/questions`.
 
 **Scoring:** 1,000 points per right answer. The fastest right answer each round also gets a surprise bonus of 25 to 50 points (a new random amount each round), so every round has a clear winner. Wrong or missed answers score 0. Late right answers score 1,000 with no bonus. Ties share a place.
 

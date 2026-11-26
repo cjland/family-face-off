@@ -8,7 +8,7 @@
  * countdown numbers he has room for, then "Go!" → [the question] → [a "pick an answer" prompt]
  * as the question appears. Questions without a clip get a "read it on the screen" line instead.
  */
-import { introIndex, introPool } from "@/lib/introClip";
+import { bonusIntroIndexes, introIndex, introPool } from "@/lib/introClip";
 
 type Clip = { file: string; durationMs: number; text: string };
 type Manifest = {
@@ -25,6 +25,7 @@ type Manifest = {
   "round-winner"?: Clip[];
   crown?: Clip[];
   "no-audio"?: Clip[];
+  bonus?: { intro: Clip[]; easy: Clip[]; medium: Clip[]; hard: Clip[]; reveal: Clip[] };
 };
 
 export type Pool = "waiting" | "leaderboard" | "round-winner";
@@ -170,6 +171,26 @@ export class Announcer {
     const pool = kind === "first" ? m.leadin.first : kind === "final" ? m.leadin.final : (m.countdown?.intro ?? []);
     const c = pool[introIndex(code, number, pool.length)] ?? null;
     return this.say([c]);
+  }
+
+  /**
+   * Bonus round "Get ready!": "It's time for a bonus question!" then the difficulty line. Same
+   * clips the server timed the countdown for.
+   */
+  async bonusIntro(code: string, ordinal: number, difficulty: "easy" | "medium" | "hard") {
+    const m = await this.load();
+    const b = m?.bonus;
+    if (!b) return;
+    const diff = b[difficulty] ?? [];
+    const i = bonusIntroIndexes(code, ordinal, b.intro.length, diff.length);
+    return this.say([b.intro[i.intro] ?? null, diff[i.difficulty] ?? null]);
+  }
+
+  /** Bonus reveal: "Let's see who got it right!" */
+  async bonusReveal() {
+    const m = await this.load();
+    const c = this.pick(m?.bonus?.reveal ?? [], "bonus-reveal");
+    if (c) return this.say([c]);
   }
 
   /**

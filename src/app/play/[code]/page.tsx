@@ -1,5 +1,6 @@
 "use client";
 
+
 import Link from "next/link";
 import { splitQuestion } from "@/lib/questionText";
 import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
@@ -294,7 +295,7 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <span className="font-display text-accent-2">
-          Q{round.number} of {round.total}
+          {round.bonus ? `🎁 Bonus · +${round.bonus.points.toLocaleString()}` : `Q${round.number} of ${round.total}`}
         </span>
         {timeUp && !locked && (
           <span role="status" className="shame-alert rounded-full border-2 border-white px-3 py-1 text-sm font-semibold text-white text-center">
@@ -382,7 +383,7 @@ function RevealScreen({ state }: { state: GameStateDTO }) {
       <div className="panel p-4">
         <p className="text-sm text-muted">Correct answer</p>
         <p className="font-display text-3xl font-bold break-words">{correct?.label ?? reveal.answerText}</p>
-        <p className="mt-1">{reveal.subjectName} submitted this!</p>
+        <p className="mt-1">{round.bonus ? "Bonus question" : `${reveal.subjectName} submitted this!`}</p>
       </div>
       {me.rank && (
         <p className="text-center text-xl">

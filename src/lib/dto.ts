@@ -44,6 +44,8 @@ export type RoundDTO = {
   promptId?: string | null;
   /** Display/host only: who sits this one out. */
   subjectPlayerId?: string;
+  /** Bonus trivia round: everyone plays, a right answer is worth `points`. */
+  bonus: { difficulty: "easy" | "medium" | "hard"; points: number; ordinal: number } | null;
 };
 
 export type RevealDTO = {
@@ -116,7 +118,7 @@ export type BoardsDTO = {
     rows: (Who & { letter: string | null; label: string | null; correct: boolean; elapsedMs: number | null; points: number })[];
   }[];
   /** The wrong answers that fooled the most people. */
-  graveyard: { label: string; fooled: number; subjectName: string; prompt: string; actual: string }[];
+  graveyard: { label: string; fooled: number; subjectName: string; prompt: string; actual: string; bonus?: boolean }[];
 };
 
 export type LeaderRunDTO = {
@@ -204,6 +206,8 @@ export type GameStateDTO = {
     perPlayer: number | null;
     plannedPlayers: number | null;
     fastestBonus: boolean;
+    bonusQuestions: boolean;
+    bonusCount: number | null;
   };
   counts: { players: number; ready: number };
   lobby: LobbyPlayerDTO[] | null;

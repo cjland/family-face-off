@@ -1,7 +1,8 @@
 import { notInArray, sql } from "drizzle-orm";
+import { BONUS_QUESTIONS } from "@/data/bonusQuestions";
 import { PROMPT_BANK } from "@/lib/promptBank";
 import type { DB } from "./client";
-import { prompts } from "./schema";
+import { bonusQuestions, prompts } from "./schema";
 
 /** Idempotently upserts the prompt bank. Safe to run on every deploy. */
 export async function seedPrompts(db: DB): Promise<number> {
@@ -39,5 +40,42 @@ export async function seedPrompts(db: DB): Promise<number> {
     .update(prompts)
     .set({ active: false, common: false })
     .where(notInArray(prompts.id, rows.map((r) => r.id)));
+  await seedBonusQuestions(db);
+  return rows.length;
+}
+
+/** Idempotently upserts the bonus trivia questions. */
+export async function seedBonusQuestions(db: DB): Promise<number> {
+  const rows = BONUS_QUESTIONS.map((b, i) => ({
+    id: b.id,
+    question: b.question,
+    options: [...b.options],
+    correctIndex: b.correct,
+    difficulty: b.difficulty,
+    points: b.points,
+    timeSeconds: b.timeSeconds,
+    category: b.category,
+    active: b.active,
+    seasonal: b.seasonal,
+    sortOrder: i,
+  }));
+  await db
+    .insert(bonusQuestions)
+    .values(rows)
+    .onConflictDoUpdate({
+      target: bonusQuestions.id,
+      set: {
+        question: sql`excluded.question`,
+        options: sql`excluded.options`,
+        correctIndex: sql`excluded.correct_index`,
+        difficulty: sql`excluded.difficulty`,
+        points: sql`excluded.points`,
+        timeSeconds: sql`excluded.time_seconds`,
+        category: sql`excluded.category`,
+        active: sql`excluded.active`,
+        seasonal: sql`excluded.seasonal`,
+        sortOrder: sql`excluded.sort_order`,
+      },
+    });
   return rows.length;
 }

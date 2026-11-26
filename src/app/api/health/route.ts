@@ -29,12 +29,14 @@ export async function GET() {
                exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
                        where t.typname = 'game_phase' and e.enumlabel = 'LEADERBOARD') as leaderboard,
                exists (select 1 from information_schema.columns
-                       where table_schema = 'public' and table_name = 'players' and column_name = 'win_slogan') as slogans
-      `)) as unknown as { rows: { photos: boolean; families: boolean; leaderboard: boolean; slogans: boolean }[] }
+                       where table_schema = 'public' and table_name = 'players' and column_name = 'win_slogan') as slogans,
+               exists (select 1 from information_schema.columns
+                       where table_schema = 'public' and table_name = 'rounds' and column_name = 'bonus_question_id') as bonus
+      `)) as unknown as { rows: { photos: boolean; families: boolean; leaderboard: boolean; slogans: boolean; bonus: boolean }[] }
     ).rows;
     database = true;
     if (!tables?.n) databaseError = "connected, but no questions loaded: run neon-setup.sql in the Neon SQL Editor";
-    else if (!schema?.photos || !schema?.families || !schema?.leaderboard || !schema?.slogans) {
+    else if (!schema?.photos || !schema?.families || !schema?.leaderboard || !schema?.slogans || !schema?.bonus) {
       databaseError = "connected, but the database is out of date: run the latest neon-setup.sql in the Neon SQL Editor";
     }
   } catch (err) {

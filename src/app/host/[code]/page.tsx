@@ -1,5 +1,6 @@
 "use client";
 
+import { defaultBonusCount, DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
 import { formatMinutes, plannedMinutes, plannedQuestions } from "@/lib/plan";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -226,6 +227,8 @@ function LobbyControls({
     perPlayer: state.settings.perPlayer ?? undefined,
     plannedPlayers: state.settings.plannedPlayers ?? undefined,
     fastestBonus: state.settings.fastestBonus,
+    bonusQuestions: state.settings.bonusQuestions,
+    bonusCount: state.settings.bonusCount ?? undefined,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;
@@ -361,7 +364,10 @@ function LobbyControls({
                 </div>
                 <p className="text-lg">
                   {perPlayer} × {startDialog.readyPlayers} people = <strong>{plannedQuestions(startDialog.readyPlayers, perPlayer)} questions</strong>, about{" "}
-                  {formatMinutes(plannedMinutes(plannedQuestions(startDialog.readyPlayers, perPlayer), startDialog.questionSeconds))}.
+                  {formatMinutes(plannedMinutes(plannedQuestions(startDialog.readyPlayers, perPlayer), startDialog.questionSeconds))}
+                  {state.settings.bonusQuestions &&
+                    `, plus ${Math.min(state.settings.bonusCount ?? defaultBonusCount(perPlayer), Math.max(0, plannedQuestions(startDialog.readyPlayers, perPlayer) - 1))} 🎁 bonus`}
+                  .
                 </p>
                 <p className="text-sm text-muted">
                   Up to {startDialog.maxPerPlayer} per person is possible without ever repeating a question.
@@ -419,7 +425,8 @@ function RoundControls({
       <section className="panel p-6 flex flex-col gap-5">
         <div className="flex items-center justify-between gap-4">
           <span className="font-display text-xl text-accent-2">
-            Question {round.number} of {round.total}
+            {roundLabel(round)}
+            {round.bonus && ` · ${DIFFICULTY_LABEL[round.bonus.difficulty]}, +${round.bonus.points.toLocaleString()}`}
           </span>
           {isQuestion && <CountdownRing remainingMs={now ? remaining : round.remainingMs} durationMs={round.durationMs} paused={round.paused} size={88} />}
         </div>
@@ -442,7 +449,8 @@ function RoundControls({
         </p>
         {reveal && (
           <Banner kind="success">
-            Correct answer: <strong>{reveal.answerText}</strong>, submitted by <strong>{reveal.subjectName}</strong>
+            Correct answer: <strong>{reveal.answerText}</strong>
+            {round.bonus ? " (bonus question)" : <>, submitted by <strong>{reveal.subjectName}</strong></>}
           </Banner>
         )}
         <div className="flex gap-3 flex-wrap">

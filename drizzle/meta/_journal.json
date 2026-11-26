@@ -43,6 +43,13 @@
       "when": 1795621583006,
       "tag": "0005_player_slogans",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795727273645,
+      "tag": "0006_bonus_questions",
+      "breakpoints": true
     }
   ]
 }

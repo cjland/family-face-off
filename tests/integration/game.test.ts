@@ -57,7 +57,7 @@ async function fillAndReady(code: string, player: Player, i: number) {
 }
 
 async function setupGame(n: number, settings: Record<string, unknown> = {}) {
-  const game = await createGame(db, { title: "Test", settings: { roundCount: 6, countdownSeconds: 0, ...settings } });
+  const game = await createGame(db, { title: "Test", settings: { roundCount: 6, countdownSeconds: 0, bonusQuestions: false, ...settings } });
   const ps: { player: Player; token: string }[] = [];
   for (let i = 0; i < n; i++) {
     const r = await joinGame(db, game.code, `Player ${i + 1}`, null);
@@ -132,7 +132,7 @@ describe("questionnaire and roster", () => {
   });
 
   it("plays a full round from picked options, with options from the bank as wrong choices", async () => {
-    const game = await createGame(db, { settings: { roundCount: 4 } });
+    const game = await createGame(db, { settings: { roundCount: 4, bonusQuestions: false } });
     const ps: Player[] = [];
     for (const name of ["Ann", "Ben", "Cal"]) {
       const { player } = await joinGame(db, game.code, name, null);
@@ -491,7 +491,7 @@ describe("families, pieces, questions per person, stats", () => {
     const main = rs.filter((r) => r.status === "PENDING");
     expect(main).toHaveLength(12);
     const per = new Map<string, number>();
-    for (const r of main) per.set(r.subjectPlayerId, (per.get(r.subjectPlayerId) ?? 0) + 1);
+    for (const r of main) per.set(r.subjectPlayerId!, (per.get(r.subjectPlayerId!) ?? 0) + 1);
     expect([...per.values()].every((n) => n === 2)).toBe(true);
     // No question (prompt) asked twice, reserves included.
     expect(new Set(rs.map((r) => r.promptText)).size).toBe(rs.length);
@@ -578,3 +578,67 @@ describe("player photos", () => {
     expect(await getPhoto(db, player.id)).toBeNull();
   });
 });
+
+describe("bonus questions", () => {
+  it("go in the middle of the game, easy to hard, everyone plays and they don't count as numbered questions", async () => {
+    const { game, ps } = await setupGame(4, { bonusQuestions: true });
+    await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
+    const rs = (await db.select().from(rounds).where(eq(rounds.gameId, game.id))).filter((r) => r.status === "PENDING").sort((a, b) => a.ordinal - b.ordinal);
+    const bonus = rs.filter((r) => r.bonusQuestionId);
+    expect(rs.filter((r) => !r.bonusQuestionId)).toHaveLength(8);
+    expect(bonus).toHaveLength(2); // one each time through everyone (2 per person)
+    expect(rs[0].bonusQuestionId).toBeNull();
+    expect(rs[rs.length - 1].bonusQuestionId).toBeNull();
+    const rank = { easy: 0, medium: 1, hard: 2 } as Record<string, number>;
+    expect(rank[bonus[0].bonusDifficulty!]).toBeLessThanOrEqual(rank[bonus[1].bonusDifficulty!]);
+    for (const b of bonus) {
+      expect(b.subjectPlayerId).toBeNull();
+      expect(b.excludedPlayerIds).toEqual([]);
+      expect(b.options.filter((o) => o.id === b.correctOptionId)).toHaveLength(1);
+      expect(new Set(bonus.map((x) => x.bonusQuestionId)).size).toBe(bonus.length);
+    }
+
+    // Play through to the first bonus round.
+    let g = await findGame(db, game.code);
+    await performAction(db, game.id, "open", g.version);
+    while ((await current(game.code)).r.bonusQuestionId === null) {
+      g = await findGame(db, game.code);
+      await performAction(db, game.id, "reveal", g.version);
+      g = await findGame(db, game.code);
+      await performAction(db, game.id, "next", g.version);
+      g = await findGame(db, game.code);
+      await performAction(db, game.id, "next", g.version);
+    }
+    const { r } = await current(game.code);
+    const tv = await getGameState(db, game.code, auth("display"));
+    expect(tv.round!.bonus).toMatchObject({ difficulty: r.bonusDifficulty, points: r.bonusPoints });
+    expect(tv.round!.promptId).toBe(r.bonusQuestionId);
+    expect(tv.round!.eligibleCount).toBe(4); // nobody sits out
+    expect(tv.round!.total).toBe(8);
+    // Everyone can answer; right answers get the bonus points (+ the fastest-answer bonus).
+    const wrong = r.options.find((o) => o.id !== r.correctOptionId)!;
+    await submitGuess(db, game.id, ps[0].player, r.id, r.correctOptionId);
+    await submitGuess(db, game.id, ps[1].player, r.id, r.correctOptionId);
+    await submitGuess(db, game.id, ps[2].player, r.id, wrong.id);
+    g = await findGame(db, game.code);
+    await performAction(db, game.id, "reveal", g.version);
+    const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
+    expect(ev).toHaveLength(4);
+    const pts = (i: number) => ev.find((e) => e.playerId === ps[i].player.id)!.points;
+    expect([pts(0), pts(1)].sort((a, b) => a - b)[0]).toBe(r.bonusPoints);
+    expect(Math.max(pts(0), pts(1))).toBeGreaterThanOrEqual(r.bonusPoints! + 25);
+    expect(pts(2)).toBe(0);
+    expect(pts(3)).toBe(0);
+    const after = await getGameState(db, game.code, auth("display"));
+    expect(after.reveal!.subjectName).toBe("");
+    expect(after.stats).not.toBeNull();
+  });
+
+  it("can be turned off", async () => {
+    const { game } = await setupGame(3, { bonusQuestions: false });
+    await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
+    const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
+    expect(rs.some((r) => r.bonusQuestionId)).toBe(false);
+  });
+});
+

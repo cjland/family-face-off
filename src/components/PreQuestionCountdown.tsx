@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useServerNow } from "@/hooks/useGameState";
 import type { RoundDTO } from "@/lib/dto";
+import { DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
 
 /**
  * Full-screen "5, 4, 3, 2, 1" before a question opens. Driven by the server's open time, so the
@@ -42,16 +43,35 @@ export function PreQuestionCountdown({
       className={`${tv ? "absolute" : "fixed"} inset-0 z-40 grid place-items-center bg-[radial-gradient(circle_at_center,#2a1660,#0b0620)]`}
       role="status"
       aria-live="assertive"
-      aria-label={ready ? `Question ${round.number}: get ready` : `Question ${round.number} starts in ${n}`}
+      aria-label={
+        ready
+          ? `Question ${round.number}: get ready`
+          : `Question ${round.number} starts in ${n}`
+      }
     >
       <div className="flex flex-col items-center text-center px-6">
-        <p className={`font-display text-accent-2 ${tv ? "text-6xl" : "text-2xl"}`}>
-          Question {round.number} of {round.total}
+        <p
+          className={`font-display text-accent-2 ${tv ? "text-6xl" : "text-2xl"}`}
+        >
+          {roundLabel(round)}
         </p>
         {ready ? (
-          <span key="ready" className={`countdown-pop font-display font-bold gold-text leading-none ${tv ? "text-[11rem] py-24" : "text-6xl py-16"}`}>
-            Get ready!
-          </span>
+          <>
+            <span
+              key="ready"
+              className={`countdown-pop font-display font-bold gold-text leading-none ${tv ? "text-[11rem] py-24" : "text-6xl py-16"}`}
+            >
+              Get ready!
+            </span>
+            {round.bonus && (
+              <p
+                className={`font-display font-bold -mt-8 ${tv ? "text-6xl" : "text-2xl"}`}
+              >
+                {DIFFICULTY_LABEL[round.bonus.difficulty]} · worth{" "}
+                {round.bonus.points.toLocaleString()} points
+              </p>
+            )}
+          </>
         ) : (
           <>
             <span
@@ -60,7 +80,11 @@ export function PreQuestionCountdown({
             >
               {n}
             </span>
-            <p className={`font-display font-bold ${tv ? "text-7xl" : "text-3xl"}`}>Get ready!</p>
+            <p
+              className={`font-display font-bold ${tv ? "text-7xl" : "text-3xl"}`}
+            >
+              Get ready!
+            </p>
           </>
         )}
       </div>

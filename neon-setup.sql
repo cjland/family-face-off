@@ -223,6 +223,41 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0006_bonus_questions (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795727273645) THEN
+    EXECUTE $stmt$CREATE TABLE "bonus_questions" (
+	"id" text PRIMARY KEY NOT NULL,
+	"question" text NOT NULL,
+	"options" jsonb NOT NULL,
+	"correct_index" integer NOT NULL,
+	"difficulty" text NOT NULL,
+	"points" integer NOT NULL,
+	"time_seconds" integer NOT NULL,
+	"category" text NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"seasonal" text,
+	"sort_order" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "bonus_difficulty" CHECK ("bonus_questions"."difficulty" in ('easy', 'medium', 'hard')),
+	CONSTRAINT "bonus_options_count" CHECK (jsonb_array_length("bonus_questions"."options") = 4),
+	CONSTRAINT "bonus_correct_index" CHECK ("bonus_questions"."correct_index" between 0 and 3),
+	CONSTRAINT "bonus_points_pos" CHECK ("bonus_questions"."points" > 0 and "bonus_questions"."time_seconds" > 0)
+)$stmt$;
+    EXECUTE $stmt$ALTER TABLE "score_events" DROP CONSTRAINT "score_events_points_range"$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ALTER COLUMN "subject_player_id" DROP NOT NULL$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ALTER COLUMN "source_player_prompt_id" DROP NOT NULL$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD COLUMN "bonus_question_id" text$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD COLUMN "bonus_points" integer$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD COLUMN "bonus_difficulty" text$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD CONSTRAINT "rounds_bonus_question_id_bonus_questions_id_fk" FOREIGN KEY ("bonus_question_id") REFERENCES "public"."bonus_questions"("id") ON DELETE no action ON UPDATE no action$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD CONSTRAINT "rounds_subject_or_bonus" CHECK (("rounds"."bonus_question_id" is null and "rounds"."subject_player_id" is not null and "rounds"."source_player_prompt_id" is not null) or ("rounds"."bonus_question_id" is not null and "rounds"."bonus_points" > 0))$stmt$;
+    EXECUTE $stmt$ALTER TABLE "score_events" ADD CONSTRAINT "score_events_points_range" CHECK ("score_events"."points" between 0 and 3000)$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('9e09f4bb8b02f3af7fbf284e3cdfe9aeb4b8489cb21698ee5fa733544fd16845', 1795727273645);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true}]'::jsonb, true, NULL),
@@ -380,4 +415,28 @@ ON CONFLICT (id) DO UPDATE SET text = excluded.text, question_template = exclude
 -- Retire questions no longer in the bank (kept for old games, never assigned again)
 UPDATE prompts SET active = false, common = false WHERE id NOT IN ('q001', 'q002', 'q017', 'q053', 'q003', 'q004', 'q005', 'q006', 'q007', 'q008', 'q009', 'q010', 'q011', 'q012', 'q013', 'q014', 'q015', 'q016', 'q018', 'q019', 'q020', 'q021', 'q022', 'q023', 'q024', 'q025', 'q026', 'q027', 'q028', 'q029', 'q030', 'q031', 'q032', 'q033', 'q034', 'q035', 'q036', 'q037', 'q038', 'q039', 'q040', 'q041', 'q042', 'q043', 'q044', 'q045', 'q046', 'q047', 'q048', 'q049', 'q050', 'q051', 'q052', 'q054', 'q055', 'q056', 'q057', 'q058', 'q059', 'q060', 'q061', 'q062', 'q063', 'q064', 'q065', 'q066', 'q067', 'q068', 'q069', 'q070', 'q071', 'q072', 'q073', 'q074', 'q075', 'q076', 'q077', 'q078', 'q079', 'q080', 'q081', 'q082', 'q083', 'q084', 'q085', 'q086', 'q087', 'q088', 'q089', 'q090', 'q091', 'q092', 'q093', 'q094', 'q095', 'q096', 'q097', 'q098', 'q099', 'q100', 'q101', 'q102', 'q103', 'q104', 'q105', 'q106', 'q107', 'q108', 'q109', 'q110', 'q111', 'q112', 'q113', 'q114', 'q115', 'q116', 'q117', 'q118', 'q119', 'q120', 'q121', 'q122', 'q123', 'q124', 'q125', 'q126', 'q127', 'q128', 'q129', 'q130', 'q131', 'q132', 'q133', 'q134', 'q135', 'q136', 'q137', 'q138', 'q139', 'q140', 'q141', 'q142', 'q143', 'q144', 'q145', 'q146', 'q147', 'q148', 'q149', 'q150');
 
-SELECT count(*) FILTER (WHERE active) AS questions_ready FROM prompts;
+-- Bonus trivia questions from src/data/bonusQuestions.ts (safe to re-run)
+INSERT INTO bonus_questions (id, question, options, correct_index, difficulty, points, time_seconds, category, active, seasonal, sort_order) VALUES
+  ('b001', 'In what month is U.S. Thanksgiving celebrated?', '["October","November","December","September"]'::jsonb, 1, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 0),
+  ('b002', 'On which day of the week does U.S. Thanksgiving always fall?', '["Monday","Friday","Thursday","Sunday"]'::jsonb, 2, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 1),
+  ('b003', 'Which bird is the traditional centerpiece of the Thanksgiving meal?', '["Turkey","Chicken","Duck","Goose"]'::jsonb, 0, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 2),
+  ('b004', 'Which city hosts the Macy''s Thanksgiving Day Parade?', '["Chicago","Philadelphia","Boston","New York City"]'::jsonb, 3, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 3),
+  ('b005', 'Which sport is traditionally watched on Thanksgiving Day?', '["Baseball","American football","Basketball","Hockey"]'::jsonb, 1, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 4),
+  ('b006', 'Which berry is used to make a classic Thanksgiving sauce?', '["Cranberry","Blueberry","Strawberry","Raspberry"]'::jsonb, 0, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 5),
+  ('b007', 'What was the name of the ship that brought the Pilgrims to America?', '["The Santa Maria","The Endeavour","The Mayflower","The Discovery"]'::jsonb, 2, 'easy', 200, 15, 'Thanksgiving Bonus', true, 'Thanksgiving', 6),
+  ('b008', 'In what year did the Pilgrims arrive on the Mayflower?', '["1492","1620","1607","1776"]'::jsonb, 1, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 7),
+  ('b009', 'Which Native American people shared the 1621 harvest feast with the Pilgrims?', '["Cherokee","Iroquois","Sioux","Wampanoag"]'::jsonb, 3, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 8),
+  ('b010', 'Which president made Thanksgiving a national holiday in 1863?', '["Abraham Lincoln","George Washington","Thomas Jefferson","Franklin D. Roosevelt"]'::jsonb, 0, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 9),
+  ('b011', 'Which NFL team has hosted a Thanksgiving Day game almost every year since 1934?', '["Green Bay Packers","Chicago Bears","Detroit Lions","New York Giants"]'::jsonb, 2, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 10),
+  ('b012', 'What colony did the Pilgrims establish?', '["Jamestown","Plymouth","Roanoke","Salem"]'::jsonb, 1, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 11),
+  ('b013', 'Which Native American taught the Pilgrims how to plant corn?', '["Squanto","Samoset","Pocahontas","Sacagawea"]'::jsonb, 0, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 12),
+  ('b014', 'Which president issued the first national Thanksgiving proclamation in 1789?', '["John Adams","Thomas Jefferson","James Madison","George Washington"]'::jsonb, 3, 'medium', 300, 20, 'Thanksgiving Bonus', true, 'Thanksgiving', 13),
+  ('b015', 'Which writer campaigned for 17 years to make Thanksgiving a national holiday?', '["Harriet Beecher Stowe","Sarah Josepha Hale","Louisa May Alcott","Emily Dickinson"]'::jsonb, 1, 'hard', 500, 25, 'Thanksgiving Bonus', true, 'Thanksgiving', 14),
+  ('b016', 'Which president moved Thanksgiving a week earlier, leading critics to call it "Franksgiving"?', '["Herbert Hoover","Harry Truman","Franklin D. Roosevelt","Calvin Coolidge"]'::jsonb, 2, 'hard', 500, 25, 'Thanksgiving Bonus', true, 'Thanksgiving', 15),
+  ('b017', 'In what year did Congress fix Thanksgiving as the fourth Thursday in November?', '["1941","1863","1939","1950"]'::jsonb, 0, 'hard', 500, 25, 'Thanksgiving Bonus', true, 'Thanksgiving', 16),
+  ('b018', 'In what year was the first Macy''s Thanksgiving Day Parade held?', '["1910","1936","1947","1924"]'::jsonb, 3, 'hard', 500, 25, 'Thanksgiving Bonus', true, 'Thanksgiving', 17),
+  ('b019', 'Which Plymouth Colony governor wrote "Of Plymouth Plantation"?', '["Myles Standish","William Bradford","John Carver","Edward Winslow"]'::jsonb, 1, 'hard', 500, 25, 'Thanksgiving Bonus', true, 'Thanksgiving', 18),
+  ('b020', 'Which president made the White House turkey pardon an official annual tradition?', '["Ronald Reagan","John F. Kennedy","George H. W. Bush","Harry Truman"]'::jsonb, 2, 'hard', 500, 25, 'Thanksgiving Bonus', true, 'Thanksgiving', 19)
+ON CONFLICT (id) DO UPDATE SET question = excluded.question, options = excluded.options, correct_index = excluded.correct_index, difficulty = excluded.difficulty, points = excluded.points, time_seconds = excluded.time_seconds, category = excluded.category, active = excluded.active, seasonal = excluded.seasonal, sort_order = excluded.sort_order;
+
+SELECT (SELECT count(*) FROM prompts WHERE active) AS questions_ready, (SELECT count(*) FROM bonus_questions WHERE active) AS bonus_questions_ready;

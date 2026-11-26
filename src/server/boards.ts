@@ -1,9 +1,11 @@
 import type { BoardsDTO, StandingDTO } from "@/lib/dto";
+import { BONUS_PERSON } from "@/lib/bonus";
 
 type RoundRow = {
   id: string;
   ordinal: number;
-  subject: string;
+  /** Null for bonus rounds. */
+  subject: string | null;
   correctOptionId: string;
   answerText: string;
   promptText: string;
@@ -28,7 +30,8 @@ export function computeBoards(
   const byRound = new Map<string, GuessRow[]>();
   for (const g of allGuesses) byRound.set(g.roundId, [...(byRound.get(g.roundId) ?? []), g]);
   const eligibleIds = (r: RoundRow) => roster.filter((p) => p.id !== r.subject && !r.excluded.includes(p.id)).map((p) => p.id);
-  const person = (id: string) => {
+  const person = (id: string | null) => {
+    if (!id) return { ...BONUS_PERSON };
     const p = who.get(id);
     return { playerId: id, name: p?.name ?? "Someone", piece: p?.piece ?? null };
   };
@@ -65,6 +68,7 @@ export function computeBoards(
 
   const mysteryMap = new Map<string, { right: number; total: number }>();
   for (const r of ordered) {
+    if (!r.subject) continue; // bonus trivia isn't about anyone
     const e = mysteryMap.get(r.subject) ?? { right: 0, total: 0 };
     e.total += eligibleIds(r).length;
     e.right += (byRound.get(r.id) ?? []).filter((g) => g.optionId === r.correctOptionId).length;
@@ -104,7 +108,7 @@ export function computeBoards(
     for (const [optionId, fooled] of counts) {
       if (fooled < 2) continue;
       const label = r.options.find((o) => o.id === optionId)?.label ?? "?";
-      graveyard.push({ label, fooled, subjectName: person(r.subject).name, prompt: r.promptText, actual: r.answerText });
+      graveyard.push({ label, fooled, subjectName: person(r.subject).name, prompt: r.promptText, actual: r.answerText, bonus: !r.subject });
     }
   }
   graveyard.sort((a, b) => b.fooled - a.fooled);

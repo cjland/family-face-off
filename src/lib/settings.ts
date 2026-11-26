@@ -42,6 +42,10 @@ export const settingsSchema = z
     plannedPlayers: z.number().int().min(3).max(50).optional(),
     /** The fastest right answer each round gets a random 25–50 bonus (on by default). */
     fastestBonus: z.boolean().default(true),
+    /** Bonus trivia questions in the middle of the game (on by default). */
+    bonusQuestions: z.boolean().default(true),
+    /** How many bonus questions; unset = one each time through everyone (questions per person). */
+    bonusCount: z.number().int().min(1).max(20).optional(),
   })
   .strict();
 

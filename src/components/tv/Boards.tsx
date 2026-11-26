@@ -370,8 +370,17 @@ export function GraveyardBoard({ boards }: { boards: BoardsDTO }) {
         <div className="panel-strong px-6 py-3 tile-in" style={{ animationDelay: "1.3s" }}>
           <div className="text-xl text-muted">Biggest fake-out of the night</div>
           <div className="text-3xl">
-            <strong className="font-display">{worst.subjectName}</strong>: {worst.prompt} {worst.fooled} people guessed <strong>{worst.label}</strong>.{" "}
-            {worst.subjectName} actually chose <strong className="text-accent-2">{worst.actual}</strong>.
+            {worst.bonus ? (
+              <>
+                <strong className="font-display">Bonus</strong>: {worst.prompt} {worst.fooled} people guessed <strong>{worst.label}</strong>. The
+                answer was <strong className="text-accent-2">{worst.actual}</strong>.
+              </>
+            ) : (
+              <>
+                <strong className="font-display">{worst.subjectName}</strong>: {worst.prompt} {worst.fooled} people guessed{" "}
+                <strong>{worst.label}</strong>. {worst.subjectName} actually chose <strong className="text-accent-2">{worst.actual}</strong>.
+              </>
+            )}
           </div>
         </div>
       )}

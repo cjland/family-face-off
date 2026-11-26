@@ -1,5 +1,6 @@
 "use client";
 
+import { BONUS_PIECE } from "@/lib/bonus";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import type { OptionDTO, StandingDTO } from "@/lib/dto";
@@ -267,6 +268,17 @@ export function FaceOnBody({ src, body, size }: { src: string; body: BodyId; siz
 }
 
 export function Avatar({ name, size = 48, piece }: { name: string; size?: number; piece?: string | null }) {
+  if (piece === BONUS_PIECE) {
+    return (
+      <span
+        aria-hidden="true"
+        className="flex-none grid place-items-center rounded-full bg-gradient-to-b from-[#ffd54a] to-[#e0a020] shadow-[0_4px_10px_rgba(0,0,0,0.45)] emoji-plain"
+        style={{ width: size, height: size, fontSize: Math.round(size * 0.58) }}
+      >
+        🎁
+      </span>
+    );
+  }
   if (piece && piece.startsWith("photo:")) {
     const { body } = parsePhotoPiece(piece);
     if (body && isBody(body)) return <FaceOnBody src={pieceSrc(piece)} body={body} size={size} />;

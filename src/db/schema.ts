@@ -149,6 +149,30 @@ export const prompts = pgTable(
   (t) => [check("prompts_template_has_name", sql`${t.questionTemplate} like '%{name}%'`)],
 );
 
+/** Bonus trivia (one right answer, extra points), mixed into the middle of a game. */
+export const bonusQuestions = pgTable(
+  "bonus_questions",
+  {
+    id: text("id").primaryKey(),
+    question: text("question").notNull(),
+    options: jsonb("options").$type<string[]>().notNull(),
+    correctIndex: integer("correct_index").notNull(),
+    difficulty: text("difficulty").notNull(),
+    points: integer("points").notNull(),
+    timeSeconds: integer("time_seconds").notNull(),
+    category: text("category").notNull(),
+    active: boolean("active").notNull().default(true),
+    seasonal: text("seasonal"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [
+    check("bonus_difficulty", sql`${t.difficulty} in ('easy', 'medium', 'hard')`),
+    check("bonus_options_count", sql`jsonb_array_length(${t.options}) = 4`),
+    check("bonus_correct_index", sql`${t.correctIndex} between 0 and 3`),
+    check("bonus_points_pos", sql`${t.points} > 0 and ${t.timeSeconds} > 0`),
+  ],
+);
+
 export const playerPrompts = pgTable(
   "player_prompts",
   {
@@ -188,12 +212,13 @@ export const rounds = pgTable(
       .notNull()
       .references(() => games.id, { onDelete: "cascade" }),
     ordinal: integer("ordinal").notNull(),
-    subjectPlayerId: uuid("subject_player_id")
-      .notNull()
-      .references(() => players.id, { onDelete: "cascade" }),
-    sourcePlayerPromptId: uuid("source_player_prompt_id")
-      .notNull()
-      .references(() => playerPrompts.id, { onDelete: "cascade" }),
+    // Null for bonus rounds (trivia, not about anyone).
+    subjectPlayerId: uuid("subject_player_id").references(() => players.id, { onDelete: "cascade" }),
+    sourcePlayerPromptId: uuid("source_player_prompt_id").references(() => playerPrompts.id, { onDelete: "cascade" }),
+    /** Set for bonus rounds: which bonus question, and what a right answer is worth. */
+    bonusQuestionId: text("bonus_question_id").references(() => bonusQuestions.id),
+    bonusPoints: integer("bonus_points"),
+    bonusDifficulty: text("bonus_difficulty"),
     type: roundType("type").notNull(),
     questionText: text("question_text").notNull(),
     promptText: text("prompt_text").notNull(),
@@ -214,6 +239,10 @@ export const rounds = pgTable(
     index("rounds_game_idx").on(t.gameId),
     check("rounds_options_count", sql`jsonb_array_length(${t.options}) = 4`),
     check("rounds_duration_pos", sql`${t.durationMs} > 0`),
+    check(
+      "rounds_subject_or_bonus",
+      sql`(${t.bonusQuestionId} is null and ${t.subjectPlayerId} is not null and ${t.sourcePlayerPromptId} is not null) or (${t.bonusQuestionId} is not null and ${t.bonusPoints} > 0)`,
+    ),
   ],
 );
 
@@ -256,7 +285,7 @@ export const scoreEvents = pgTable(
     uniqueIndex("score_events_round_player_uq").on(t.roundId, t.playerId),
     index("score_events_round_idx").on(t.roundId),
     index("score_events_player_idx").on(t.playerId),
-    check("score_events_points_range", sql`${t.points} between 0 and 1500`),
+    check("score_events_points_range", sql`${t.points} between 0 and 3000`),
   ],
 );
 
