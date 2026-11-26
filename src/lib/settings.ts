@@ -32,6 +32,8 @@ export const settingsSchema = z
     sound: z.boolean().default(true),
     /** TV animations (on even if the TV computer asks for reduced motion). */
     animations: z.boolean().default(true),
+    /** Announcer voice on the TV (needs TV sound): reads each question and calls out moments. */
+    voice: z.boolean().default(true),
     /** Which leaderboard pages the TV rotates through after each reveal. */
     boards: z.array(z.enum(BOARD_IDS)).min(1).default(DEFAULT_BOARDS),
     /** Questions about each person, chosen by the host at start. Overrides roundCount. */

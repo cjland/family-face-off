@@ -13,6 +13,7 @@ import { HowToPlay } from "@/components/tv/HowToPlay";
 import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS, type BoardId } from "@/lib/boards";
 import { GalaxyBoard, GraveyardBoard, HeatingBoard, MysteryBoard, StumpersBoard } from "@/components/tv/Boards";
 import { MusicPlayer } from "@/lib/client/music";
+import { Announcer } from "@/lib/client/announcer";
 import { Sfx } from "@/lib/client/sound";
 import type { BoardsDTO, GameStateDTO } from "@/lib/dto";
 import { hashString } from "@/lib/prng";
@@ -233,6 +234,91 @@ function Display() {
     else music.current.stop();
   }, [shouldPlay, style]);
   useEffect(() => () => music.current?.stop(), []);
+
+  // ---- Announcer voice (TV only; a game setting, needs TV sound) ----
+  const announcer = useRef<Announcer | null>(null);
+  const voiceOn = soundOn && Boolean(state?.voice);
+  useEffect(() => {
+    const ctx = sfx.current?.context;
+    if (!voiceOn || !ctx) {
+      announcer.current?.stop();
+      announcer.current = null;
+      music.current?.duck(false);
+      return;
+    }
+    if (!announcer.current) {
+      announcer.current = new Announcer(ctx, (speaking) => music.current?.duck(speaking));
+      void announcer.current.load();
+    }
+  }, [voiceOn]);
+  useEffect(() => () => announcer.current?.stop(), []);
+
+  const latest = useRef(state);
+  useEffect(() => {
+    latest.current = state;
+  }, [state]);
+  const spokenRound = useRef<string | null>(null);
+  const spokenPhase = useRef<string>("");
+  useEffect(() => {
+    const a = announcer.current;
+    const r = state?.round;
+    if (!a || !state) return;
+    const serverNow = Date.now() + offsetMs;
+    const phaseKey = `${state.phase}:${r?.id ?? ""}`;
+    const phaseChanged = phaseKey !== spokenPhase.current;
+    spokenPhase.current = phaseKey;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    if (state.phase === "QUESTION" && r && r.id !== spokenRound.current) {
+      spokenRound.current = r.id;
+      const opensAt = r.opensAt ? new Date(r.opensAt).getTime() : serverNow;
+      void a.preload(r.promptId);
+      // Joined late (TV refreshed mid-question)? Stay quiet rather than talk over the game.
+      if (serverNow < opensAt + 3000) {
+        if (serverNow < opensAt) void a.intro(r.number, r.total);
+        // Read the question as it appears (after the countdown).
+        timers.push(
+          setTimeout(() => {
+            // Skipped or ended during the countdown? Then don't read the old question.
+            if (latest.current?.phase === "QUESTION" && latest.current.round?.id === r.id) void a.question(r.promptId);
+          }, Math.max(0, opensAt - serverNow)),
+        );
+        // "Ten seconds left!" if people are still thinking.
+        if (r.durationMs > 15000 && r.deadlineAt) {
+          const at = new Date(r.deadlineAt).getTime() - 10000;
+          timers.push(
+            setTimeout(() => {
+              const s = latest.current;
+              const cur = s?.round;
+              if (s?.phase === "QUESTION" && cur?.id === r.id && !cur.paused && cur.answeredCount < cur.eligibleCount) void a.extra("ten-seconds");
+            }, Math.max(0, at - serverNow)),
+          );
+        }
+      }
+    } else if (phaseChanged && state.phase === "REVEAL") {
+      void a.extra(Math.random() < 0.5 ? "drumroll" : "reveal", true);
+    } else if (phaseChanged && state.phase === "FINISHED") {
+      void a.extra(Math.random() < 0.5 ? "game-over" : "game-over-2", true);
+    }
+    // Only clean up the question timers when the round itself changes.
+    if (timers.length) {
+      const id = r?.id;
+      return () => {
+        if (latest.current?.round?.id !== id || latest.current?.phase !== "QUESTION") timers.forEach(clearTimeout);
+      };
+    }
+  }, [state, offsetMs, voiceOn]);
+
+  // "Everyone's locked in!" when the last person locks in before time runs out.
+  const allLockedSaid = useRef<string | null>(null);
+  useEffect(() => {
+    const r = state?.round;
+    if (!announcer.current || state?.phase !== "QUESTION" || !r || r.eligibleCount < 2) return;
+    if (r.answeredCount >= r.eligibleCount && allLockedSaid.current !== r.id && r.remainingMs > 0) {
+      allLockedSaid.current = r.id;
+      void announcer.current.extra("all-locked");
+    }
+  }, [state]);
 
   if (error && (error.status === 403 || error.status === 404 || error.status === 401)) {
     return (

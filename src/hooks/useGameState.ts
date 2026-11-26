@@ -7,10 +7,13 @@ import type { GameStateDTO, Phase } from "@/lib/dto";
 function intervalFor(phase: Phase | undefined, hidden: boolean): number {
   if (hidden) return 10000;
   switch (phase) {
-    case "QUESTION":
-    case "REVEAL":
+    // The next question is about to start: check in a bit more often so every screen
+    // catches the start of the 5-4-3-2-1.
     case "LEADERBOARD":
     case "PREPARING":
+      return 1000;
+    case "QUESTION":
+    case "REVEAL":
       return 1500;
     case "FINISHED":
     case "CANCELLED":

@@ -40,6 +40,8 @@ export type RoundDTO = {
   eligibleCount: number;
   /** Display/host only: who has locked in (not what they chose). */
   lockedPlayerIds?: string[];
+  /** Display/host only: the bank question id (e.g. "q001") for the announcer's clip. */
+  promptId?: string | null;
   /** Display/host only: who sits this one out. */
   subjectPlayerId?: string;
 };
@@ -183,6 +185,7 @@ export type GameStateDTO = {
   taunts: boolean;
   sound: boolean;
   animations: boolean;
+  voice: boolean;
   boards: BoardId[];
   /** Length of the 5-4-3-2-1 before each question. */
   countdownSeconds: number;

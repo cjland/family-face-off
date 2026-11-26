@@ -17,6 +17,7 @@ export type SettingsDraft = Pick<
   | "taunts"
   | "sound"
   | "animations"
+  | "voice"
   | "boards"
 >;
 
@@ -33,6 +34,7 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   taunts: true,
   sound: true,
   animations: true,
+  voice: true,
   boards: [...DEFAULT_BOARDS],
 };
 
@@ -169,6 +171,13 @@ export function SettingsForm({
           hint="Beeps, lock-in pops, “Hurry up!” and music. Browsers need one click or key press on the TV before they allow sound."
           checked={value.sound}
           onChange={(v) => set("sound", v)}
+        />
+        <Toggle
+          id="voice"
+          label="Announcer voice"
+          hint="A game-show announcer reads each question and calls out big moments. Music dips while he talks. Needs TV sound on."
+          checked={value.voice}
+          onChange={(v) => set("voice", v)}
         />
         <Toggle
           id="animations"

@@ -82,8 +82,29 @@ export class MusicPlayer {
   private pattern: Pattern | null = null;
   private noise: AudioBuffer | null = null;
   style: MusicStyle | null = null;
+  private ducked = false;
+
+  /** Normal music level, and the level while the announcer is talking (about 6 dB lower). */
+  static readonly LEVEL = 0.5;
+  static readonly DUCKED = 0.25;
 
   constructor(private ctx: AudioContext) {}
+
+  private get level() {
+    return this.ducked ? MusicPlayer.DUCKED : MusicPlayer.LEVEL;
+  }
+
+  /** Dip the music while the announcer speaks, and bring it back after. */
+  duck(on: boolean) {
+    if (this.ducked === on) return;
+    this.ducked = on;
+    if (!this.master) return;
+    const t = this.ctx.currentTime;
+    const g = this.master.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(Math.max(0.0001, g.value), t);
+    g.linearRampToValueAtTime(this.level, t + (on ? 0.15 : 0.6));
+  }
 
   get playing() {
     return this.timer !== null;
@@ -97,7 +118,7 @@ export class MusicPlayer {
     this.pattern = PATTERNS[style]();
     this.master = this.ctx.createGain();
     this.master.gain.setValueAtTime(0.0001, this.ctx.currentTime);
-    this.master.gain.exponentialRampToValueAtTime(0.5, this.ctx.currentTime + 0.6);
+    this.master.gain.exponentialRampToValueAtTime(this.level, this.ctx.currentTime + 0.6);
     this.master.connect(this.ctx.destination);
     if (!this.noise) {
       const len = Math.floor(this.ctx.sampleRate * 0.05);

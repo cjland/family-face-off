@@ -94,6 +94,8 @@ Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and
 
 Slowpokes get teased by name on the TV. The last 5 seconds beep louder and higher each second. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** and plays a "Hurry up!" voice right away and then every 8 seconds until they answer (late right answers still score, without a speed bonus). Sounds play once someone has clicked or pressed a key on the TV page.
 
+An **announcer voice** reads each question on the TV: a lead-in and the question number during the 5-4-3-2-1, then the question itself as it appears. He also calls out "10 seconds", "everyone's locked in", the reveal and game over. The music dips while he talks. The clips are in `public/audio` (listed in `manifest.json`), one per bank question q001 to q150. Custom questions typed by the host have no clip, so for those the announcer says the lead-in and "pick an answer" but doesn't read the question.
+
 ### 5. Reveal
 
 The TV shows the right answer, who picked what (and how fast), the **round winner** (fastest right answer) and the **round loser** (there's always one).
@@ -197,7 +199,8 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Speed bonus | Off | Up to 500 extra points for answering fast |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
 | Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
-| TV sound | On | Beeps, pops, siren, "Hurry up!" and music. The TV needs one click or key press before browsers allow sound |
+| TV sound | On | Beeps, pops, "Hurry up!", music and the announcer. The TV needs one click or key press before browsers allow sound |
+| Announcer voice | On | Reads the questions aloud and calls out the big moments. Music dips while he talks. Needs TV sound on |
 | TV animations | On | Countdowns, races, pop-ins and confetti on the TV |
 | Tease slowpokes | On | Named, good-natured taunts on the TV |
 | Auto reveal | Off | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
@@ -368,6 +371,7 @@ The script plays a short game with two pretend players and eight labelled demo b
 - [ ] Reveal shows the right answer, who guessed what, and updated scores
 - [ ] Final screen shows the podium; ties share a place
 - [ ] Sound plays on the TV after one click on the page
+- [ ] The announcer reads the question as it appears, and the music gets quieter while he talks
 - [ ] Delete the test game from the host dashboard
 
 ### Security & privacy notes

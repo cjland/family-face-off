@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { DB } from "@/db/client";
-import { families, games, guesses, players, rounds, scoreEvents, type Game, type Player, type Round } from "@/db/schema";
+import { families, games, guesses, playerPrompts, players, rounds, scoreEvents, type Game, type Player, type Round } from "@/db/schema";
 import { displayKey } from "@/lib/crypto";
 import type { GameStateDTO, RoundDTO, StandingDTO, View } from "@/lib/dto";
 import { ApiError } from "@/lib/errors";
@@ -114,6 +114,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
     taunts: settings.taunts,
     sound: settings.sound,
     animations: settings.animations,
+    voice: settings.voice,
     boards: settings.boards,
     countdownSeconds: settings.countdownSeconds,
     phase: game.phase,
@@ -185,6 +186,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       eligibleCount,
     };
     if (privileged) {
+      // Which bank question this is (e.g. "q001"), so the TV can play the announcer's clip.
+      const [src] = await db
+        .select({ promptId: playerPrompts.promptId })
+        .from(playerPrompts)
+        .where(eq(playerPrompts.id, round.sourcePlayerPromptId));
+      dto.promptId = src?.promptId ?? null;
       // Ordered by lock-in time so the TV can show 1st, 2nd, 3rd…
       const locked = await db
         .select({ playerId: guesses.playerId })

@@ -220,6 +220,7 @@ function LobbyControls({
     taunts: state.taunts,
     sound: state.sound,
     animations: state.animations,
+    voice: state.voice,
     boards: state.boards,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];

@@ -248,7 +248,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
 // ---------- Transitions (all inside a transaction holding the game row lock) ----------
 
 /** Extra time before the 5-4-3-2-1 starts, covering the TV's and phones' polling delay. */
-export const COUNTDOWN_LEAD_MS = 1500;
+export const COUNTDOWN_LEAD_MS = 2500;
 
 async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
   const [next] = await tx
@@ -263,7 +263,7 @@ async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
   }
   // Fresh server deadline from the database clock. With a pre-question countdown the round
   // "opens" a few seconds from now; answers are refused until then and the timer starts after it.
-  // Screens notice a new question on their next poll (up to ~1.5s later), so add a short lead-in;
+  // Screens notice a new question on their next poll (about 1s, plus network time), so add a lead-in;
   // they hold the first number until the real countdown starts, so nobody misses the "5".
   const countdownMs = parseSettings(game.settings).countdownSeconds * 1000;
   const opensAt = new Date(now.getTime() + (countdownMs > 0 ? countdownMs + COUNTDOWN_LEAD_MS : 0));
