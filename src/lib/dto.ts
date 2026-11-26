@@ -1,3 +1,4 @@
+import type { BoardId } from "./boards";
 /** DTOs shared between API routes and client components. Never raw DB rows. */
 import type { MusicStyle, Theme } from "./settings";
 
@@ -100,6 +101,18 @@ export type BoardsDTO = {
   mystery: (Who & { rate: number; right: number; total: number })[];
   /** Average answer time vs accuracy, per player who has answered. */
   galaxy: (Who & { avgMs: number; accuracy: number; answered: number })[];
+  /** Every revealed question, oldest first, for browsing back on the TV's "This round" page. */
+  history: {
+    number: number;
+    roundId: string;
+    questionText: string;
+    subject: Who;
+    answer: string;
+    durationMs: number;
+    right: number;
+    eligible: number;
+    rows: (Who & { letter: string | null; label: string | null; correct: boolean; elapsedMs: number | null; points: number })[];
+  }[];
   /** The wrong answers that fooled the most people. */
   graveyard: { label: string; fooled: number; subjectName: string; prompt: string; actual: string }[];
 };
@@ -168,6 +181,11 @@ export type GameStateDTO = {
   theme: Theme;
   music: MusicStyle;
   taunts: boolean;
+  sound: boolean;
+  animations: boolean;
+  boards: BoardId[];
+  /** Length of the 5-4-3-2-1 before each question. */
+  countdownSeconds: number;
   phase: Phase;
   version: number;
   serverNow: string;

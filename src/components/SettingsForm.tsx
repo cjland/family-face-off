@@ -1,10 +1,23 @@
 "use client";
 
 import type { GameSettings, MusicStyle } from "@/lib/settings";
+import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS } from "@/lib/boards";
 
 export type SettingsDraft = Pick<
   GameSettings,
-  "theme" | "roundCount" | "questionSeconds" | "speedBonus" | "autoReveal" | "overtimeSeconds" | "autoNext" | "aiDistractors" | "music" | "taunts"
+  | "theme"
+  | "roundCount"
+  | "questionSeconds"
+  | "speedBonus"
+  | "autoReveal"
+  | "overtimeSeconds"
+  | "autoNext"
+  | "aiDistractors"
+  | "music"
+  | "taunts"
+  | "sound"
+  | "animations"
+  | "boards"
 >;
 
 export const DEFAULT_DRAFT: SettingsDraft = {
@@ -18,6 +31,9 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   aiDistractors: false,
   music: "gameshow",
   taunts: true,
+  sound: true,
+  animations: true,
+  boards: [...DEFAULT_BOARDS],
 };
 
 const MUSIC_LABELS: [MusicStyle, string][] = [
@@ -115,9 +131,52 @@ export function SettingsForm({
             </label>
           ))}
         </div>
-        <span className="text-sm text-muted">Plays on the TV after you press &quot;Enable sound&quot; there.</span>
+        <span className="text-sm text-muted">Plays on the TV while people choose (needs TV sound on).</span>
+      </fieldset>
+      <fieldset className="sm:col-span-2">
+        <legend className="font-semibold mb-1">Leaderboard pages on the TV</legend>
+        <span className="text-sm text-muted block mb-2">After each reveal the TV rotates through these (5 seconds each). Pick at least one.</span>
+        <div className="grid sm:grid-cols-2 gap-2">
+          {BOARD_IDS.map((id) => {
+            const on = value.boards.includes(id);
+            return (
+              <label key={id} className={`flex items-start gap-3 rounded-xl border px-3 py-2 cursor-pointer ${on ? "border-accent bg-accent/15" : "border-white/15 bg-black/20"}`}>
+                <input
+                  type="checkbox"
+                  className="mt-1 h-5 w-5 accent-[var(--accent)]"
+                  checked={on}
+                  disabled={on && value.boards.length === 1}
+                  onChange={(e) =>
+                    set(
+                      "boards",
+                      BOARD_IDS.filter((b) => (b === id ? e.target.checked : value.boards.includes(b))),
+                    )
+                  }
+                />
+                <span>
+                  <span className="font-semibold">{BOARD_INFO[id].label}</span>
+                  <span className="block text-sm text-muted">{BOARD_INFO[id].about}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
       <div className="sm:col-span-2 grid gap-1">
+        <Toggle
+          id="sound"
+          label="TV sound"
+          hint="Beeps, lock-in pops, the SHAME ALERT siren, “Hurry up!” and music. Browsers need one click or key press on the TV before they allow sound."
+          checked={value.sound}
+          onChange={(v) => set("sound", v)}
+        />
+        <Toggle
+          id="animations"
+          label="TV animations"
+          hint="Countdowns, races, pop-ins and confetti. Plays even if the TV computer is set to reduce motion."
+          checked={value.animations}
+          onChange={(v) => set("animations", v)}
+        />
         <Toggle
           id="taunts"
           label="Tease slowpokes"

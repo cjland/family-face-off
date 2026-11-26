@@ -81,7 +81,7 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const host = await hostCtx.newPage();
   await hostLogin(host);
-  await host.getByLabel("Questions").fill("3");
+  await host.getByLabel("Questions (if not set at start)").fill("3");
   await host.getByRole("button", { name: "Create game" }).click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;

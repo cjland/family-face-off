@@ -65,6 +65,17 @@ export class Sfx {
     return this.ctx !== null;
   }
 
+  /** True once the browser actually lets us play (after a user gesture, or if it trusts the site). */
+  async unlock(): Promise<boolean> {
+    if (!this.ctx && !this.enable()) return false;
+    try {
+      await this.ctx!.resume();
+    } catch {
+      /* still blocked */
+    }
+    return this.ctx?.state === "running";
+  }
+
   get context(): AudioContext | null {
     return this.ctx;
   }

@@ -26,6 +26,7 @@ export async function computeStats(db: DB, gameId: string, standings: StandingDT
       answerText: rounds.answerText,
       promptText: rounds.promptText,
       options: rounds.options,
+      durationMs: rounds.durationMs,
       excluded: rounds.excludedPlayerIds,
     })
     .from(rounds)
@@ -52,7 +53,12 @@ export async function computeStats(db: DB, gameId: string, standings: StandingDT
   };
   if (!revealed.length) return stats;
   stats.leaderRun = await leaderRun(db, gameId, standings, revealed, allGuesses);
-  stats.boards = computeBoards(roster, standings, revealed, allGuesses);
+  const points = await db
+    .select({ roundId: scoreEvents.roundId, playerId: scoreEvents.playerId, points: scoreEvents.points })
+    .from(scoreEvents)
+    .innerJoin(rounds, eq(rounds.id, scoreEvents.roundId))
+    .where(and(eq(rounds.gameId, gameId), eq(rounds.status, "REVEALED")));
+  stats.boards = computeBoards(roster, standings, revealed, allGuesses, points);
 
   const roundById = new Map(revealed.map((r) => [r.id, r]));
   const eligibleCount = (r: (typeof revealed)[number]) => roster.filter((p) => !r.excluded.includes(p.id)).length;

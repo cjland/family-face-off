@@ -106,7 +106,7 @@ function PlayBody({ state, code, offsetMs, refresh }: { state: GameStateDTO; cod
       return (
         <>
           <QuestionScreen key={state.round?.id} state={state} code={code} offsetMs={offsetMs} refresh={refresh} />
-          {state.round && <PreQuestionCountdown round={state.round} offsetMs={offsetMs} variant="phone" />}
+          {state.round && <PreQuestionCountdown round={state.round} offsetMs={offsetMs} variant="phone" seconds={state.countdownSeconds} />}
         </>
       );
     case "REVEAL":

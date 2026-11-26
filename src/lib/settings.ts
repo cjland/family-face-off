@@ -1,3 +1,4 @@
+import { BOARD_IDS, DEFAULT_BOARDS } from "./boards";
 import { z } from "zod";
 
 export const THEMES = ["classic", "thanksgiving"] as const;
@@ -27,6 +28,12 @@ export const settingsSchema = z
     music: z.enum(MUSIC).default("gameshow"),
     /** Playful on-screen nudges for players who are slow to lock in. */
     taunts: z.boolean().default(true),
+    /** TV sound effects and music (the TV still needs one click/keypress before browsers allow sound). */
+    sound: z.boolean().default(true),
+    /** TV animations (on even if the TV computer asks for reduced motion). */
+    animations: z.boolean().default(true),
+    /** Which leaderboard pages the TV rotates through after each reveal. */
+    boards: z.array(z.enum(BOARD_IDS)).min(1).default(DEFAULT_BOARDS),
     /** Questions about each person, chosen by the host at start. Overrides roundCount. */
     perPlayer: z.number().int().min(1).max(8).optional(),
   })

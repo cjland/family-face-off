@@ -59,6 +59,11 @@ test("README screenshots", async ({ browser }) => {
   await host.getByRole("button", { name: "Sign in" }).click();
   await expect(host.getByRole("button", { name: "Create game" })).toBeVisible();
   await shot(host, "host-dashboard");
+  // Turn on every leaderboard page so all of them get photographed.
+  for (const cb of await host.getByRole("checkbox").all()) {
+    const label = (await cb.evaluate((el) => el.closest("label")?.textContent ?? "")) || "";
+    if (/Speed vs|Quick or slow|last five|Hardest questions|hardest to guess|fooled/.test(label) && !(await cb.isChecked())) await cb.check();
+  }
   await host.getByRole("button", { name: "Create game" }).click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;

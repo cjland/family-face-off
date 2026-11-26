@@ -66,7 +66,7 @@ When at least 3 people are ready, press **Start game…** (on the host screen or
 
 ### 4. Play: countdown, question, lock in
 
-Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and phones, then the 20-second timer starts. The person the question is about sits that one out.
+Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and phones (the 5 holds for a moment so slower screens catch it), then the 20-second timer starts. The person the question is about sits that one out.
 
 <table>
 <tr>
@@ -92,7 +92,7 @@ Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and
 </tr>
 </table>
 
-Slowpokes get teased by name on the TV. The last 5 seconds beep louder and higher each second. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** with a siren, then a "Hurry up!" voice every 5 seconds until they answer (late right answers still score, without a speed bonus). Sounds play once **Enable sound** has been clicked on the TV.
+Slowpokes get teased by name on the TV. The last 5 seconds beep louder and higher each second. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** with a siren, then a "Hurry up!" voice every 5 seconds until they answer (late right answers still score, without a speed bonus). Sounds play once someone has clicked or pressed a key on the TV page.
 
 ### 5. Reveal
 
@@ -107,7 +107,7 @@ The TV shows the right answer, who picked what (and how fast), the **round winne
 
 ### 6. Leaderboards
 
-After each reveal the TV shows a full-screen leaderboard that rotates through ten pages, 5 seconds each. A bar on the highlighted tab shows when it will change. Click any tab to jump to it (it stays put for 20 seconds).
+After each reveal the TV shows a full-screen leaderboard that rotates through the pages you picked in the game setup, 5 seconds each. The default is **Overall, Leader, This round and Bets**; tick any of the ten below when creating a game (or under **Game settings** in the lobby). A bar on the highlighted tab shows when it will change. Click any tab to jump to it (it stays put for 20 seconds). On **This round**, the **‹ ›** arrows step back through every earlier question: the right answer and who picked what.
 
 <table>
 <tr>
@@ -154,7 +154,7 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 
 1. Open your site's `/api/health` page. It should say `"ok":true`. (If it says the database is out of date, run the latest `neon-setup.sql`; see [setup](#2-create-the-tables-and-load-the-questions).)
 2. On `/host`, create the game and press **Open TV display**. Open that link **in the same browser** you used to sign in, so the TV gets the host's ➜ button. For first-timers, press **📖 How to play** on the TV lobby and leave it running while people join.
-3. Put the TV tab fullscreen (**⛶ Fullscreen** at the top right), and click **🔇 Enable sound** once (browsers block sound until you click).
+3. Put the TV tab fullscreen (**⛶ Fullscreen** at the top right). If the TV says **🔈 Click anywhere for sound**, click once (browsers block sound until someone clicks or presses a key on the page).
 4. Try it alone first: **+ Add 4 demo players** fills the room with bots that answer on their own.
 
 **During the game**
@@ -167,7 +167,7 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 | Pause | **❚❚ Pause** on the host screen freezes the timer everywhere. |
 | Skip a question | **Skip question** on the host screen (no points awarded). |
 | Look at a leaderboard page | Click its tab on the TV. It holds for 20 seconds, then rotation continues. |
-| Turn animations off on the TV | The **✨** button at the top right. Animations are on by default on the TV, even if the computer is set to reduce motion. |
+| Turn TV sound or animations off | **TV sound** and **TV animations** in the game settings (both on by default; animations play even if the computer is set to reduce motion). |
 | End early | **End game early…** on the host screen. You have to type END to confirm. |
 | Let someone back in | They scan the QR code in the corner of the TV on the same phone. |
 
@@ -196,6 +196,9 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Seconds per question | 20 | 5–120 seconds |
 | Speed bonus | Off | Up to 500 extra points for answering fast |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
+| Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
+| TV sound | On | Beeps, pops, siren, "Hurry up!" and music. The TV needs one click or key press before browsers allow sound |
+| TV animations | On | Countdowns, races, pop-ins and confetti on the TV |
 | Tease slowpokes | On | Named, good-natured taunts on the TV |
 | Auto reveal | Off | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
 | Auto next question | Off | Move on 8 seconds after each reveal |
@@ -209,8 +212,8 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 |---|---|
 | The QR code opens "localhost" on phones | `NEXT_PUBLIC_APP_URL` must be your real web address (or your computer's network address for home testing, see below). |
 | The TV has no ➜ button | Open the TV from **Open TV display** in the same browser where you signed in as host. Other screens are view-only on purpose. |
-| No sound on the TV | Click **Enable sound** once; browsers block sound until someone clicks. |
-| Nothing moves on the TV | Check the **✨** button at the top right isn't turned off. |
+| No sound on the TV | Click anywhere on the TV page once (browsers block sound until someone does), and check **TV sound** is on in the game settings. |
+| Nothing moves on the TV | Check **TV animations** is on in the game settings. |
 | A player's photo or catchphrase didn't save | Run the latest `neon-setup.sql` (`/api/health` will say if the database is out of date). |
 | "This game has already started" | New players can't join after the start. Someone who was already playing can rejoin on the same phone and browser. |
 | A player says their name is taken | Names are unique per game, ignoring capitals ("Rosie" and "rosie" count as the same). |
@@ -364,7 +367,7 @@ The script plays a short game with two pretend players and eight labelled demo b
 - [ ] Pause/resume freezes and resumes the timer on all screens
 - [ ] Reveal shows the right answer, who guessed what, and updated scores
 - [ ] Final screen shows the podium; ties share a place
-- [ ] **Enable sound** on the TV works after clicking
+- [ ] Sound plays on the TV after one click on the page
 - [ ] Delete the test game from the host dashboard
 
 ### Security & privacy notes

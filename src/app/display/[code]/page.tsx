@@ -10,10 +10,11 @@ import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import { splitQuestion } from "@/lib/questionText";
 import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
 import { HowToPlay } from "@/components/tv/HowToPlay";
+import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS, type BoardId } from "@/lib/boards";
 import { GalaxyBoard, GraveyardBoard, HeatingBoard, MysteryBoard, StumpersBoard } from "@/components/tv/Boards";
 import { MusicPlayer } from "@/lib/client/music";
 import { Sfx } from "@/lib/client/sound";
-import type { GameStateDTO } from "@/lib/dto";
+import type { BoardsDTO, GameStateDTO } from "@/lib/dto";
 import { hashString } from "@/lib/prng";
 import type { MusicStyle } from "@/lib/settings";
 
@@ -113,23 +114,54 @@ function Display() {
   const [soundOn, setSoundOn] = useState(false);
   const [isFull, setIsFull] = useState(false);
   const prefersReduced = usePrefersReducedMotion();
-  // TV animations default to on, even if this computer asks for reduced motion (it's a shared
-  // party screen). The ✨ button turns them off; the choice is remembered on this browser.
-  const [motion, setMotion] = useState(true);
+  // Animations are a game setting (on by default, even if this computer asks for reduced motion).
+  const motion = state?.animations ?? true;
   useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        if (localStorage.getItem("ffo_tv_motion") === "off") setMotion(false);
-      } catch {
-        /* storage unavailable */
-      }
-    }, 0);
-    return () => clearTimeout(t);
-  }, []);
-  useEffect(() => {
-    document.documentElement.classList.toggle("force-motion", motion);
-    return () => document.documentElement.classList.remove("force-motion");
+    const root = document.documentElement;
+    root.classList.toggle("force-motion", motion);
+    root.classList.toggle("no-motion", !motion);
+    return () => root.classList.remove("force-motion", "no-motion");
   }, [motion]);
+
+  // Sound is a game setting too. Browsers only allow sound after someone clicks or presses a key
+  // on the page (unless they already trust the site), so try right away, then on the first
+  // interaction, without needing a special button.
+  const soundWanted = state ? state.sound : false;
+  useEffect(() => {
+    if (!soundWanted) {
+      if (sfx.current?.enabled) {
+        music.current?.stop();
+        music.current = null;
+        sfx.current.disable();
+      }
+      const t = setTimeout(() => setSoundOn(false), 0);
+      return () => clearTimeout(t);
+    }
+    let cancelled = false;
+    const tryUnlock = async () => {
+      if (!sfx.current) sfx.current = new Sfx();
+      const ok = await sfx.current.unlock();
+      if (cancelled) return ok;
+      if (ok) {
+        setSoundOn(true);
+        void sfx.current.preloadClips();
+        remove();
+      }
+      return ok;
+    };
+    const onGesture = () => void tryUnlock();
+    const remove = () => {
+      window.removeEventListener("pointerdown", onGesture, true);
+      window.removeEventListener("keydown", onGesture, true);
+    };
+    window.addEventListener("pointerdown", onGesture, true);
+    window.addEventListener("keydown", onGesture, true);
+    void tryUnlock();
+    return () => {
+      cancelled = true;
+      remove();
+    };
+  }, [soundWanted]);
   const reduced = prefersReduced && !motion;
   const [controlsVisible, setControlsVisible] = useState(true);
 
@@ -230,46 +262,13 @@ function Display() {
           <TvScreen state={state} offsetMs={offsetMs} sfx={sfx} reduced={reduced} />
         )}
       <div
-        className={`absolute top-6 right-8 z-50 flex gap-3 transition-opacity focus-within:opacity-100 ${controlsVisible ? "opacity-100" : "opacity-0"}`}
+        className={`absolute top-6 right-8 z-50 flex gap-3 transition-opacity focus-within:opacity-100 ${controlsVisible || (soundWanted && !soundOn) ? "opacity-100" : "opacity-0"}`}
       >
-        <button
-          type="button"
-          className="btn btn-ghost !min-h-[56px] !text-xl"
-          aria-pressed={soundOn}
-          onClick={() => {
-            if (!sfx.current) sfx.current = new Sfx();
-            if (soundOn) {
-              music.current?.stop();
-              music.current = null;
-              sfx.current.disable();
-              setSoundOn(false);
-            } else {
-              const on = sfx.current.enable();
-              setSoundOn(on);
-              if (on) void sfx.current.preloadClips();
-            }
-          }}
-        >
-          {soundOn ? "🔊 Sound on" : "🔇 Enable sound"}
-        </button>
-        <button
-          type="button"
-          className={`btn btn-ghost !min-h-[56px] !px-4 !text-2xl ${motion ? "" : "opacity-60"}`}
-          aria-pressed={motion}
-          aria-label={motion ? "Animations on (click to reduce motion)" : "Animations reduced (click to turn on)"}
-          title={motion ? "Animations on" : "Animations reduced"}
-          onClick={() => {
-            const next = !motion;
-            setMotion(next);
-            try {
-              localStorage.setItem("ffo_tv_motion", next ? "on" : "off");
-            } catch {
-              /* storage unavailable */
-            }
-          }}
-        >
-          {motion ? "✨" : "🚫✨"}
-        </button>
+        {soundWanted && !soundOn && (
+          <span className="panel px-4 grid place-items-center text-xl text-muted min-h-[56px]" role="status">
+            🔈 Click anywhere for sound
+          </span>
+        )}
         <button
           type="button"
           className="btn btn-ghost !min-h-[56px] !text-xl"
@@ -344,7 +343,7 @@ function TvHeader({ state, center, right }: { state: GameStateDTO; center?: Reac
         <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
       </div>
       <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[620px]">{right}</div>
+      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[340px]">{right}</div>
     </div>
   );
 }
@@ -944,7 +943,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
           <span className="font-display text-9xl font-bold">Paused</span>
         </div>
       )}
-      <PreQuestionCountdown round={round} offsetMs={offsetMs} variant="tv" onTick={onCountdownTick} />
+      <PreQuestionCountdown round={round} offsetMs={offsetMs} variant="tv" seconds={state.countdownSeconds} onTick={onCountdownTick} />
     </div>
   );
 }
@@ -1167,19 +1166,12 @@ function TvReveal({ state }: { state: GameStateDTO }) {
 
 // ---------- Full-screen leaderboard (between questions) ----------
 
-type BoardView = "overall" | "round" | "reaction" | "bets" | "heating" | "stumpers" | "mystery" | "galaxy" | "graveyard" | "leader";
-const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] = [
-  { id: "overall", label: "Overall", title: "Leaderboard" },
-  { id: "round", label: "This round", title: "This round" },
-  { id: "reaction", label: "Reaction", title: "Reaction times" },
-  { id: "bets", label: "Bets", title: "Place your bets! 🏇" },
-  { id: "heating", label: "Heating up", title: "Who's heating up? 🔥" },
-  { id: "stumpers", label: "Stumpers", title: "The questions that stumped everyone" },
-  { id: "mystery", label: "Mystery", title: "The family mystery meter 🕵️" },
-  { id: "galaxy", label: "Galaxy", title: "The family galaxy 🌌" },
-  { id: "graveyard", label: "Graveyard", title: "The answer graveyard 🪦" },
-  { id: "leader", label: "Leader", title: "Leader watch" },
-];
+type BoardView = BoardId;
+const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] = BOARD_IDS.map((id) => ({
+  id,
+  label: BOARD_INFO[id].label,
+  title: BOARD_INFO[id].title,
+}));
 
 const ROTATE_MS = 5000;
 const MANUAL_HOLD_MS = 20000;
@@ -1202,7 +1194,9 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
     graveyard: Boolean(b && b.graveyard.length > 0),
     leader: hasLeader,
   };
-  const views = BOARD_VIEWS.filter((v) => available[v.id]);
+  const chosen = new Set(state.boards?.length ? state.boards : DEFAULT_BOARDS);
+  const views = BOARD_VIEWS.filter((v) => available[v.id] && chosen.has(v.id));
+  if (!views.length) views.push(BOARD_VIEWS[0]);
   const viewKey = views.map((v) => v.id).join(",");
   // Each "cycle" is one timed stretch: ROTATE_MS normally, MANUAL_HOLD_MS after someone picks a tab.
   const [cycle, setCycle] = useState({ n: 0, ms: ROTATE_MS, held: false });
@@ -1220,7 +1214,7 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
     setCycle((c) => ({ n: c.n + 1, ms: MANUAL_HOLD_MS, held: true }));
   };
   const round = state.round;
-  const current: BoardView = hasRound && views.some((v) => v.id === view) ? view : "overall";
+  const current: BoardView = views.some((v) => v.id === view) && hasRound ? view : views[0].id;
   return (
     <div className="h-full">
       <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
@@ -1278,7 +1272,7 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
           )}
         </div>
         {current === "round" ? (
-          <RoundBoard state={state} />
+          <RoundBoard state={state} onBrowse={() => pick("round")} />
         ) : current === "reaction" ? (
           <ReactionBoard state={state} />
         ) : current === "bets" ? (
@@ -1727,67 +1721,150 @@ function ReactionBoard({ state }: { state: GameStateDTO }) {
 }
 
 /** This round only: the answer, then everyone's pick (right answers fastest first). */
-function RoundBoard({ state }: { state: GameStateDTO }) {
+type HistoryEntry = BoardsDTO["history"][number];
+
+/** The question just revealed, in the same shape as the history entries. */
+function currentAsHistory(state: GameStateDTO): HistoryEntry {
   const round = state.round!;
   const reveal = state.reveal!;
   const pts = new Map((state.standings ?? []).map((s) => [s.playerId, s.lastRound ?? 0]));
   const guessed = new Map(reveal.guesses.map((g) => [g.playerId, g]));
   const rows = (state.players ?? [])
     .filter((p) => p.id !== round.subjectPlayerId)
-    .map((p) => ({ p, g: guessed.get(p.id) }))
+    .map((p) => {
+      const g = guessed.get(p.id);
+      const idx = g ? round.options.findIndex((o) => o.id === g.optionId) : -1;
+      return {
+        playerId: p.id,
+        name: p.name,
+        piece: p.piece,
+        letter: idx >= 0 ? LETTERS[idx] : null,
+        label: idx >= 0 ? round.options[idx].label : null,
+        correct: Boolean(g?.correct),
+        elapsedMs: g ? g.elapsedMs : null,
+        points: pts.get(p.id) ?? 0,
+      };
+    })
     .sort(
       (a, b) =>
-        Number(Boolean(b.g?.correct)) - Number(Boolean(a.g?.correct)) ||
-        Number(Boolean(b.g)) - Number(Boolean(a.g)) ||
-        (a.g?.elapsedMs ?? 0) - (b.g?.elapsedMs ?? 0),
+        Number(b.correct) - Number(a.correct) ||
+        Number(b.elapsedMs !== null) - Number(a.elapsedMs !== null) ||
+        (a.elapsedMs ?? 0) - (b.elapsedMs ?? 0),
     );
-  const twoCols = rows.length > 7;
-  const half = twoCols ? Math.ceil(rows.length / 2) : rows.length;
-  const cols = twoCols ? [rows.slice(0, half), rows.slice(half)] : [rows];
-  const correct = round.options.find((o) => o.id === reveal.correctOptionId);
-  const rs = reveal.roundStats;
+  return {
+    number: round.number,
+    roundId: round.id,
+    questionText: round.questionText,
+    subject: { playerId: round.subjectPlayerId ?? "", name: reveal.subjectName, piece: reveal.subjectPiece },
+    answer: round.options.find((o) => o.id === reveal.correctOptionId)?.label ?? reveal.answerText,
+    durationMs: round.durationMs,
+    right: reveal.roundStats.correct,
+    eligible: reveal.roundStats.eligible,
+    rows,
+  };
+}
+
+/**
+ * "This round": everyone's pick for the question just revealed, with ‹ › to step back through
+ * every earlier question (browsing holds the leaderboard rotation, like clicking a tab).
+ */
+function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => void }) {
+  const latest = currentAsHistory(state);
+  const past = (state.stats?.boards?.history ?? []).filter((h) => h.roundId !== latest.roundId);
+  const all = [...past, latest];
+  const [back, setBack] = useState(0); // 0 = the question just revealed
+  const idx = Math.max(0, all.length - 1 - back);
+  const h = all[idx];
+  const move = (d: number) => {
+    setBack((b) => Math.min(all.length - 1, Math.max(0, b + d)));
+    onBrowse();
+  };
+  const twoCols = h.rows.length > 5;
+  const half = twoCols ? Math.ceil(h.rows.length / 2) : h.rows.length;
+  const cols = twoCols ? [h.rows.slice(0, half), h.rows.slice(half)] : [h.rows];
   return (
     <>
-      <div className="panel-strong px-6 py-3 flex items-center gap-5 max-w-[1600px] w-full mx-auto">
-        <Avatar name={reveal.subjectName} piece={reveal.subjectPiece} size={72} />
-        <div className="min-w-0 flex-1">
-          <p className="text-2xl text-muted truncate">{round.questionText}</p>
-          <p className="font-display text-4xl font-bold truncate">
-            <span className="gold-text">{correct?.label ?? reveal.answerText}</span>
-            <span className="text-2xl text-muted font-sans font-normal"> · {reveal.subjectName}&apos;s answer</span>
-          </p>
+      <div className="flex items-center gap-4 max-w-[1600px] w-full mx-auto">
+        <button
+          type="button"
+          className="btn btn-ghost !min-h-[72px] !px-5 !text-4xl disabled:opacity-30"
+          disabled={idx === 0}
+          onClick={(e) => {
+            e.currentTarget.blur();
+            move(1);
+          }}
+          aria-label="Earlier question"
+        >
+          ‹
+        </button>
+        <div key={h.roundId} className="panel-strong px-6 py-3 flex items-center gap-5 flex-1 min-w-0 tile-in">
+          <Avatar name={h.subject.name} piece={h.subject.piece} size={72} />
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl text-muted truncate">
+              <span className="rounded-full bg-accent text-black font-display font-bold px-3 mr-2">Q{h.number}</span>
+              {h.questionText}
+            </p>
+            <p className="font-display text-4xl font-bold truncate">
+              <span className="gold-text">{h.answer}</span>
+              <span className="text-2xl text-muted font-sans font-normal"> · {h.subject.name}&apos;s answer</span>
+            </p>
+          </div>
+          <span className="font-display text-3xl text-accent-2 whitespace-nowrap">
+            {h.right} of {h.eligible} right
+          </span>
         </div>
-        <span className="font-display text-3xl text-accent-2 whitespace-nowrap">
-          {rs.correct} of {rs.eligible} right
-        </span>
+        <button
+          type="button"
+          className="btn btn-ghost !min-h-[72px] !px-5 !text-4xl disabled:opacity-30"
+          disabled={back === 0}
+          onClick={(e) => {
+            e.currentTarget.blur();
+            move(-1);
+          }}
+          aria-label="Later question"
+        >
+          ›
+        </button>
       </div>
-      <div className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
+      {back > 0 && (
+        <p className="text-center text-2xl text-accent-2 -mt-2">
+          Looking back at question {h.number}.{" "}
+          <button
+            type="button"
+            className="underline"
+            onClick={(e) => {
+              e.currentTarget.blur();
+              setBack(0);
+              onBrowse();
+            }}
+          >
+            Back to the latest
+          </button>
+        </p>
+      )}
+      <div key={`rows-${h.roundId}`} className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
         {cols.map((col, ci) => (
           <ol key={ci} className="flex flex-col gap-2.5">
-            {col.map(({ p, g }) => {
-              const idx = g ? round.options.findIndex((o) => o.id === g.optionId) : -1;
-              const late = g && g.elapsedMs > round.durationMs;
-              const points = pts.get(p.id) ?? 0;
+            {col.map((r) => {
+              const late = r.elapsedMs !== null && r.elapsedMs > h.durationMs;
               return (
                 <li
-                  key={p.id}
-                  className={`flex items-center gap-3 rounded-2xl px-4 py-2 text-2xl pop-in ${g?.correct ? "bg-good/20" : "bg-black/30"}`}
+                  key={r.playerId}
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-2 text-2xl pop-in ${r.correct ? "bg-good/20" : "bg-black/30"}`}
                 >
-                  <span className={`font-bold text-3xl w-[1.2ch] ${g?.correct ? "text-good" : "text-bad"}`} aria-label={g?.correct ? "correct" : "wrong"}>
-                    {g?.correct ? "✓" : "✗"}
+                  <span className={`font-bold text-3xl w-[1.2ch] ${r.correct ? "text-good" : "text-bad"}`} aria-label={r.correct ? "correct" : "wrong"}>
+                    {r.correct ? "✓" : "✗"}
                   </span>
-                  <Avatar name={p.name} piece={p.piece} size={56} />
+                  <Avatar name={r.name} piece={r.piece} size={56} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-display text-3xl font-semibold">{p.name}</span>
-                    <span className="block truncate text-xl text-muted">
-                      {g ? `${LETTERS[idx] ?? "?"}: ${round.options[idx]?.label ?? ""}` : "Didn't answer"}
-                    </span>
+                    <span className="block truncate font-display text-3xl font-semibold">{r.name}</span>
+                    <span className="block truncate text-xl text-muted">{r.letter ? `${r.letter}: ${r.label}` : "Didn't answer"}</span>
                   </span>
                   <span className={`tabular-nums whitespace-nowrap ${late ? "text-bad font-semibold" : "text-muted"}`}>
-                    {g ? `${late ? "🚨 " : ""}${(g.elapsedMs / 1000).toFixed(1)}s` : "—"}
+                    {r.elapsedMs !== null ? `${late ? "🚨 " : ""}${(r.elapsedMs / 1000).toFixed(1)}s` : "—"}
                   </span>
-                  <span className={`font-display font-bold tabular-nums w-[5ch] text-right ${points > 0 ? "text-good" : "text-muted"}`}>
-                    +{points.toLocaleString()}
+                  <span className={`font-display font-bold tabular-nums w-[5ch] text-right ${r.points > 0 ? "text-good" : "text-muted"}`}>
+                    +{r.points.toLocaleString()}
                   </span>
                 </li>
               );

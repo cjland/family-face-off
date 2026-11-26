@@ -218,6 +218,9 @@ function LobbyControls({
     aiDistractors: state.host?.aiDistractors ?? false,
     music: state.music,
     taunts: state.taunts,
+    sound: state.sound,
+    animations: state.animations,
+    boards: state.boards,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;

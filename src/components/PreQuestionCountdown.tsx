@@ -12,17 +12,20 @@ export function PreQuestionCountdown({
   round,
   offsetMs,
   variant,
+  seconds = 5,
   onTick,
 }: {
   round: RoundDTO;
   offsetMs: number;
   variant: "tv" | "phone";
+  /** The countdown length; the first number is held during the server's short lead-in. */
+  seconds?: number;
   onTick?: (n: number) => void;
 }) {
   const opensAt = round.opensAt ? new Date(round.opensAt).getTime() : 0;
   const now = useServerNow(offsetMs, !round.paused && opensAt > 0, 100);
   const left = !round.paused && now > 0 ? opensAt - now : 0;
-  const n = Math.ceil(left / 1000);
+  const n = Math.min(Math.max(1, seconds), Math.ceil(left / 1000));
   const last = useRef(-1);
   useEffect(() => {
     if (n > 0 && n !== last.current) {
@@ -30,7 +33,7 @@ export function PreQuestionCountdown({
       onTick?.(n);
     }
   }, [n, onTick]);
-  if (n <= 0) return null;
+  if (left <= 0 || n <= 0) return null;
   const tv = variant === "tv";
   return (
     <div

@@ -9,12 +9,20 @@ type RoundRow = {
   promptText: string;
   options: { id: string; label: string }[];
   excluded: string[];
+  questionText: string;
+  durationMs: number;
 };
 type GuessRow = { roundId: string; playerId: string; optionId: string; elapsedMs: number };
 type Person = { id: string; name: string; piece: string | null };
 
 /** Data for the extra TV leaderboard pages. Uses revealed rounds only, so nothing secret leaks. */
-export function computeBoards(roster: Person[], standings: StandingDTO[], revealed: RoundRow[], allGuesses: GuessRow[]): BoardsDTO {
+export function computeBoards(
+  roster: Person[],
+  standings: StandingDTO[],
+  revealed: RoundRow[],
+  allGuesses: GuessRow[],
+  points: { roundId: string; playerId: string; points: number }[] = [],
+): BoardsDTO {
   const who = new Map(roster.map((p) => [p.id, p]));
   const ordered = [...revealed].sort((a, b) => a.ordinal - b.ordinal);
   const byRound = new Map<string, GuessRow[]>();
@@ -101,5 +109,41 @@ export function computeBoards(roster: Person[], standings: StandingDTO[], reveal
   }
   graveyard.sort((a, b) => b.fooled - a.fooled);
 
-  return { stumpers, form, mystery, galaxy, graveyard: graveyard.slice(0, 3) };
+  const LETTERS = ["A", "B", "C", "D"];
+  const ptsOf = new Map(points.map((e) => [`${e.roundId}:${e.playerId}`, e.points]));
+  const history: BoardsDTO["history"] = ordered.map((r, i) => {
+    const gs = byRound.get(r.id) ?? [];
+    const rows = eligibleIds(r)
+      .map((id) => {
+        const g = gs.find((x) => x.playerId === id);
+        const idx = g ? r.options.findIndex((o) => o.id === g.optionId) : -1;
+        return {
+          ...person(id),
+          letter: idx >= 0 ? LETTERS[idx] : null,
+          label: idx >= 0 ? r.options[idx].label : null,
+          correct: Boolean(g && g.optionId === r.correctOptionId),
+          elapsedMs: g ? g.elapsedMs : null,
+          points: ptsOf.get(`${r.id}:${id}`) ?? 0,
+        };
+      })
+      .sort(
+        (a, b) =>
+          Number(b.correct) - Number(a.correct) ||
+          Number(b.elapsedMs !== null) - Number(a.elapsedMs !== null) ||
+          (a.elapsedMs ?? 0) - (b.elapsedMs ?? 0),
+      );
+    return {
+      number: i + 1,
+      roundId: r.id,
+      questionText: r.questionText,
+      subject: person(r.subject),
+      answer: r.options.find((o) => o.id === r.correctOptionId)?.label ?? r.answerText,
+      durationMs: r.durationMs,
+      right: rows.filter((x) => x.correct).length,
+      eligible: rows.length,
+      rows,
+    };
+  });
+
+  return { stumpers, form, mystery, galaxy, history, graveyard: graveyard.slice(0, 3) };
 }
