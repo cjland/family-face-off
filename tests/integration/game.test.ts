@@ -235,7 +235,10 @@ describe("game loop", () => {
 
     const events = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
     expect(events).toHaveLength(3); // eligible = 4 players - subject
-    expect(events.find((e) => e.playerId === guessers[0].player.id)?.points).toBe(1000);
+    // The only right answer is also the fastest, so it gets the 25–50 bonus.
+    const won = events.find((e) => e.playerId === guessers[0].player.id)!.points;
+    expect(won).toBeGreaterThanOrEqual(1025);
+    expect(won).toBeLessThanOrEqual(1050);
     expect(events.find((e) => e.playerId === guessers[1].player.id)?.points).toBe(0);
     expect(events.find((e) => e.playerId === guessers[2].player.id)?.points).toBe(0);
 
@@ -245,10 +248,10 @@ describe("game loop", () => {
     const dv = await getGameState(db, game.code, auth("display"));
     expect(dv.reveal?.correctOptionId).toBe(r.correctOptionId);
     expect(dv.reveal?.guesses).toHaveLength(2);
-    expect(dv.standings?.[0].points).toBe(1000);
+    expect(dv.standings?.[0].points).toBe(won);
 
     const me = await getGameState(db, game.code, auth("player", guessers[0].player));
-    expect(me.me?.lastResult).toEqual({ correct: true, points: 1000, answered: true });
+    expect(me.me?.lastResult).toEqual({ correct: true, points: won, answered: true });
     // After the reveal, phones can see how everyone answered.
     expect(me.reveal?.guesses).toHaveLength(2);
     expect(me.reveal?.roundStats.correct).toBe(1);
@@ -262,7 +265,7 @@ describe("game loop", () => {
     // Reveal -> full-screen leaderboard -> next question.
     expect((await findGame(db, game.code)).phase).toBe("LEADERBOARD");
     const lb = await getGameState(db, game.code, auth("display"));
-    expect(lb.standings?.find((x) => x.playerId === guessers[0].player.id)?.lastRound).toBe(1000);
+    expect(lb.standings?.find((x) => x.playerId === guessers[0].player.id)?.lastRound).toBe(won);
     // A stale "next" (same old version) is a no-op, not a double advance.
     const stale = await performAction(db, game.id, "next", g.version);
     expect(stale.noop).toBe(true);
@@ -441,7 +444,11 @@ describe("game loop", () => {
     expect(n).toHaveLength(24);
     await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
     const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
-    expect(ev.filter((e) => e.points === 1000)).toHaveLength(24);
+    // Everyone right; exactly the fastest (or an exact tie) gets the bonus on top of 1,000.
+    expect(ev.every((e) => e.points >= 1000 && e.points <= 1050)).toBe(true);
+    const fastest = Math.min(...n.map((g) => g.elapsedMs));
+    const fastIds = new Set(n.filter((g) => g.elapsedMs === fastest).map((g) => g.playerId));
+    expect(ev.filter((e) => e.points > 1000).map((e) => e.playerId).sort()).toEqual([...fastIds].sort());
   });
 });
 

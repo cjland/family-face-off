@@ -972,5 +972,183 @@
       "durationMs": 2586,
       "text": "If you were president, what would you do first?"
     }
-  }
+  },
+  "countdown": {
+    "intro": [
+      {
+        "file": "countdown/intro/01.mp3",
+        "durationMs": 1567,
+        "text": "I hope everyone's ready..."
+      },
+      {
+        "file": "countdown/intro/02.mp3",
+        "durationMs": 1567,
+        "text": "Get those phones ready..."
+      },
+      {
+        "file": "countdown/intro/03.mp3",
+        "durationMs": 967,
+        "text": "Here we go..."
+      }
+    ],
+    "starting": [
+      {
+        "file": "countdown/starting/01.mp3",
+        "durationMs": 1985,
+        "text": "Starting in..."
+      }
+    ],
+    "numbers": {
+      "5": {
+        "file": "countdown/numbers/5.mp3",
+        "durationMs": 862,
+        "text": "Five!"
+      },
+      "4": {
+        "file": "countdown/numbers/4.mp3",
+        "durationMs": 862,
+        "text": "Four!"
+      },
+      "3": {
+        "file": "countdown/numbers/3.mp3",
+        "durationMs": 784,
+        "text": "Three!"
+      },
+      "2": {
+        "file": "countdown/numbers/2.mp3",
+        "durationMs": 836,
+        "text": "Two!"
+      },
+      "1": {
+        "file": "countdown/numbers/1.mp3",
+        "durationMs": 731,
+        "text": "One!"
+      },
+      "go": {
+        "file": "countdown/numbers/go.mp3",
+        "durationMs": 862,
+        "text": "Go!"
+      }
+    }
+  },
+  "waiting": [
+    {
+      "file": "waiting/01.mp3",
+      "durationMs": 2638,
+      "text": "Looks like we're still waiting on a few players..."
+    },
+    {
+      "file": "waiting/02.mp3",
+      "durationMs": 2351,
+      "text": "We'll give everyone a few more seconds to join."
+    },
+    {
+      "file": "waiting/03.mp3",
+      "durationMs": 3187,
+      "text": "Running late? Scan the code on the screen to jump in!"
+    },
+    {
+      "file": "waiting/04.mp3",
+      "durationMs": 2351,
+      "text": "Lost your spot? Scan the code to rejoin."
+    },
+    {
+      "file": "waiting/05.mp3",
+      "durationMs": 1698,
+      "text": "Come on, the couch is waiting!"
+    }
+  ],
+  "leaderboard": [
+    {
+      "file": "leaderboard/01.mp3",
+      "durationMs": 1802,
+      "text": "Let's check out the leaderboard!"
+    },
+    {
+      "file": "leaderboard/02.mp3",
+      "durationMs": 1620,
+      "text": "Let's see who's on top."
+    },
+    {
+      "file": "leaderboard/03.mp3",
+      "durationMs": 1802,
+      "text": "Time for a look at the standings!"
+    },
+    {
+      "file": "leaderboard/04.mp3",
+      "durationMs": 2220,
+      "text": "Who's leading the pack? Let's find out."
+    }
+  ],
+  "round-winner": [
+    {
+      "file": "round-winner/01.mp3",
+      "durationMs": 2769,
+      "text": "Let's take a look and see who won that last round!"
+    },
+    {
+      "file": "round-winner/02.mp3",
+      "durationMs": 1933,
+      "text": "And the winner of that round is..."
+    },
+    {
+      "file": "round-winner/03.mp3",
+      "durationMs": 1802,
+      "text": "Who knew them best? Let's see!"
+    },
+    {
+      "file": "round-winner/04.mp3",
+      "durationMs": 1698,
+      "text": "Let's see who nailed that round."
+    }
+  ],
+  "crown": [
+    {
+      "file": "crown/01.mp3",
+      "durationMs": 1515,
+      "text": "Are we ready to crown our winner?"
+    },
+    {
+      "file": "crown/02.mp3",
+      "durationMs": 1515,
+      "text": "It all comes down to this..."
+    },
+    {
+      "file": "crown/03.mp3",
+      "durationMs": 3422,
+      "text": "Drum roll, please... it's time to crown our champion!"
+    },
+    {
+      "file": "crown/04.mp3",
+      "durationMs": 2403,
+      "text": "And your Family Face-Off champion is..."
+    }
+  ],
+  "no-audio": [
+    {
+      "file": "no-audio/01.mp3",
+      "durationMs": 4310,
+      "text": "I don't know what this one says... you'll have to read it for yourself!"
+    },
+    {
+      "file": "no-audio/02.mp3",
+      "durationMs": 3657,
+      "text": "Hmm, this one's new to me. Go ahead and read it on the screen."
+    },
+    {
+      "file": "no-audio/03.mp3",
+      "durationMs": 3605,
+      "text": "Somebody wrote this one without telling me! Read it on the screen."
+    },
+    {
+      "file": "no-audio/04.mp3",
+      "durationMs": 4075,
+      "text": "I left my reading glasses at home... you're on your own for this one!"
+    },
+    {
+      "file": "no-audio/05.mp3",
+      "durationMs": 2456,
+      "text": "This one's a mystery to me. Check the screen!"
+    }
+  ]
 }

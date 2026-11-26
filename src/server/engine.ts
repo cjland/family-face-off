@@ -16,7 +16,8 @@ import {
 import { ApiError } from "@/lib/errors";
 import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
 import { hashString } from "@/lib/prng";
-import { pointsFor } from "@/lib/scoring";
+import { randomInt } from "node:crypto";
+import { FASTEST_BONUS_MAX, FASTEST_BONUS_MIN, fastestCorrect, pointsFor } from "@/lib/scoring";
 import { MIN_PLAYERS, parseSettings } from "@/lib/settings";
 import { validateAnswer } from "@/lib/text";
 
@@ -290,17 +291,27 @@ async function revealRound(tx: DB, game: Game, round: Round, now: Date): Promise
   const excluded = new Set(round.excludedPlayerIds);
   const roundGuesses = await tx.select().from(guesses).where(eq(guesses.roundId, round.id));
   const byPlayer = new Map(roundGuesses.map((g) => [g.playerId, g]));
-  const events = eligible
-    .filter((p) => !excluded.has(p.id))
+  const scoring = eligible.filter((p) => !excluded.has(p.id));
+  // Fastest right answer (on time) gets a random 25–50 bonus, decided once here.
+  const fastest = fastestCorrect(
+    scoring.flatMap((p) => {
+      const g = byPlayer.get(p.id);
+      return g ? [{ playerId: p.id, correct: g.optionId === round.correctOptionId, elapsedMs: g.elapsedMs }] : [];
+    }),
+    round.durationMs,
+  );
+  const bonus = randomInt(FASTEST_BONUS_MIN, FASTEST_BONUS_MAX + 1);
+  const events = scoring
     .map((p) => {
       const g = byPlayer.get(p.id);
       const correct = Boolean(g && g.optionId === round.correctOptionId);
-      const points = pointsFor({
-        correct,
-        speedBonus: settings.speedBonus,
-        remainingMs: g ? round.durationMs - g.elapsedMs : 0,
-        durationMs: round.durationMs,
-      });
+      const points =
+        pointsFor({
+          correct,
+          speedBonus: settings.speedBonus,
+          remainingMs: g ? round.durationMs - g.elapsedMs : 0,
+          durationMs: round.durationMs,
+        }) + (correct && fastest.has(p.id) ? bonus : 0);
       return { roundId: round.id, playerId: p.id, points, isCorrect: correct };
     });
   if (events.length) await tx.insert(scoreEvents).values(events).onConflictDoNothing();

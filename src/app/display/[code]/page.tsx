@@ -2,18 +2,23 @@
 
 import confetti from "canvas-confetti";
 import { useParams, useSearchParams } from "next/navigation";
-import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Podium, QrCode, Stage, TitleMark } from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { GuessList } from "@/components/RoundPanels";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import { splitQuestion } from "@/lib/questionText";
+import { FitText } from "@/components/FitText";
 import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
 import { HowToPlay } from "@/components/tv/HowToPlay";
 import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS, type BoardId } from "@/lib/boards";
 import { GalaxyBoard, GraveyardBoard, HeatingBoard, MysteryBoard, StumpersBoard } from "@/components/tv/Boards";
 import { MusicPlayer } from "@/lib/client/music";
 import { Announcer } from "@/lib/client/announcer";
+
+/** Lets the leaderboard and final screens cue the announcer (null when the voice is off). */
+const AnnouncerContext = createContext<React.RefObject<Announcer | null> | null>(null);
+const useAnnouncer = () => useContext(AnnouncerContext)?.current ?? null;
 import { Sfx } from "@/lib/client/sound";
 import type { BoardsDTO, GameStateDTO } from "@/lib/dto";
 import { hashString } from "@/lib/prng";
@@ -276,7 +281,17 @@ function Display() {
       // Joined late (TV refreshed mid-question)? Stay quiet rather than talk over the game.
       if (serverNow < opensAt + 3000) {
         if (serverNow < opensAt) void a.intro(r.number, r.total);
-        // Read the question as it appears (after the countdown).
+        // Count down with the big numbers (only the ones he has room for after the intro).
+        for (const n of [5, 4, 3, 2, 1] as const) {
+          const at = opensAt - n * 1000;
+          if (at > serverNow)
+            timers.push(
+              setTimeout(() => {
+                if (latest.current?.phase === "QUESTION" && latest.current.round?.id === r.id && !latest.current.round.paused) void a.count(n);
+              }, at - serverNow),
+            );
+        }
+        // "Go!" and read the question as it appears (after the countdown).
         timers.push(
           setTimeout(() => {
             // Skipped or ended during the countdown? Then don't read the old question.
@@ -297,8 +312,8 @@ function Display() {
       }
     } else if (phaseChanged && state.phase === "REVEAL") {
       void a.extra(Math.random() < 0.5 ? "drumroll" : "reveal", true);
-    } else if (phaseChanged && state.phase === "FINISHED") {
-      void a.extra(Math.random() < 0.5 ? "game-over" : "game-over-2", true);
+    } else if (phaseChanged && state.phase === "LEADERBOARD") {
+      void a.line("leaderboard", { interrupt: true });
     }
     // Only clean up the question timers when the round itself changes.
     if (timers.length) {
@@ -308,6 +323,14 @@ function Display() {
       };
     }
   }, [state, offsetMs, voiceOn]);
+
+  // Lobby: a "still waiting on a few players…" line now and then (every 25s, never over another line).
+  const inLobby = state?.phase === "LOBBY";
+  useEffect(() => {
+    if (!inLobby || !voiceOn) return;
+    const id = setInterval(() => void announcer.current?.line("waiting", { onlyIfQuiet: true }), 25000);
+    return () => clearInterval(id);
+  }, [inLobby, voiceOn]);
 
   // "Everyone's locked in!" when the last person locks in before time runs out.
   const allLockedSaid = useRef<string | null>(null);
@@ -345,7 +368,9 @@ function Display() {
             )}
           </div>
         ) : (
-          <TvScreen state={state} offsetMs={offsetMs} sfx={sfx} reduced={reduced} />
+          <AnnouncerContext.Provider value={announcer}>
+            <TvScreen state={state} offsetMs={offsetMs} sfx={sfx} reduced={reduced} />
+          </AnnouncerContext.Provider>
         )}
       <div
         className={`absolute top-6 right-8 z-50 flex gap-3 transition-opacity focus-within:opacity-100 ${controlsVisible || (soundWanted && !soundOn) ? "opacity-100" : "opacity-0"}`}
@@ -919,13 +944,12 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               return q.lead ? (
                 <h2 className="font-display font-bold">
                   <span className="block text-5xl text-accent-2 truncate leading-tight">{q.lead}</span>
-                  <span className="block leading-[1.05] text-[5.4rem] mt-2" style={{ textWrap: "balance" }}>
-                    {q.question}
-                  </span>
+                  {/* Always two lines at most: long questions get smaller instead of spilling into the answers. */}
+                  <FitText text={q.question} max={86} min={44} className="mt-2" />
                 </h2>
               ) : (
-                <h2 className="font-display font-bold leading-[1.05] text-[4.6rem]" style={{ textWrap: "balance" }}>
-                  {round.questionText}
+                <h2 className="font-display font-bold">
+                  <FitText text={round.questionText} max={74} min={40} />
                 </h2>
               );
             })()}
@@ -1296,6 +1320,14 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
   };
   const round = state.round;
   const current: BoardView = views.some((v) => v.id === view) && hasRound ? view : views[0].id;
+  // "Let's see who nailed that round" the first time the This round page comes up.
+  const announcer = useAnnouncer();
+  const roundCued = useRef(false);
+  useEffect(() => {
+    if (current !== "round" || roundCued.current || !announcer) return;
+    roundCued.current = true;
+    void announcer.line("round-winner");
+  }, [current, announcer]);
   return (
     <div className="h-full">
       <TvHeader state={state} center={round ? `After question ${round.number} of ${round.total}` : "Leaderboard"} />
@@ -1965,11 +1997,30 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
   const awards = state.stats?.awards ?? [];
   const [awardsDone, setAwardsDone] = useState(false);
   const showPodium = awardsDone || awards.length === 0;
+  // Announcer: "Are we ready to crown our winner?" over the awards, then "And your champion is…"
+  // with the podium appearing right as he finishes, then a game-over line.
+  const announcer = useAnnouncer();
+  const said = useRef(false);
+  useEffect(() => {
+    if (said.current || !announcer) return;
+    said.current = true;
+    if (awards.length) void announcer.crown();
+    else void announcer.extra(Math.random() < 0.5 ? "game-over" : "game-over-2", true);
+  }, [announcer, awards.length]);
   useEffect(() => {
     if (showPodium) return;
-    const id = setTimeout(() => setAwardsDone(true), Math.min(16000, 5000 + awards.length * 2000));
-    return () => clearTimeout(id);
-  }, [showPodium, awards.length]);
+    let alive = true;
+    const id = setTimeout(async () => {
+      if (announcer) await announcer.champion();
+      if (!alive) return;
+      setAwardsDone(true);
+      void announcer?.extra(Math.random() < 0.5 ? "game-over" : "game-over-2");
+    }, Math.min(16000, 5000 + awards.length * 2000));
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
+  }, [showPodium, awards.length, announcer]);
 
   useEffect(() => {
     if (reduced || !showPodium) return;

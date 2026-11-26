@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pointsFor, rankStandings, remainingActiveMs } from "@/lib/scoring";
+import { fastestCorrect, pointsFor, rankStandings, remainingActiveMs } from "@/lib/scoring";
 
 describe("pointsFor", () => {
   it("awards 1000 for correct, 0 otherwise, no bonus by default", () => {
@@ -39,5 +39,14 @@ describe("remainingActiveMs", () => {
     expect(remainingActiveMs({ deadlineAt: new Date("2026-01-01T00:00:05Z"), pausedAt: now, remainingMs: 7000 }, now)).toBe(7000);
     expect(remainingActiveMs({ deadlineAt: new Date("2026-01-01T00:00:15Z"), pausedAt: null, remainingMs: null }, now)).toBe(5000);
     expect(remainingActiveMs({ deadlineAt: new Date("2026-01-01T00:00:05Z"), pausedAt: null, remainingMs: null }, now)).toBe(0);
+  });
+});
+
+describe("fastest right answer bonus", () => {
+  it("goes to the quickest right answer given on time, and ties share it", () => {
+    const g = (playerId: string, correct: boolean, elapsedMs: number) => ({ playerId, correct, elapsedMs });
+    expect([...fastestCorrect([g("a", true, 5000), g("b", true, 3000), g("c", false, 1000)], 20000)]).toEqual(["b"]);
+    expect([...fastestCorrect([g("a", true, 21000), g("b", false, 1000)], 20000)]).toEqual([]);
+    expect([...fastestCorrect([g("a", true, 3000), g("b", true, 3000)], 20000)].sort()).toEqual(["a", "b"]);
   });
 });

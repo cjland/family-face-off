@@ -213,12 +213,12 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   await shot(tv, "tv-final");
   await shot(p1, "phone-final");
 
-  // Scores add up: each round awards 1000 per correct guess, max 3 rounds x 2 guessers.
+  // Scores add up: 1000 per correct guess, plus 25–50 for the fastest right answer in a round.
   const res = await tv.request.get(`/api/games/${code}/results?key=${new URL(tvHref!, "http://x").searchParams.get("key")}`);
   const body = await res.json();
   expect(body.standings).toHaveLength(3);
   for (const s of body.standings) {
-    expect(s.points % 1000).toBe(0);
+    expect(s.points % 1000 === 0 || (s.points % 1000 >= 25 && s.points % 1000 <= 150)).toBe(true);
     expect(s.eligible).toBe(2); // each player is the subject of exactly one of three rounds
   }
 });

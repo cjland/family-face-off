@@ -92,9 +92,22 @@ Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and
 </tr>
 </table>
 
-Slowpokes get teased by name on the TV. The last 5 seconds beep louder and higher each second. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** and plays a "Hurry up!" voice right away and then every 8 seconds until they answer (late right answers still score, without a speed bonus). Sounds play once someone has clicked or pressed a key on the TV page.
+Slowpokes get teased by name on the TV. The last 5 seconds beep louder and higher each second. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** and plays a "Hurry up!" voice right away and then every 8 seconds until they answer (late right answers still score 1,000, but can't get the fastest-answer bonus). Sounds play once someone has clicked or pressed a key on the TV page.
 
-An **announcer voice** reads each question on the TV: a lead-in and the question number during the 5-4-3-2-1, then the question itself as it appears. He also calls out "10 seconds", "everyone's locked in", the reveal and game over. The music dips while he talks. The clips are in `public/audio` (listed in `manifest.json`), one per bank question q001 to q150. Custom questions typed by the host have no clip, so for those the announcer says the lead-in and "pick an answer" but doesn't read the question.
+An **announcer voice** talks on the TV through the whole game. The music dips while he talks.
+
+| When | He says |
+|---|---|
+| Lobby, every 25 seconds | "We'll give everyone a few more seconds to join." |
+| Start of the 5-4-3-2-1 | A lead-in and the question number ("Question number three!"), or "Get those phones ready…" from question 11 on |
+| Countdown | The numbers he has room for, then "Go!" |
+| Question appears | The question itself, then "Pick the best answer!" |
+| While people choose | "10 seconds!" and "Everyone's locked in!" |
+| Reveal | A drumroll or reveal line |
+| Leaderboard | "Let's check out the leaderboard!", then "Who knew them best?" when the This round page comes up |
+| End of the game | "Are we ready to crown our winner?" over the awards, "And your Family Face-Off champion is…" as the podium appears, then a game-over line |
+
+The clips are in `public/audio` (listed in `manifest.json`), one per bank question q001 to q150. Questions with no clip (ones typed by the host) get a line like "This one's new to me. Go ahead and read it on the screen."
 
 ### 5. Reveal
 
@@ -196,7 +209,6 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Theme | Classic game show | Or Thanksgiving: warm colors, falling leaves, Thanksgiving questions |
 | Questions per person | Chosen at start | How many questions about each player (no question is ever repeated) |
 | Seconds per question | 20 | 5–120 seconds |
-| Speed bonus | Off | Up to 500 extra points for answering fast |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
 | Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
 | TV sound | On | Beeps, pops, "Hurry up!", music and the announcer. The TV needs one click or key press before browsers allow sound |
@@ -207,7 +219,7 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Auto next question | Off | Move on 8 seconds after each reveal |
 | AI wrong-answer helper | Off | Only shown if OpenRouter is set up (see below) |
 
-**Scoring:** 1,000 points per right answer (plus the speed bonus if it's on). Wrong or missed answers score 0. Late right answers score 1,000 with no bonus. Ties share a place.
+**Scoring:** 1,000 points per right answer. The fastest right answer each round also gets a surprise bonus of 25 to 50 points (a new random amount each round), so every round has a clear winner. Wrong or missed answers score 0. Late right answers score 1,000 with no bonus. Ties share a place.
 
 ## Troubleshooting
 

@@ -107,22 +107,10 @@ export function SettingsForm({
           onChange={(e) => set("questionSeconds", Math.max(5, Math.min(120, Number(e.target.value) || 20)))}
         />
       </label>
-      <label className="flex flex-col gap-1 sm:col-span-2">
-        <span className="font-semibold">Speed bonus: {value.speedBonus === 0 ? "off" : `up to +${value.speedBonus}`}</span>
-        <input
-          type="range"
-          min={0}
-          max={500}
-          step={50}
-          value={value.speedBonus}
-          onChange={(e) => set("speedBonus", Number(e.target.value))}
-          className="accent-[var(--accent)] h-8"
-          aria-describedby="speed-hint"
-        />
-        <span id="speed-hint" className="text-sm text-muted">
-          Correct answers score 1,000. A speed bonus adds extra points for answering quickly.
-        </span>
-      </label>
+      <p className="text-sm text-muted sm:col-span-2">
+        Scoring: 1,000 points for a right answer, plus a surprise 25–50 bonus for the fastest right answer each
+        round.
+      </p>
       <fieldset className="sm:col-span-2">
         <legend className="font-semibold mb-2">Music while people choose</legend>
         <div className="flex gap-2 flex-wrap">

@@ -16,6 +16,21 @@ export function pointsFor(params: {
   return POINTS_CORRECT + Math.floor(params.speedBonus * ratio);
 }
 
+/** The bonus for the fastest right answer each round: a random 25–50, so each round has a clear winner. */
+export const FASTEST_BONUS_MIN = 25;
+export const FASTEST_BONUS_MAX = 50;
+
+/**
+ * Which players get the fastest-answer bonus: the quickest right answer given before time ran out
+ * (late answers never get it). An exact tie on the millisecond shares it.
+ */
+export function fastestCorrect(gs: { playerId: string; correct: boolean; elapsedMs: number }[], durationMs: number): Set<string> {
+  const onTime = gs.filter((g) => g.correct && g.elapsedMs <= durationMs);
+  if (!onTime.length) return new Set();
+  const best = Math.min(...onTime.map((g) => g.elapsedMs));
+  return new Set(onTime.filter((g) => g.elapsedMs === best).map((g) => g.playerId));
+}
+
 export type StandingInput = {
   playerId: string;
   name: string;
