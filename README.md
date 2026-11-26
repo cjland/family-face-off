@@ -92,7 +92,7 @@ Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and
 </tr>
 </table>
 
-Slowpokes get teased by name on the TV. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** (late right answers still score, without a speed bonus).
+Slowpokes get teased by name on the TV. The last 5 seconds beep louder and higher each second. If time runs out they can still answer, but the TV flashes a 🚨 **SHAME ALERT** with a siren, then a "Hurry up!" voice every 5 seconds until they answer (late right answers still score, without a speed bonus). Sounds play once **Enable sound** has been clicked on the TV.
 
 ### 5. Reveal
 

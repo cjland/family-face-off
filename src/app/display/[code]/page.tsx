@@ -244,7 +244,9 @@ function Display() {
               sfx.current.disable();
               setSoundOn(false);
             } else {
-              setSoundOn(sfx.current.enable());
+              const on = sfx.current.enable();
+              setSoundOn(on);
+              if (on) void sfx.current.preloadClips();
             }
           }}
         >
@@ -742,7 +744,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   useEffect(() => {
     if (!round.paused && secs <= 5 && secs > 0 && secs !== lastTick.current) {
       lastTick.current = secs;
-      if (sfx.current?.enabled) sfx.current.tick();
+      if (sfx.current?.enabled) sfx.current.finalBeep(secs);
     }
   }, [secs, round.paused, sfx]);
 
@@ -773,6 +775,16 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
       if (sfx.current?.enabled) sfx.current.shame();
     }
   }, [shameTargets.length, sfx]);
+  // While someone is still holding things up: "Hurry up!" every 5 seconds, starting
+  // just after the siren (2s in), until they answer or the round is revealed.
+  const hurryBucket = shameTargets.length && overtimeSecs >= 2 ? Math.floor((overtimeSecs - 2) / 5) : -1;
+  const lastHurry = useRef(-1);
+  useEffect(() => {
+    if (hurryBucket >= 0 && hurryBucket !== lastHurry.current) {
+      lastHurry.current = hurryBucket;
+      if (sfx.current?.enabled) sfx.current.hurryUp();
+    }
+  }, [hurryBucket, sfx]);
 
   let taunt: string | null = null;
   if (state.taunts && !round.paused && remaining > 0 && laggards.length && guessers.length > 1) {

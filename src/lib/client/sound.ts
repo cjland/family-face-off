@@ -1,11 +1,50 @@
 "use client";
 
 /**
- * Tiny synthesized sound effects (no audio files). Only created after a user gesture,
- * so browsers never block or auto-play sound.
+ * Sound effects: mostly synthesized, plus a few short recorded clips in public/sounds.
+ * Only created after a user gesture, so browsers never block or auto-play sound.
  */
+export const CLIPS = { hurryUp: "/sounds/hurry-up.mp3" } as const;
+export type ClipName = keyof typeof CLIPS;
+
 export class Sfx {
   private ctx: AudioContext | null = null;
+  private clips = new Map<ClipName, AudioBuffer>();
+
+  /** Fetches and decodes the recorded clips (TV only; phones don't need them). */
+  async preloadClips() {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    await Promise.all(
+      (Object.keys(CLIPS) as ClipName[]).map(async (name) => {
+        if (this.clips.has(name)) return;
+        try {
+          const res = await fetch(CLIPS[name]);
+          const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+          this.clips.set(name, buf);
+        } catch {
+          /* a missing clip just means silence */
+        }
+      }),
+    );
+  }
+
+  private playClip(name: ClipName, gain = 1): boolean {
+    const buf = this.clips.get(name);
+    if (!this.ctx || !buf) return false;
+    const src = this.ctx.createBufferSource();
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    src.buffer = buf;
+    src.connect(g).connect(this.ctx.destination);
+    src.start();
+    return true;
+  }
+
+  /** "Hurry up!" voice clip, repeated during the SHAME ALERT. */
+  hurryUp() {
+    return this.playClip("hurryUp", 1);
+  }
 
   enable(): boolean {
     if (this.ctx) return true;
@@ -19,6 +58,7 @@ export class Sfx {
   disable() {
     void this.ctx?.close();
     this.ctx = null;
+    this.clips.clear();
   }
 
   get enabled() {
@@ -85,6 +125,17 @@ export class Sfx {
 
   tick() {
     this.tone(880, 0, 0.08, "square", 0.05);
+  }
+  /**
+   * The last 5 seconds of a question: a loud, game-show style beep that gets higher and
+   * longer as time runs out (5-4 mid, 3-2 high, 1 highest and longest).
+   */
+  finalBeep(secsLeft: number) {
+    const f = secsLeft >= 4 ? 988 : secsLeft >= 2 ? 1175 : 1568;
+    const dur = secsLeft <= 1 ? 0.45 : 0.2;
+    this.tone(f, 0, dur, "square", 0.16);
+    this.tone(f * 2, 0, dur * 0.8, "sine", 0.08);
+    this.tone(f / 2, 0, dur, "triangle", 0.12);
   }
   question() {
     this.tone(523, 0, 0.15, "triangle");
