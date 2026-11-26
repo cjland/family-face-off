@@ -8,7 +8,7 @@
  * countdown numbers he has room for, then "Go!" → [the question] → [a "pick an answer" prompt]
  * as the question appears. Questions without a clip get a "read it on the screen" line instead.
  */
-import { bonusIntroIndexes, introIndex, introPool } from "@/lib/introClip";
+import { bonusIntroIndexes, hereComesKey, introIndex, introPool } from "@/lib/introClip";
 
 type Clip = { file: string; durationMs: number; text: string };
 type Manifest = {
@@ -26,6 +26,7 @@ type Manifest = {
   crown?: Clip[];
   "no-audio"?: Clip[];
   bonus?: { intro: Clip[]; easy: Clip[]; medium: Clip[]; hard: Clip[]; reveal: Clip[] };
+  hereComes?: { first: Clip; last: Clip; number: Record<string, Clip> };
 };
 
 export type Pool = "waiting" | "leaderboard" | "round-winner";
@@ -161,16 +162,18 @@ export class Announcer {
 
   /**
    * The "Get ready!" moment before the 5-4-3-2-1: "I hope everyone's ready…" (or "Let the fun
-   * begin!" for the first question and "Here it is… the final question!" for the last). The
-   * server picked the same line and holds the countdown until it's over.
+   * begin!" for question 1), then "Okay, here comes question twelve!" (or "…the first/last
+   * question!"). The server picked the same clips and holds the countdown until he's done.
    */
   async intro(code: string, number: number, total: number) {
     const m = await this.load();
     if (!m) return;
     const kind = introPool(number, total);
-    const pool = kind === "first" ? m.leadin.first : kind === "final" ? m.leadin.final : (m.countdown?.intro ?? []);
+    const pool = kind === "first" ? m.leadin.first : (m.countdown?.intro ?? []);
     const c = pool[introIndex(code, number, pool.length)] ?? null;
-    return this.say([c]);
+    const k = hereComesKey(number, total);
+    const hc = k && m.hereComes ? ("special" in k ? m.hereComes[k.special] : m.hereComes.number[k.number]) : null;
+    return this.say([c, hc ?? null]);
   }
 
   /**

@@ -1327,5 +1327,269 @@
         "text": "Did you know this one? Let's find out!"
       }
     ]
+  },
+  "hereComes": {
+    "first": {
+      "file": "here-comes/special/first.mp3",
+      "durationMs": 2508,
+      "text": "Okay! Here comes the first question!"
+    },
+    "last": {
+      "file": "here-comes/special/last.mp3",
+      "durationMs": 2586,
+      "text": "Okay... here comes the last question!"
+    },
+    "number": {
+      "1": {
+        "file": "here-comes/number/1.mp3",
+        "durationMs": 2220,
+        "text": "Okay, here comes question one!"
+      },
+      "2": {
+        "file": "here-comes/number/2.mp3",
+        "durationMs": 2116,
+        "text": "Okay, here comes question two!"
+      },
+      "3": {
+        "file": "here-comes/number/3.mp3",
+        "durationMs": 2168,
+        "text": "Okay, here comes question three!"
+      },
+      "4": {
+        "file": "here-comes/number/4.mp3",
+        "durationMs": 2325,
+        "text": "Okay, here comes question four!"
+      },
+      "5": {
+        "file": "here-comes/number/5.mp3",
+        "durationMs": 2508,
+        "text": "Okay, here comes question five!"
+      },
+      "6": {
+        "file": "here-comes/number/6.mp3",
+        "durationMs": 2325,
+        "text": "Okay, here comes question six!"
+      },
+      "7": {
+        "file": "here-comes/number/7.mp3",
+        "durationMs": 2273,
+        "text": "Okay, here comes question seven!"
+      },
+      "8": {
+        "file": "here-comes/number/8.mp3",
+        "durationMs": 2220,
+        "text": "Okay, here comes question eight!"
+      },
+      "9": {
+        "file": "here-comes/number/9.mp3",
+        "durationMs": 1933,
+        "text": "Okay, here comes question nine!"
+      },
+      "10": {
+        "file": "here-comes/number/10.mp3",
+        "durationMs": 2168,
+        "text": "Okay, here comes question ten!"
+      },
+      "11": {
+        "file": "here-comes/number/11.mp3",
+        "durationMs": 2325,
+        "text": "Okay, here comes question eleven!"
+      },
+      "12": {
+        "file": "here-comes/number/12.mp3",
+        "durationMs": 2351,
+        "text": "Okay, here comes question twelve!"
+      },
+      "13": {
+        "file": "here-comes/number/13.mp3",
+        "durationMs": 2273,
+        "text": "Okay, here comes question thirteen!"
+      },
+      "14": {
+        "file": "here-comes/number/14.mp3",
+        "durationMs": 2325,
+        "text": "Okay, here comes question fourteen!"
+      },
+      "15": {
+        "file": "here-comes/number/15.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question fifteen!"
+      },
+      "16": {
+        "file": "here-comes/number/16.mp3",
+        "durationMs": 2691,
+        "text": "Okay, here comes question sixteen!"
+      },
+      "17": {
+        "file": "here-comes/number/17.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question seventeen!"
+      },
+      "18": {
+        "file": "here-comes/number/18.mp3",
+        "durationMs": 2168,
+        "text": "Okay, here comes question eighteen!"
+      },
+      "19": {
+        "file": "here-comes/number/19.mp3",
+        "durationMs": 2743,
+        "text": "Okay, here comes question nineteen!"
+      },
+      "20": {
+        "file": "here-comes/number/20.mp3",
+        "durationMs": 2508,
+        "text": "Okay, here comes question twenty!"
+      },
+      "21": {
+        "file": "here-comes/number/21.mp3",
+        "durationMs": 2403,
+        "text": "Okay, here comes question twenty-one!"
+      },
+      "22": {
+        "file": "here-comes/number/22.mp3",
+        "durationMs": 2508,
+        "text": "Okay, here comes question twenty-two!"
+      },
+      "23": {
+        "file": "here-comes/number/23.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question twenty-three!"
+      },
+      "24": {
+        "file": "here-comes/number/24.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question twenty-four!"
+      },
+      "25": {
+        "file": "here-comes/number/25.mp3",
+        "durationMs": 2220,
+        "text": "Okay, here comes question twenty-five!"
+      },
+      "26": {
+        "file": "here-comes/number/26.mp3",
+        "durationMs": 2534,
+        "text": "Okay, here comes question twenty-six!"
+      },
+      "27": {
+        "file": "here-comes/number/27.mp3",
+        "durationMs": 2273,
+        "text": "Okay, here comes question twenty-seven!"
+      },
+      "28": {
+        "file": "here-comes/number/28.mp3",
+        "durationMs": 2534,
+        "text": "Okay, here comes question twenty-eight!"
+      },
+      "29": {
+        "file": "here-comes/number/29.mp3",
+        "durationMs": 2351,
+        "text": "Okay, here comes question twenty-nine!"
+      },
+      "30": {
+        "file": "here-comes/number/30.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question thirty!"
+      },
+      "31": {
+        "file": "here-comes/number/31.mp3",
+        "durationMs": 2403,
+        "text": "Okay, here comes question thirty-one!"
+      },
+      "32": {
+        "file": "here-comes/number/32.mp3",
+        "durationMs": 2403,
+        "text": "Okay, here comes question thirty-two!"
+      },
+      "33": {
+        "file": "here-comes/number/33.mp3",
+        "durationMs": 2534,
+        "text": "Okay, here comes question thirty-three!"
+      },
+      "34": {
+        "file": "here-comes/number/34.mp3",
+        "durationMs": 2116,
+        "text": "Okay, here comes question thirty-four!"
+      },
+      "35": {
+        "file": "here-comes/number/35.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question thirty-five!"
+      },
+      "36": {
+        "file": "here-comes/number/36.mp3",
+        "durationMs": 2691,
+        "text": "Okay, here comes question thirty-six!"
+      },
+      "37": {
+        "file": "here-comes/number/37.mp3",
+        "durationMs": 2403,
+        "text": "Okay, here comes question thirty-seven!"
+      },
+      "38": {
+        "file": "here-comes/number/38.mp3",
+        "durationMs": 2638,
+        "text": "Okay, here comes question thirty-eight!"
+      },
+      "39": {
+        "file": "here-comes/number/39.mp3",
+        "durationMs": 2508,
+        "text": "Okay, here comes question thirty-nine!"
+      },
+      "40": {
+        "file": "here-comes/number/40.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question forty!"
+      },
+      "41": {
+        "file": "here-comes/number/41.mp3",
+        "durationMs": 2821,
+        "text": "Okay, here comes question forty-one!"
+      },
+      "42": {
+        "file": "here-comes/number/42.mp3",
+        "durationMs": 2168,
+        "text": "Okay, here comes question forty-two!"
+      },
+      "43": {
+        "file": "here-comes/number/43.mp3",
+        "durationMs": 2534,
+        "text": "Okay, here comes question forty-three!"
+      },
+      "44": {
+        "file": "here-comes/number/44.mp3",
+        "durationMs": 2351,
+        "text": "Okay, here comes question forty-four!"
+      },
+      "45": {
+        "file": "here-comes/number/45.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question forty-five!"
+      },
+      "46": {
+        "file": "here-comes/number/46.mp3",
+        "durationMs": 2534,
+        "text": "Okay, here comes question forty-six!"
+      },
+      "47": {
+        "file": "here-comes/number/47.mp3",
+        "durationMs": 2534,
+        "text": "Okay, here comes question forty-seven!"
+      },
+      "48": {
+        "file": "here-comes/number/48.mp3",
+        "durationMs": 2403,
+        "text": "Okay, here comes question forty-eight!"
+      },
+      "49": {
+        "file": "here-comes/number/49.mp3",
+        "durationMs": 2456,
+        "text": "Okay, here comes question forty-nine!"
+      },
+      "50": {
+        "file": "here-comes/number/50.mp3",
+        "durationMs": 2038,
+        "text": "Okay, here comes question fifty!"
+      }
+    }
   }
 }

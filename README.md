@@ -99,7 +99,7 @@ An **announcer voice** talks on the TV through the whole game. The music dips wh
 | When | He says |
 |---|---|
 | Lobby, every 25 seconds | "We'll give everyone a few more seconds to join." |
-| "Get ready!" before the countdown | "I hope everyone's ready…" ("Let the fun begin!" for question 1, "Here it is… the final question!" for the last). The 5-4-3-2-1 waits until he's done |
+| "Get ready!" before the countdown | "I hope everyone's ready…" ("Let the fun begin!" for question 1), then "Okay, here comes question twelve!" ("…the first question!" / "…the last question!"; numbers up to 50). The 5-4-3-2-1 waits until he's done |
 | Countdown | "Five! Four! Three! Two! One! Go!", each number said the moment it appears on the TV |
 | Question appears | The question itself, then "Pick the best answer!" |
 | While people choose | "10 seconds!" and "Everyone's locked in!" |
