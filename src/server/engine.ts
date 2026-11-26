@@ -296,7 +296,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
  * Time before the 5-4-3-2-1 starts: covers the TV's and phones' polling delay, plus the
  * announcer's "get ready" line when the voice is on, so the countdown waits until he's done.
  */
-export const POLL_MARGIN_MS = 1500;
+export const POLL_MARGIN_MS = 2000;
 export const COUNTDOWN_LEAD_MS = 2000; // with the voice off
 const AFTER_INTRO_MS = 400;
 

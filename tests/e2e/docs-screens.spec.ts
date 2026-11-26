@@ -57,13 +57,15 @@ test("README screenshots", async ({ browser }) => {
   await host.goto("/host");
   await host.getByLabel("Host password").fill(process.env.HOST_PASSWORD!);
   await host.getByRole("button", { name: "Sign in" }).click();
-  await expect(host.getByRole("button", { name: "Create game" })).toBeVisible();
+  await expect(host.getByRole("button", { name: "Create game" }).first()).toBeVisible();
   await shot(host, "host-dashboard");
   // Turn on every leaderboard page so all of them get photographed.
   for (const cb of await host.getByRole("checkbox").all()) {
     const label = (await cb.evaluate((el) => el.closest("label")?.textContent ?? "")) || "";
     if (/Speed vs|Quick or slow|last five|Hardest questions|hardest to guess|fooled/.test(label) && !(await cb.isChecked())) await cb.check();
   }
+  // The script reveals each answer itself.
+  await host.getByText("Auto reveal").click();
   await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   const code = host.url().split("/").pop()!;
@@ -103,6 +105,9 @@ test("README screenshots", async ({ browser }) => {
     await expect(tv.getByRole("status", { name: /starts in|get ready/ })).toBeVisible();
     if (q === 1) {
       await tv.waitForTimeout(700);
+      await shot(tv, "tv-getready");
+      await expect(tv.getByRole("status", { name: /starts in 4/ })).toBeVisible({ timeout: 15_000 });
+      await tv.waitForTimeout(150);
       await shot(tv, "tv-countdown");
       await expect(june.getByRole("status", { name: /starts in|get ready/ })).toBeVisible();
       await june.waitForTimeout(500);
@@ -118,6 +123,10 @@ test("README screenshots", async ({ browser }) => {
       if (q === 1 && p === june) await shot(june, "phone-question");
       await p.getByRole("button", { name: new RegExp(`Lock in ${letter}`) }).click();
       if (q === 1 && p === june) await shot(june, "phone-locked");
+    }
+    if (await tv.getByText("🎁 Bonus question").first().isVisible()) {
+      await tv.waitForTimeout(2500);
+      await shot(tv, "tv-bonus");
     }
     if (q === 1) {
       await tv.waitForTimeout(2500);

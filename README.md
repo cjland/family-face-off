@@ -7,7 +7,8 @@
 - **For 3 to 50 players** (best with 5–25), ages "can read" and up.
 - **Nothing to install.** Players scan a QR code on the TV. No accounts, no emails, no app.
 - **You need:** a TV or big screen (a laptop plugged into the TV works), everyone's phones, and a second screen for the host (your phone or laptop).
-- **150 built-in questions**, each with six tap-to-answer choices (four normal, two silly), or players type their own answer.
+- **150 built-in questions**, each with six tap-to-answer choices (four normal, two silly), or players type their own answer. Plus **20 🎁 bonus trivia questions** mixed into the middle of the game.
+- **A game-show announcer** reads every question aloud and counts down with the TV.
 - **Fun extras:** 40 game pieces or your own face on a costume, your own win/lose catchphrases, a 5-4-3-2-1 countdown, lock-in order, taunts and a 🚨 SHAME ALERT for slowpokes, ten rotating leaderboard pages, awards, a podium and confetti. There's a classic game-show look and a Thanksgiving theme.
 
 **Contents:** [How a game works](#how-a-game-works) · [Running game night](#running-game-night) · [Settings](#game-settings) · [Troubleshooting](#troubleshooting) · [Setting it up (Neon + Vercel)](#setting-it-up-on-neon--vercel) · [Local development](#local-development) · [For developers](#for-developers)
@@ -18,7 +19,9 @@
 
 ### 1. The host creates a game
 
-Sign in at `/host` with your host password, pick your family, and press **Create game**. Then press **Open TV display** and put that tab on the TV. Keep the host screen on your own phone or laptop.
+Sign in at `/host` with your host password, pick your family, and use **Plan the game** to pick how many questions about each person. It shows the total questions and roughly how long the game will take. Press **Create game**, then **Open TV display** and put that tab on the TV. Keep the host screen on your own phone or laptop, or run everything from the TV with **🔑 Host controls**.
+
+The **About** box under Recent games shows the app's version, when the code was last updated, and a link back to this page.
 
 <table>
 <tr>
@@ -26,7 +29,7 @@ Sign in at `/host` with your host password, pick your family, and press **Create
 <td width="50%"><img src="docs/images/host-lobby.webp" alt="Host lobby with the QR code and the list of players"></td>
 </tr>
 <tr>
-<td><b>Host dashboard:</b> family, title, theme, timer, music and automation, plus your recent games.</td>
+<td><b>Host dashboard:</b> family and title, the game planner, theme, music, scoring and bonus questions, plus your recent games and the app version.</td>
 <td><b>Host lobby:</b> the join QR code, who's ready, and buttons to remove players or add demo players.</td>
 </tr>
 </table>
@@ -66,18 +69,24 @@ When at least 3 people are ready, press **Start game…** (on the host screen or
 
 ### 4. Play: countdown, question, lock in
 
-Every question starts with a full-screen **5 · 4 · 3 · 2 · 1** on the TV and phones (the 5 holds for a moment so slower screens catch it), then the 20-second timer starts. The person the question is about sits that one out.
+Every question starts with a full-screen **Get ready!** while the announcer says "Okay, here comes question twelve!", then a **5 · 4 · 3 · 2 · 1** on the TV and phones that he counts out loud, then the 20-second timer starts. The person the question is about sits that one out.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/tv-countdown.webp" alt="TV: big countdown number"></td>
-<td width="50%"><img src="docs/images/tv-question.webp" alt="TV: question, four answers, lock-in order and timer"></td>
+<td width="33%"><img src="docs/images/tv-getready.webp" alt="TV: Get ready! before the countdown"></td>
+<td width="33%"><img src="docs/images/tv-countdown.webp" alt="TV: big countdown number"></td>
+<td width="33%"><img src="docs/images/tv-question.webp" alt="TV: question, four answers, lock-in order and timer"></td>
 </tr>
 <tr>
-<td>The countdown before each question</td>
+<td>Get ready! (the announcer introduces the question)</td>
+<td>The countdown, said out loud</td>
 <td>The question. Pieces light up and line up <b>1st, 2nd, 3rd…</b> as people lock in.</td>
 </tr>
 </table>
+
+Every so often there's a **🎁 bonus question**: Thanksgiving trivia that everyone answers, worth extra points ([details below](#-bonus-questions)).
+
+<p align="center"><img src="docs/images/tv-bonus.webp" alt="TV: a bonus trivia question worth 1,500 points" width="820"></p>
 
 <table>
 <tr>
@@ -169,9 +178,10 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 **Before everyone arrives**
 
 1. Open your site's `/api/health` page. It should say `"ok":true`. (If it says the database is out of date, run the latest `neon-setup.sql`; see [setup](#2-create-the-tables-and-load-the-questions).)
-2. On `/host`, create the game and press **Open TV display**. Open that link **in the same browser** you used to sign in, so the TV gets the host's ➜ button. For first-timers, press **📖 How to play** on the TV lobby and leave it running while people join.
+2. On `/host`, create the game and press **Open TV display**. Open that link **in the same browser** you used to sign in, so the TV gets the host's ➜ button (or press **🔑 Host controls** on the TV and type the host password). For first-timers, press **📖 How to play** on the TV lobby and leave it running while people join.
 3. Put the TV tab fullscreen (**⛶ Fullscreen** at the top right). If the TV says **🔈 Click anywhere for sound**, click once (browsers block sound until someone clicks or presses a key on the page).
 4. Try it alone first: **+ Add 4 demo players** fills the room with bots that answer on their own.
+5. Already had the TV tab open from an earlier day? Reload it, so it picks up the latest version (the version and last update are in the **About** box on `/host`).
 
 **During the game**
 
@@ -380,6 +390,8 @@ The script plays a short game with two pretend players and eight labelled demo b
 ---
 
 ## For developers
+
+**Versions.** The host's About box shows `version` from `package.json`, the commit, and that commit's date (all read at build time in `next.config.ts`). Bump the version in `package.json` when you ship something people will notice.
 
 ### Real-device checklist (before the party)
 

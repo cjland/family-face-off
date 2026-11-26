@@ -282,10 +282,13 @@ function Display() {
       // Joined late (TV refreshed mid-question)? Stay quiet rather than talk over the game.
       if (serverNow < opensAt + 3000) {
         // The "get ready" line, unless the TV only noticed the question once the numbers had started.
-        if (serverNow < opensAt - state.countdownSeconds * 1000 - 500) {
-          if (r.bonus) void a.bonusIntro(state.code, r.bonus.ordinal, r.bonus.difficulty);
-          else void a.intro(state.code, r.number, r.total);
+        const untilCountdown = opensAt - state.countdownSeconds * 1000 - serverNow;
+        if (untilCountdown > 500) {
+          if (r.bonus) void a.bonusIntro(state.code, r.bonus.ordinal, r.bonus.difficulty, untilCountdown);
+          else void a.intro(state.code, r.number, r.total, untilCountdown);
         }
+        // Get the next question's "here comes question N" ready now.
+        if (!r.bonus && r.number < r.total) void a.preloadIntro(r.number + 1, r.total);
         // "Go!" and read the question as it appears (after the countdown).
         timers.push(
           setTimeout(() => {

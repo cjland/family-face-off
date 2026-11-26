@@ -286,43 +286,46 @@ export default function HostDashboard() {
               </section>
 
               {/* On very wide screens recent games sit in a column on the right and scroll on their own. */}
-              <section
-                className="panel p-6 flex flex-col gap-4 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100dvh-3rem)] 2xl:overflow-y-auto"
-                aria-labelledby="recent"
-              >
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <h2 id="recent" className="font-display text-3xl font-bold">
-                    Recent games
-                  </h2>
-                  <button
-                    className="btn btn-ghost !text-base"
-                    onClick={async () => {
-                      const r = await api<{ deletedGames: number }>(
-                        "/api/host/cleanup",
-                        { method: "POST" },
-                      );
-                      setMessage({
-                        kind: "success",
-                        text: `Cleanup done. Removed ${r.deletedGames} expired game(s).`,
-                      });
-                      void load();
-                    }}
-                  >
-                    Delete expired data
-                  </button>
-                </div>
-                <p className="text-sm text-muted">
-                  Games and everyone&apos;s answers are kept for 7 days, or
-                  until you delete them here.
-                </p>
-                {familiesList.length > 1 && (
-                  <div
-                    className="flex gap-2 flex-wrap"
-                    role="group"
-                    aria-label="Filter by family"
-                  >
-                    {[{ id: "all", name: "All families" }, ...familiesList].map(
-                      (f) => (
+              <div className="flex flex-col gap-6 2xl:sticky 2xl:top-6">
+                <section
+                  className="panel p-6 flex flex-col gap-4 2xl:max-h-[calc(100dvh-16rem)] 2xl:overflow-y-auto"
+                  aria-labelledby="recent"
+                >
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h2 id="recent" className="font-display text-3xl font-bold">
+                      Recent games
+                    </h2>
+                    <button
+                      className="btn btn-ghost !text-base"
+                      onClick={async () => {
+                        const r = await api<{ deletedGames: number }>(
+                          "/api/host/cleanup",
+                          { method: "POST" },
+                        );
+                        setMessage({
+                          kind: "success",
+                          text: `Cleanup done. Removed ${r.deletedGames} expired game(s).`,
+                        });
+                        void load();
+                      }}
+                    >
+                      Delete expired data
+                    </button>
+                  </div>
+                  <p className="text-sm text-muted">
+                    Games and everyone&apos;s answers are kept for 7 days, or
+                    until you delete them here.
+                  </p>
+                  {familiesList.length > 1 && (
+                    <div
+                      className="flex gap-2 flex-wrap"
+                      role="group"
+                      aria-label="Filter by family"
+                    >
+                      {[
+                        { id: "all", name: "All families" },
+                        ...familiesList,
+                      ].map((f) => (
                         <button
                           key={f.id}
                           type="button"
@@ -332,74 +335,136 @@ export default function HostDashboard() {
                         >
                           {f.id === "all" ? f.name : `The ${f.name} Family`}
                         </button>
-                      ),
-                    )}
-                  </div>
-                )}
-                {gamesList.length === 0 ? (
-                  <p className="text-muted">No games yet.</p>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {gamesList
-                      .filter((g) => filter === "all" || g.familyId === filter)
-                      .map((g) => (
-                        <li
-                          key={g.code}
-                          className="flex items-center gap-2 rounded-xl bg-black/25 px-4 py-3"
-                        >
-                          <span className="flex-1 min-w-0">
-                            <span className="flex items-baseline gap-2 min-w-0">
-                              <span className="font-display text-xl font-bold tracking-widest">
-                                {g.code}
-                              </span>
-                              <span className="truncate font-semibold">{g.title}</span>
-                            </span>
-                            <span className="block truncate text-sm text-accent-2">
-                              The {g.familyName} Family
-                            </span>
-                            <span className="block text-sm text-muted">
-                              {PHASE_LABEL[g.phase] ?? g.phase} · {g.playerCount}{" "}
-                              players ·{" "}
-                              {new Date(g.createdAt).toLocaleString(undefined, {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          </span>
-                          <Link
-                            className="btn btn-ghost !text-sm !min-h-[44px] !px-4"
-                            href={`/host/${g.code}`}
-                          >
-                            Open
-                          </Link>
-                          <button
-                            className="btn btn-danger !text-sm !min-h-[44px] !px-4"
-                            onClick={async () => {
-                              if (
-                                !window.confirm(
-                                  `Delete game ${g.code} and all of its answers? This can't be undone.`,
-                                )
-                              )
-                                return;
-                              await api(`/api/games/${g.code}`, {
-                                method: "DELETE",
-                              });
-                              void load();
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </li>
                       ))}
-                  </ul>
-                )}
-              </section>
+                    </div>
+                  )}
+                  {gamesList.length === 0 ? (
+                    <p className="text-muted">No games yet.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {gamesList
+                        .filter(
+                          (g) => filter === "all" || g.familyId === filter,
+                        )
+                        .map((g) => (
+                          <li
+                            key={g.code}
+                            className="flex items-center gap-2 rounded-xl bg-black/25 px-4 py-3"
+                          >
+                            <span className="flex-1 min-w-0">
+                              <span className="flex items-baseline gap-2 min-w-0">
+                                <span className="font-display text-xl font-bold tracking-widest">
+                                  {g.code}
+                                </span>
+                                <span className="truncate font-semibold">
+                                  {g.title}
+                                </span>
+                              </span>
+                              <span className="block truncate text-sm text-accent-2">
+                                The {g.familyName} Family
+                              </span>
+                              <span className="block text-sm text-muted">
+                                {PHASE_LABEL[g.phase] ?? g.phase} ·{" "}
+                                {g.playerCount} players ·{" "}
+                                {new Date(g.createdAt).toLocaleString(
+                                  undefined,
+                                  {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </span>
+                            </span>
+                            <Link
+                              className="btn btn-ghost !text-sm !min-h-[44px] !px-4"
+                              href={`/host/${g.code}`}
+                            >
+                              Open
+                            </Link>
+                            <button
+                              className="btn btn-danger !text-sm !min-h-[44px] !px-4"
+                              onClick={async () => {
+                                if (
+                                  !window.confirm(
+                                    `Delete game ${g.code} and all of its answers? This can't be undone.`,
+                                  )
+                                )
+                                  return;
+                                await api(`/api/games/${g.code}`, {
+                                  method: "DELETE",
+                                });
+                                void load();
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </section>
+                <AboutPanel />
+              </div>
             </div>
           </>
         )}
       </main>
     </Stage>
+  );
+}
+
+const GITHUB_URL = "https://github.com/cjland/family-face-off";
+
+/** Version, last code update and where the code and instructions live. */
+function AboutPanel() {
+  const version = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+  const commit = process.env.NEXT_PUBLIC_APP_COMMIT ?? "";
+  const updatedIso = process.env.NEXT_PUBLIC_APP_UPDATED ?? "";
+  const updated = updatedIso
+    ? new Date(updatedIso).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "unknown";
+  return (
+    <section
+      className="panel p-5 flex flex-col gap-2 text-sm"
+      aria-labelledby="about"
+    >
+      <h2 id="about" className="font-display text-xl font-bold">
+        About
+      </h2>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        <dt className="text-muted">Version</dt>
+        <dd>
+          <strong>{version}</strong>
+          {commit && (
+            <a
+              className="ml-2 text-muted underline underline-offset-2 font-mono"
+              href={`${GITHUB_URL}/commit/${commit}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {commit}
+            </a>
+          )}
+        </dd>
+        <dt className="text-muted">Last code update</dt>
+        <dd>{updated}</dd>
+      </dl>
+      <a
+        className="btn btn-ghost !text-base self-start mt-1"
+        href={GITHUB_URL}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Instructions and code on GitHub ↗
+      </a>
+    </section>
   );
 }

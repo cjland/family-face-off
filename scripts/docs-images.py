@@ -53,7 +53,8 @@ for file in sorted(os.listdir(SRC)):
     if name.startswith("phone-"):
         im = fit_width(im, PHONE_WIDTH)
     elif name.startswith("host-"):
-        im = fit_width(trim_host(im), HOST_WIDTH)
+        # The setup page now fills the window; the game console is still a centered column.
+        im = fit_width(im if name == "host-dashboard" else trim_host(im), HOST_WIDTH)
     else:
         im = fit_width(im, TV_WIDTH)
     save(im, name)
