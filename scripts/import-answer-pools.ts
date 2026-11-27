@@ -42,11 +42,11 @@ for (const item of incoming) {
     for (const raw of list) {
       const text = String(raw ?? "").trim().replace(/\s+/g, " ");
       if (!text) continue;
+      if (seen.has(key(text))) continue; // already there (existing options come back in the file too)
       if (text.length > MAX_LEN) {
         problems.push(`${q.id}: too long (${text.length} chars): ${text}`);
         continue;
       }
-      if (seen.has(key(text))) continue; // already there (existing options come back in the file too)
       seen.add(key(text));
       q.options.push({ id: `${q.id}_${next++}`, text, is_humorous: funny });
       added++;
