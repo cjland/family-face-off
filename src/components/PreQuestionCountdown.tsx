@@ -59,7 +59,7 @@ export function PreQuestionCountdown({
           <>
             <span
               key="ready"
-              className={`countdown-pop font-display font-bold gold-text leading-none ${tv ? "text-[11rem] py-24" : "text-6xl py-16"}`}
+              className={`countdown-pop font-display font-bold gold-sweep leading-none ${tv ? "text-[11rem] py-24" : "text-6xl py-16"}`}
             >
               Get ready!
             </span>

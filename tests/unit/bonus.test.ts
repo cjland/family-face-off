@@ -41,3 +41,25 @@ describe("bonus points by place", () => {
   });
 });
 
+
+import { parseCsv, readQuestions, templateCsv } from "@/lib/customCsv";
+
+describe("question template", () => {
+  it("parses quoted CSV, and the template reads back as valid questions", () => {
+    expect(parseCsv('a,"b, c","say ""hi"""\r\n1,2,3\n')).toEqual([
+      ["a", "b, c", 'say "hi"'],
+      ["1", "2", "3"],
+    ]);
+    const { questions, errors } = readQuestions(templateCsv());
+    expect(errors).toEqual([]);
+    expect(questions).toHaveLength(3);
+    expect(questions[1]).toMatchObject({ correctIndex: 1, seconds: 25, difficulty: "medium" });
+  });
+  it("reports bad rows by spreadsheet row number and accepts the correct answer as a letter, number or text", () => {
+    const csv = ["Group,Question,A,B,C,D,Correct", "G,Q1,x,y,z,w,2", "G,Q2,x,y,z,w,z", "G,Q3,x,x,z,w,A", ",Q4,x,y,z,w,A"].join("\n");
+    const { questions, errors } = readQuestions(csv);
+    expect(questions.map((q) => q.correctIndex)).toEqual([1, 2]);
+    expect(errors.map((e) => e.row)).toEqual([4, 5]);
+    expect(readQuestions("Question,Answer\nhi,there").errors[0].message).toContain("Missing column");
+  });
+});

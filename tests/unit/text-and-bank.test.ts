@@ -62,7 +62,7 @@ describe("prompt bank (src/data/questions.json)", () => {
 
 describe("settings", () => {
   it("applies spec defaults", () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ roundCount: 20, questionSeconds: 20, speedBonus: 0, autoReveal: true, autoNext: false, revealSeconds: 8 });
+    expect(DEFAULT_SETTINGS).toMatchObject({ roundCount: 20, questionSeconds: 20, speedBonus: 0, autoReveal: true, autoNext: true, revealSeconds: 10, leaderboardPageSeconds: 5, mode: "personal", autoAway: true, speedQuestions: false });
   });
   it("rejects out-of-range values and unknown keys", () => {
     expect(settingsSchema.safeParse({ roundCount: 81 }).success).toBe(false);

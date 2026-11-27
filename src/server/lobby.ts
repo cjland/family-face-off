@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import type { DB } from "@/db/client";
 import { families, games, playerPrompts, players, prompts, type Game, type Player } from "@/db/schema";
@@ -133,7 +133,31 @@ export async function updateSettings(db: DB, code: string, patch: Partial<GameSe
     .where(and(eq(games.id, game.id), eq(games.phase, "LOBBY")))
     .returning();
   if (!rows[0]) throw new ApiError("WRONG_PHASE", "Settings can only change before the game starts.");
+  const before = parseSettings(game.settings).mode;
+  if (before !== settings.mode) await syncReadyForMode(db, game.id, settings.mode);
   return rows[0];
+}
+
+/**
+ * Quiz and Custom modes need nothing from players, so everyone is ready. Switching back to
+ * Get Personal un-readies anyone who hasn't answered their eight questions.
+ */
+async function syncReadyForMode(db: DB, gameId: string, mode: GameSettings["mode"]) {
+  if (mode !== "personal") {
+    await db
+      .update(players)
+      .set({ readyAt: new Date() })
+      .where(and(eq(players.gameId, gameId), eq(players.active, true), sql`${players.readyAt} is null`));
+    return;
+  }
+  const incomplete = await db
+    .select({ id: playerPrompts.playerId })
+    .from(playerPrompts)
+    .where(and(eq(playerPrompts.gameId, gameId), sql`coalesce(${playerPrompts.answerText}, '') = ''`))
+    .groupBy(playerPrompts.playerId);
+  if (incomplete.length) {
+    await db.update(players).set({ readyAt: null }).where(inArray(players.id, incomplete.map((x) => x.id)));
+  }
 }
 
 // ---------- Joining ----------
@@ -210,6 +234,8 @@ export async function joinGame(
         tokenHash: hashToken(token, secret),
         isBot: opts.isBot ?? false,
         piece,
+        // Quiz and Custom modes have no personal questions: ready as soon as you join.
+        readyAt: settings.mode === "personal" ? null : new Date(),
       })
       .onConflictDoNothing({ target: [players.gameId, players.normalizedName] })
       .returning();
@@ -416,6 +442,16 @@ export async function setReady(db: DB, game: Game, player: Player, ready: boolea
     await tx.update(players).set({ readyAt: ready ? new Date() : null }).where(eq(players.id, player.id));
   });
   // Version bump outside the share lock so lobby screens refresh.
+  await db.update(games).set({ version: sql`${games.version} + 1` }).where(eq(games.id, game.id));
+}
+
+/** Step away / come back. Away players are skipped: the game doesn't wait for them and they score nothing. */
+export async function setAway(db: DB, game: Game, player: Player, away: boolean): Promise<void> {
+  if (!player.active) throw new ApiError("NOT_ELIGIBLE", "You're not playing in this game.");
+  await db
+    .update(players)
+    .set(away ? { awayAt: new Date(), awayReason: "self" } : { awayAt: null, awayReason: null })
+    .where(and(eq(players.id, player.id), eq(players.gameId, game.id)));
   await db.update(games).set({ version: sql`${games.version} + 1` }).where(eq(games.id, game.id));
 }
 

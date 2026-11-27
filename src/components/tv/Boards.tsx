@@ -372,7 +372,7 @@ export function GraveyardBoard({ boards }: { boards: BoardsDTO }) {
           <div className="text-3xl">
             {worst.bonus ? (
               <>
-                <strong className="font-display">Bonus</strong>: {worst.prompt} {worst.fooled} people guessed <strong>{worst.label}</strong>. The
+                <strong className="font-display">{worst.subjectName}</strong>: {worst.prompt} {worst.fooled} people guessed <strong>{worst.label}</strong>. The
                 answer was <strong className="text-accent-2">{worst.actual}</strong>.
               </>
             ) : (

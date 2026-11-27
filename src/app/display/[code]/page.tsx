@@ -1,11 +1,48 @@
 "use client";
 
-import { CountUp, ScrambleText, SplitText, StaggerIn } from "@/components/Motion";
-import { BONUS_PERSON, BONUS_PIECE, bonusLadder, DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
+import { LogoSting } from "@/components/tv/LogoSting";
+import { QuestionCountPicker } from "@/components/QuestionCountPicker";
+import {
+  CountUp,
+  ScrambleText,
+  SplitText,
+  StaggerIn,
+} from "@/components/Motion";
+import {
+  BONUS_PERSON,
+  BONUS_PIECE,
+  bonusLadder,
+  DIFFICULTY_LABEL,
+  QUIZ_PERSON,
+  roundLabel,
+  speedLadder,
+  TRIVIA_PIECE,
+} from "@/lib/bonus";
 import confetti from "canvas-confetti";
 import { useParams, useSearchParams } from "next/navigation";
-import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Podium, QrCode, Stage, TitleMark } from "@/components/ui";
+import {
+  createContext,
+  Fragment,
+  Suspense,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  AnswerTile,
+  Avatar,
+  Banner,
+  CountdownRing,
+  LETTERS,
+  Leaderboard,
+  Podium,
+  QrCode,
+  Stage,
+  TitleMark,
+} from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { GuessList } from "@/components/RoundPanels";
 import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
@@ -13,13 +50,25 @@ import { splitQuestion } from "@/lib/questionText";
 import { FitText } from "@/components/FitText";
 import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
 import { HowToPlay } from "@/components/tv/HowToPlay";
-import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS, type BoardId } from "@/lib/boards";
-import { GalaxyBoard, GraveyardBoard, HeatingBoard, MysteryBoard, StumpersBoard } from "@/components/tv/Boards";
+import {
+  BOARD_IDS,
+  BOARD_INFO,
+  DEFAULT_BOARDS,
+  type BoardId,
+} from "@/lib/boards";
+import {
+  GalaxyBoard,
+  GraveyardBoard,
+  HeatingBoard,
+  MysteryBoard,
+  StumpersBoard,
+} from "@/components/tv/Boards";
 import { MusicPlayer } from "@/lib/client/music";
 import { Announcer } from "@/lib/client/announcer";
 
 /** Lets the leaderboard and final screens cue the announcer (null when the voice is off). */
-const AnnouncerContext = createContext<React.RefObject<Announcer | null> | null>(null);
+const AnnouncerContext =
+  createContext<React.RefObject<Announcer | null> | null>(null);
 const useAnnouncer = () => useContext(AnnouncerContext)?.current ?? null;
 import { Sfx } from "@/lib/client/sound";
 import type { BoardsDTO, GameStateDTO } from "@/lib/dto";
@@ -89,14 +138,31 @@ function balancedColumns(n: number, maxCols: number): number {
   return Math.ceil(n / rows);
 }
 
-function RosterGrid({ players, maxCols, size }: { players: { id: string; name: string; piece: string | null }[]; maxCols: number; size: number }) {
+function RosterGrid({
+  players,
+  maxCols,
+  size,
+}: {
+  players: { id: string; name: string; piece: string | null }[];
+  maxCols: number;
+  size: number;
+}) {
   const cols = balancedColumns(players.length, maxCols);
   return (
-    <ul className="flex flex-wrap justify-center gap-x-8 gap-y-6 mx-auto" style={{ maxWidth: cols * (size + 40) + (cols - 1) * 32 }}>
+    <ul
+      className="flex flex-wrap justify-center gap-x-8 gap-y-6 mx-auto"
+      style={{ maxWidth: cols * (size + 40) + (cols - 1) * 32 }}
+    >
       {players.map((p) => (
-        <li key={p.id} className="flex flex-col items-center gap-2 pop-in" style={{ width: size + 40 }}>
+        <li
+          key={p.id}
+          className="flex flex-col items-center gap-2 pop-in"
+          style={{ width: size + 40 }}
+        >
           <Avatar name={p.name} piece={p.piece} size={size} />
-          <span className="font-display text-3xl text-center truncate max-w-full">{p.name}</span>
+          <span className="font-display text-3xl text-center truncate max-w-full">
+            {p.name}
+          </span>
         </li>
       ))}
     </ul>
@@ -116,7 +182,9 @@ function Display() {
   const search = useSearchParams();
   const code = (params.code ?? "").toUpperCase();
   const key = search.get("key") ?? "";
-  const { state, error, offsetMs } = useGameState(`/api/games/${code}/state?view=display&key=${encodeURIComponent(key)}`);
+  const { state, error, offsetMs } = useGameState(
+    `/api/games/${code}/state?view=display&key=${encodeURIComponent(key)}`,
+  );
   const sfx = useRef<Sfx | null>(null);
   const music = useRef<MusicPlayer | null>(null);
   const [soundOn, setSoundOn] = useState(false);
@@ -225,14 +293,19 @@ function Display() {
     }
     if (n > lockedCount.current && sfx.current?.enabled) {
       const from = lockedCount.current;
-      for (let i = from; i < n; i++) setTimeout(() => sfx.current?.lockIn(i), (i - from) * 120);
+      for (let i = from; i < n; i++)
+        setTimeout(() => sfx.current?.lockIn(i), (i - from) * 120);
     }
     lockedCount.current = n;
   }, [state]);
 
   // Background music while people choose.
   const style: MusicStyle = state?.music ?? "gameshow";
-  const shouldPlay = soundOn && state?.phase === "QUESTION" && !state.round?.paused && style !== "off";
+  const shouldPlay =
+    soundOn &&
+    state?.phase === "QUESTION" &&
+    !state.round?.paused &&
+    style !== "off";
   useEffect(() => {
     const ctx = sfx.current?.context;
     if (!ctx) return;
@@ -254,7 +327,9 @@ function Display() {
       return;
     }
     if (!announcer.current) {
-      announcer.current = new Announcer(ctx, (speaking) => music.current?.duck(speaking));
+      announcer.current = new Announcer(ctx, (speaking) =>
+        music.current?.duck(speaking),
+      );
       void announcer.current.load();
     }
   }, [voiceOn]);
@@ -283,29 +358,53 @@ function Display() {
       // Joined late (TV refreshed mid-question)? Stay quiet rather than talk over the game.
       if (serverNow < opensAt + 3000) {
         // The "get ready" line, unless the TV only noticed the question once the numbers had started.
-        const untilCountdown = opensAt - state.countdownSeconds * 1000 - serverNow;
+        const untilCountdown =
+          opensAt - state.countdownSeconds * 1000 - serverNow;
         if (untilCountdown > 500) {
-          if (r.bonus) void a.bonusIntro(state.code, r.bonus.ordinal, r.bonus.difficulty, untilCountdown);
+          if (r.bonus)
+            void a.bonusIntro(
+              state.code,
+              r.bonus.ordinal,
+              r.bonus.difficulty,
+              untilCountdown,
+            );
           else void a.intro(state.code, r.number, r.total, untilCountdown);
         }
         // Get the next question's "here comes question N" ready now.
-        if (!r.bonus && r.number < r.total) void a.preloadIntro(r.number + 1, r.total);
+        if (!r.bonus && r.number < r.total)
+          void a.preloadIntro(r.number + 1, r.total);
         // "Go!" and read the question as it appears (after the countdown).
         timers.push(
-          setTimeout(() => {
-            // Skipped or ended during the countdown? Then don't read the old question.
-            if (latest.current?.phase === "QUESTION" && latest.current.round?.id === r.id) void a.question(r.promptId);
-          }, Math.max(0, opensAt - serverNow)),
+          setTimeout(
+            () => {
+              // Skipped or ended during the countdown? Then don't read the old question.
+              if (
+                latest.current?.phase === "QUESTION" &&
+                latest.current.round?.id === r.id
+              )
+                void a.question(r.promptId);
+            },
+            Math.max(0, opensAt - serverNow),
+          ),
         );
         // "Ten seconds left!" if people are still thinking.
         if (r.durationMs > 15000 && r.deadlineAt) {
           const at = new Date(r.deadlineAt).getTime() - 10000;
           timers.push(
-            setTimeout(() => {
-              const s = latest.current;
-              const cur = s?.round;
-              if (s?.phase === "QUESTION" && cur?.id === r.id && !cur.paused && cur.answeredCount < cur.eligibleCount) void a.extra("ten-seconds");
-            }, Math.max(0, at - serverNow)),
+            setTimeout(
+              () => {
+                const s = latest.current;
+                const cur = s?.round;
+                if (
+                  s?.phase === "QUESTION" &&
+                  cur?.id === r.id &&
+                  !cur.paused &&
+                  cur.answeredCount < cur.eligibleCount
+                )
+                  void a.extra("ten-seconds");
+              },
+              Math.max(0, at - serverNow),
+            ),
           );
         }
       }
@@ -319,7 +418,11 @@ function Display() {
     if (timers.length) {
       const id = r?.id;
       return () => {
-        if (latest.current?.round?.id !== id || latest.current?.phase !== "QUESTION") timers.forEach(clearTimeout);
+        if (
+          latest.current?.round?.id !== id ||
+          latest.current?.phase !== "QUESTION"
+        )
+          timers.forEach(clearTimeout);
       };
     }
   }, [state, offsetMs, voiceOn]);
@@ -328,7 +431,10 @@ function Display() {
   const inLobby = state?.phase === "LOBBY";
   useEffect(() => {
     if (!inLobby || !voiceOn) return;
-    const id = setInterval(() => void announcer.current?.line("waiting", { onlyIfQuiet: true }), 25000);
+    const id = setInterval(
+      () => void announcer.current?.line("waiting", { onlyIfQuiet: true }),
+      25000,
+    );
     return () => clearInterval(id);
   }, [inLobby, voiceOn]);
 
@@ -336,14 +442,27 @@ function Display() {
   const allLockedSaid = useRef<string | null>(null);
   useEffect(() => {
     const r = state?.round;
-    if (!announcer.current || state?.phase !== "QUESTION" || !r || r.eligibleCount < 2) return;
-    if (r.answeredCount >= r.eligibleCount && allLockedSaid.current !== r.id && r.remainingMs > 0) {
+    if (
+      !announcer.current ||
+      state?.phase !== "QUESTION" ||
+      !r ||
+      r.eligibleCount < 2
+    )
+      return;
+    if (
+      r.answeredCount >= r.eligibleCount &&
+      allLockedSaid.current !== r.id &&
+      r.remainingMs > 0
+    ) {
       allLockedSaid.current = r.id;
       void announcer.current.extra("all-locked");
     }
   }, [state]);
 
-  if (error && (error.status === 403 || error.status === 404 || error.status === 401)) {
+  if (
+    error &&
+    (error.status === 403 || error.status === 404 || error.status === 401)
+  ) {
     return (
       <Stage theme="classic">
         <main className="min-h-dvh grid place-items-center p-8">
@@ -364,33 +483,54 @@ function Display() {
           <div className="h-full flex flex-col items-center justify-center gap-10">
             <TitleMark title="Family Face-Off" theme={theme} size="xl" />
             {error && error.status >= 500 && (
-              <p className="max-w-[1200px] text-center text-4xl text-bad">Couldn&apos;t load the game. If the app was just updated, the host needs to run the latest neon-setup.sql. Retrying…</p>
+              <p className="max-w-[1200px] text-center text-4xl text-bad">
+                Couldn&apos;t load the game. If the app was just updated, the
+                host needs to run the latest neon-setup.sql. Retrying…
+              </p>
             )}
           </div>
         ) : (
-          <AnnouncerContext.Provider value={announcer}>
-            <TvScreen state={state} offsetMs={offsetMs} sfx={sfx} reduced={reduced} />
-          </AnnouncerContext.Provider>
+          <>
+            <AnnouncerContext.Provider value={announcer}>
+              <TvScreen
+                state={state}
+                offsetMs={offsetMs}
+                sfx={sfx}
+                reduced={reduced}
+              />
+            </AnnouncerContext.Provider>
+            {state.paused && state.phase !== "QUESTION" && (
+              <div
+                className="absolute inset-0 bg-black/60 grid place-items-center z-30 pointer-events-none"
+                role="status"
+              >
+                <span className="font-display text-9xl font-bold">Paused</span>
+              </div>
+            )}
+          </>
         )}
-      <div
-        className={`absolute top-6 right-8 z-50 flex gap-3 transition-opacity focus-within:opacity-100 ${controlsVisible || (soundWanted && !soundOn) ? "opacity-100" : "opacity-0"}`}
-      >
-        {soundWanted && !soundOn && (
-          <span className="panel px-4 grid place-items-center text-xl text-muted min-h-[56px]" role="status">
-            🔈 Click anywhere for sound
-          </span>
-        )}
-        <button
-          type="button"
-          className="btn btn-ghost !min-h-[56px] !text-xl"
-          onClick={() => {
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else void document.documentElement.requestFullscreen?.();
-          }}
+        <div
+          className={`absolute top-6 right-8 z-50 flex gap-3 transition-opacity focus-within:opacity-100 ${controlsVisible || (soundWanted && !soundOn) ? "opacity-100" : "opacity-0"}`}
         >
-          {isFull ? "Exit fullscreen" : "⛶ Fullscreen"}
-        </button>
-      </div>
+          {soundWanted && !soundOn && (
+            <span
+              className="panel px-4 grid place-items-center text-xl text-muted min-h-[56px]"
+              role="status"
+            >
+              🔈 Click anywhere for sound
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost !min-h-[56px] !text-xl"
+            onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void document.documentElement.requestFullscreen?.();
+            }}
+          >
+            {isFull ? "Exit fullscreen" : "⛶ Fullscreen"}
+          </button>
+        </div>
       </TvCanvas>
       {error && error.status === 0 && (
         <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50">
@@ -422,20 +562,52 @@ function TvScreen({
       return (
         <div className="h-full">
           <div className="absolute inset-x-14 top-12 bottom-[170px] flex flex-col items-center justify-center gap-8 text-center">
-            <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="lg" />
-            <p className="font-display text-7xl font-bold pulse-soft">Get ready!</p>
-            <RosterGrid players={state.players ?? []} maxCols={maxCols} size={size} />
+            <LogoSting
+              title={state.title}
+              family={
+                state.familyName ? `The ${state.familyName} Family` : null
+              }
+            />
+            <p className="font-display text-7xl font-bold pulse-soft">
+              Get ready!
+            </p>
+            <RosterGrid
+              players={state.players ?? []}
+              maxCols={maxCols}
+              size={size}
+            />
           </div>
           <TvFooter state={state}>
             <span className="text-4xl text-muted">
-              {state.settings.perPlayer ? `${state.settings.perPlayer} questions about each person · ` : ""}the first question is coming up
+              {state.mode === "personal" && state.settings.perPlayer
+                ? `${state.settings.perPlayer} questions about each person · `
+                : ""}
+              {state.mode === "quiz"
+                ? "Quiz time · "
+                : state.mode === "custom"
+                  ? "Custom questions · "
+                  : ""}
+              the first question is coming up
+              {state.autoplay && !state.paused && state.phaseStartedAt && (
+                <FirstQuestionIn
+                  startedAt={state.phaseStartedAt}
+                  offsetMs={offsetMs}
+                />
+              )}
             </span>
           </TvFooter>
         </div>
       );
     }
     case "QUESTION":
-      return <TvQuestion key={state.round?.id} state={state} offsetMs={offsetMs} sfx={sfx} />;
+      return (
+        <TvQuestion
+          key={state.round?.id}
+          state={state}
+          offsetMs={offsetMs}
+          sfx={sfx}
+        />
+      );
     case "REVEAL":
       return <TvReveal key={state.round?.id} state={state} sfx={sfx} />;
     case "LEADERBOARD":
@@ -447,24 +619,64 @@ function TvScreen({
   }
 }
 
-function TvHeader({ state, center, right }: { state: GameStateDTO; center?: React.ReactNode; right?: React.ReactNode }) {
+/** Autoplay: " in 4…" until the first question starts by itself. */
+function FirstQuestionIn({
+  startedAt,
+  offsetMs,
+}: {
+  startedAt: string;
+  offsetMs: number;
+}) {
+  const now = useServerNow(offsetMs, true, 250);
+  const left = Math.ceil(
+    (new Date(startedAt).getTime() + AUTO_FIRST_MS - now) / 1000,
+  );
+  if (!now || left <= 0) return null;
+  return <span className="text-accent-2"> in {left}…</span>;
+}
+const AUTO_FIRST_MS = 6000; // matches AUTO_FIRST_QUESTION_MS on the server
+
+function TvHeader({
+  state,
+  center,
+  right,
+}: {
+  state: GameStateDTO;
+  center?: React.ReactNode;
+  right?: React.ReactNode;
+}) {
   return (
     <div className="absolute top-0 inset-x-0 h-[110px] px-14 grid grid-cols-[1fr_auto_1fr] items-center">
       <div className="justify-self-start">
-        <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="sm" />
+        <TitleMark
+          title={state.title}
+          family={state.familyName}
+          theme={state.theme}
+          size="sm"
+        />
       </div>
       <div className="font-display text-4xl text-accent-2">{center}</div>
-      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[340px]">{right}</div>
+      <div className="justify-self-end font-display text-4xl text-accent-2 pr-[340px]">
+        {right}
+      </div>
     </div>
   );
 }
 
 /** Footer band kept clear of the screen edge: info on the left, the host's "next" arrow on the right. */
-function TvFooter({ state, children }: { state: GameStateDTO; children?: React.ReactNode }) {
+function TvFooter({
+  state,
+  children,
+}: {
+  state: GameStateDTO;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="absolute inset-x-14 bottom-12 h-[96px] flex items-center gap-6">
       <PauseButton state={state} />
-      {state.phase !== "LOBBY" && state.phase !== "FINISHED" && <RejoinQr code={state.code} />}
+      {state.phase !== "LOBBY" && state.phase !== "FINISHED" && (
+        <RejoinQr code={state.code} />
+      )}
       <div className="flex-1 min-w-0 flex items-center gap-6">{children}</div>
       <NextArrow state={state} />
     </div>
@@ -475,19 +687,36 @@ function TvFooter({ state, children }: { state: GameStateDTO; children?: React.R
 /** Host on the TV: pause/resume the question (also the P key). Sits left of the rejoin QR. */
 function PauseButton({ state }: { state: GameStateDTO }) {
   const [busy, setBusy] = useState(false);
-  const show = state.canControl && state.phase === "QUESTION" && Boolean(state.round);
-  const paused = Boolean(state.round?.paused);
+  // Pause works during a question and between questions (getting ready, reveal, leaderboard).
+  const show =
+    state.canControl &&
+    ((state.phase === "QUESTION" && Boolean(state.round)) ||
+      state.phase === "REVEAL" ||
+      state.phase === "LEADERBOARD" ||
+      state.phase === "PREPARING");
+  const paused =
+    state.phase === "QUESTION" ? Boolean(state.round?.paused) : state.paused;
   const toggle = useCallback(() => {
     if (!show || busy) return;
     setBusy(true);
-    api(`/api/games/${state.code}/action`, { method: "POST", body: { action: paused ? "resume" : "pause", expectedVersion: state.version } })
+    api(`/api/games/${state.code}/action`, {
+      method: "POST",
+      body: {
+        action: paused ? "resume" : "pause",
+        expectedVersion: state.version,
+      },
+    })
       .catch(() => undefined)
       .finally(() => setTimeout(() => setBusy(false), 600));
   }, [show, busy, paused, state.code, state.version]);
   useEffect(() => {
     if (!show) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+      if (
+        e.target instanceof HTMLElement &&
+        ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)
+      )
+        return;
       if (e.key === "p" || e.key === "P") {
         e.preventDefault();
         toggle();
@@ -543,7 +772,10 @@ function HostSignIn({ compact = false }: { compact?: boolean }) {
         setBusy(true);
         setErr(null);
         try {
-          await api("/api/host/login", { method: "POST", body: { password: pw } });
+          await api("/api/host/login", {
+            method: "POST",
+            body: { password: pw },
+          });
           setOpen(false);
           setPw("");
         } catch (e2) {
@@ -566,13 +798,24 @@ function HostSignIn({ compact = false }: { compact?: boolean }) {
         value={pw}
         onChange={(e) => setPw(e.target.value)}
       />
-      <button type="submit" className="btn btn-primary !text-xl" disabled={!pw || busy}>
+      <button
+        type="submit"
+        className="btn btn-primary !text-xl"
+        disabled={!pw || busy}
+      >
         {busy ? "…" : "Sign in"}
       </button>
-      <button type="button" className="btn btn-ghost !text-xl" onClick={() => setOpen(false)} aria-label="Cancel">
+      <button
+        type="button"
+        className="btn btn-ghost !text-xl"
+        onClick={() => setOpen(false)}
+        aria-label="Cancel"
+      >
         ✕
       </button>
-      {err && <span className="text-lg text-bad max-w-[240px] truncate">{err}</span>}
+      {err && (
+        <span className="text-lg text-bad max-w-[240px] truncate">{err}</span>
+      )}
     </form>
   );
 }
@@ -585,7 +828,9 @@ function RejoinQr({ code }: { code: string }) {
       <div className="leading-tight text-muted">
         <div className="text-lg">Lost your spot?</div>
         <div className="text-lg">Scan to rejoin</div>
-        <div className="font-display text-xl text-accent-2 tracking-wider">{code}</div>
+        <div className="font-display text-xl text-accent-2 tracking-wider">
+          {code}
+        </div>
       </div>
     </div>
   );
@@ -605,9 +850,18 @@ function NextArrow({ state }: { state: GameStateDTO }) {
   const [err, setErr] = useState<string | null>(null);
   const round = state.round;
   let label = NEXT_LABEL[state.phase];
-  if (state.phase === "LEADERBOARD" && round && round.number >= round.total) label = "Final results";
-  const action = state.phase === "QUESTION" ? "reveal" : state.phase === "PREPARING" ? "open" : "next";
-  const allIn = !round || round.eligibleCount === 0 || round.answeredCount >= round.eligibleCount;
+  if (state.phase === "LEADERBOARD" && round && round.number >= round.total)
+    label = "Final results";
+  const action =
+    state.phase === "QUESTION"
+      ? "reveal"
+      : state.phase === "PREPARING"
+        ? "open"
+        : "next";
+  const allIn =
+    !round ||
+    round.eligibleCount === 0 ||
+    round.answeredCount >= round.eligibleCount;
   const enabled =
     state.canControl &&
     Boolean(label) &&
@@ -623,16 +877,24 @@ function NextArrow({ state }: { state: GameStateDTO }) {
     }
     setBusy(true);
     setErr(null);
-    api(`/api/games/${state.code}/action`, { method: "POST", body: { action, expectedVersion: state.version } })
+    api(`/api/games/${state.code}/action`, {
+      method: "POST",
+      body: { action, expectedVersion: state.version },
+    })
       .catch((e) => {
-        if (!(e instanceof ApiClientError && e.code === "VERSION_CONFLICT")) setErr(e instanceof Error ? e.message : "Couldn't advance");
+        if (!(e instanceof ApiClientError && e.code === "VERSION_CONFLICT"))
+          setErr(e instanceof Error ? e.message : "Couldn't advance");
       })
       .finally(() => setTimeout(() => setBusy(false), 600));
   }, [enabled, busy, state.code, state.version, state.phase, action]);
   useEffect(() => {
     if (!enabled || startOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLElement && ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+      if (
+        e.target instanceof HTMLElement &&
+        ["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)
+      )
+        return;
       if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) {
         e.preventDefault();
         go();
@@ -643,16 +905,28 @@ function NextArrow({ state }: { state: GameStateDTO }) {
   }, [enabled, go, startOpen]);
   // Someone walked away? Once time is up, a small arrow lets the host reveal without them.
   // It takes two taps (and no keyboard shortcut) so it can't happen by accident.
-  if (!state.canControl) return state.phase === "FINISHED" ? null : <HostSignIn compact={state.phase !== "LOBBY"} />;
+  if (!state.canControl)
+    return state.phase === "FINISHED" ? null : (
+      <HostSignIn compact={state.phase !== "LOBBY"} />
+    );
   if (!enabled) {
-    const timeUp = state.phase === "QUESTION" && round && !round.paused && round.remainingMs <= 0;
-    if (state.canControl && timeUp && !allIn) return <RevealAnyway state={state} />;
+    const timeUp =
+      state.phase === "QUESTION" &&
+      round &&
+      !round.paused &&
+      round.remainingMs <= 0;
+    if (state.canControl && timeUp && !allIn)
+      return <RevealAnyway state={state} />;
     return null;
   }
   return (
     <div className="flex items-center gap-3">
-      {startOpen && <TvStartDialog state={state} onClose={() => setStartOpen(false)} />}
-      {err && <span className="text-xl text-bad max-w-[360px] truncate">{err}</span>}
+      {startOpen && (
+        <TvStartDialog state={state} onClose={() => setStartOpen(false)} />
+      )}
+      {err && (
+        <span className="text-xl text-bad max-w-[360px] truncate">{err}</span>
+      )}
       <button
         type="button"
         onClick={go}
@@ -675,9 +949,12 @@ function RevealAnyway({ state }: { state: GameStateDTO }) {
     return () => clearTimeout(id);
   }, [armed]);
   const missing = (state.players ?? []).filter(
-    (p) => p.id !== state.round?.subjectPlayerId && !(state.round?.lockedPlayerIds ?? []).includes(p.id),
+    (p) =>
+      p.id !== state.round?.subjectPlayerId &&
+      !(state.round?.lockedPlayerIds ?? []).includes(p.id),
   );
-  const who = missing.length === 1 ? missing[0].name : `${missing.length} players`;
+  const who =
+    missing.length === 1 ? missing[0].name : `${missing.length} players`;
   return (
     <button
       type="button"
@@ -686,7 +963,10 @@ function RevealAnyway({ state }: { state: GameStateDTO }) {
         e.currentTarget.blur();
         if (!armed) return setArmed(true);
         setBusy(true);
-        api(`/api/games/${state.code}/action`, { method: "POST", body: { action: "reveal", expectedVersion: state.version } })
+        api(`/api/games/${state.code}/action`, {
+          method: "POST",
+          body: { action: "reveal", expectedVersion: state.version },
+        })
           .catch(() => undefined)
           .finally(() => setTimeout(() => setBusy(false), 600));
       }}
@@ -695,7 +975,9 @@ function RevealAnyway({ state }: { state: GameStateDTO }) {
           ? "btn btn-primary flex-none !min-h-[64px] !px-6 !text-2xl whitespace-nowrap"
           : "flex-none rounded-full border-2 font-display bg-black/40 text-ink border-white/40 w-[64px] h-[64px] text-3xl grid place-items-center hover:bg-white/15"
       }
-      aria-label={armed ? `Reveal without ${who}` : "Reveal without waiting (tap twice)"}
+      aria-label={
+        armed ? `Reveal without ${who}` : "Reveal without waiting (tap twice)"
+      }
       title="Reveal without waiting"
     >
       {armed ? <>Reveal without {who}? ➜</> : <span aria-hidden="true">⏭</span>}
@@ -740,26 +1022,45 @@ function TvLobby({ state }: { state: GameStateDTO }) {
   }
   const players = state.lobby ?? [];
   const many = players.length > 15;
-  const cols = balancedColumns(Math.max(players.length, 1), players.length > 24 ? 7 : players.length > 15 ? 6 : 5);
+  const cols = balancedColumns(
+    Math.max(players.length, 1),
+    players.length > 24 ? 7 : players.length > 15 ? 6 : 5,
+  );
   return (
     <div className="h-full grid grid-cols-[700px_1fr] gap-12 px-16 pt-24 pb-16 overflow-hidden">
       <div className="flex flex-col items-center justify-center gap-6 text-center">
         <div className="marquee">
-          <TitleMark title={state.title} family={state.familyName} theme={state.theme} size="lg" />
+          <TitleMark
+            title={state.title}
+            family={state.familyName}
+            theme={state.theme}
+            size="lg"
+          />
         </div>
         <h2 className="font-display text-6xl font-bold">Scan to join</h2>
-        <QrCode url={joinUrl} size={340} label={`QR code to join the game at ${prettyUrl(joinUrl)}`} />
+        <QrCode
+          url={joinUrl}
+          size={340}
+          label={`QR code to join the game at ${prettyUrl(joinUrl)}`}
+        />
         <div className="text-3xl">
-          or go to <span className="font-semibold text-accent-2">{prettyUrl(joinUrl).replace(/\/join\/.*/, "")}</span>
+          or go to{" "}
+          <span className="font-semibold text-accent-2">
+            {prettyUrl(joinUrl).replace(/\/join\/.*/, "")}
+          </span>
         </div>
         <div className="flex items-baseline gap-4">
           <span className="text-3xl text-muted">Code</span>
-          <span className="font-display text-8xl font-bold tracking-[0.15em] gold-text">{state.code}</span>
+          <span className="font-display text-8xl font-bold tracking-[0.15em] gold-text">
+            {state.code}
+          </span>
         </div>
       </div>
       <div className="flex flex-col gap-6 min-h-0">
         <div className="flex items-end justify-between gap-4">
-          <h3 className="font-display text-5xl font-bold">Who&apos;s playing</h3>
+          <h3 className="font-display text-5xl font-bold">
+            Who&apos;s playing
+          </h3>
           <button
             type="button"
             className="btn btn-ghost !min-h-[56px] !text-2xl ml-auto"
@@ -779,11 +1080,17 @@ function TvLobby({ state }: { state: GameStateDTO }) {
             <li
               key={p.id}
               className={`panel pop-in flex flex-col items-center gap-1 ${many ? "p-2" : "p-4"}`}
-              style={{ width: `calc(${100 / cols}% - ${(16 * (cols - 1)) / cols}px)` }}
+              style={{
+                width: `calc(${100 / cols}% - ${(16 * (cols - 1)) / cols}px)`,
+              }}
             >
               <div className="relative">
                 <div className={p.ready ? "" : "opacity-60"}>
-                  <Avatar name={p.name} piece={p.piece} size={many ? 84 : 120} />
+                  <Avatar
+                    name={p.name}
+                    piece={p.piece}
+                    size={many ? 84 : 120}
+                  />
                 </div>
                 <span
                   className={`absolute bottom-0 right-0 grid place-items-center rounded-full w-9 h-9 text-xl font-bold ${
@@ -794,11 +1101,23 @@ function TvLobby({ state }: { state: GameStateDTO }) {
                   {p.ready ? "✓" : "…"}
                 </span>
               </div>
-              <span className={`font-display font-semibold text-center truncate w-full ${many ? "text-xl" : "text-2xl"}`}>{p.name}</span>
-              {!many && <span className="text-lg text-muted">{p.ready ? "Ready!" : "Answering…"}</span>}
+              <span
+                className={`font-display font-semibold text-center truncate w-full ${many ? "text-xl" : "text-2xl"}`}
+              >
+                {p.name}
+              </span>
+              {!many && (
+                <span className="text-lg text-muted">
+                  {p.ready ? "Ready!" : "Answering…"}
+                </span>
+              )}
             </li>
           ))}
-          {players.length === 0 && <li className="w-full text-3xl text-muted py-10">Waiting for the first player…</li>}
+          {players.length === 0 && (
+            <li className="w-full text-3xl text-muted py-10">
+              Waiting for the first player…
+            </li>
+          )}
         </ul>
         <div className="flex items-center gap-6">
           <div className="flex-1 panel-strong px-8 py-5 text-center font-display text-4xl">
@@ -815,12 +1134,28 @@ function TvLobby({ state }: { state: GameStateDTO }) {
   );
 }
 
-type Preview = { readyPlayers: number; totalPlayers: number; maxPerPlayer: number; suggestedPerPlayer: number; questionSeconds: number };
+type Preview = {
+  mode: "personal" | "quiz" | "custom";
+  readyPlayers: number;
+  totalPlayers: number;
+  maxPerPlayer: number;
+  suggestedPerPlayer: number;
+  available: number;
+  suggestedQuestions: number;
+  questionSeconds: number;
+};
 
 /** Host-only start dialog on the TV: choose questions per person, lock the roster, start. */
-function TvStartDialog({ state, onClose }: { state: GameStateDTO; onClose: () => void }) {
+function TvStartDialog({
+  state,
+  onClose,
+}: {
+  state: GameStateDTO;
+  onClose: () => void;
+}) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [per, setPer] = useState(1);
+  const [count, setCount] = useState(10);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -828,54 +1163,126 @@ function TvStartDialog({ state, onClose }: { state: GameStateDTO; onClose: () =>
       .then((p) => {
         setPreview(p);
         setPer(p.suggestedPerPlayer);
+        setCount(p.suggestedQuestions);
       })
       .catch((e) => setErr(e instanceof Error ? e.message : "Couldn't load"));
   }, [state.code]);
   const unready = state.counts.players - state.counts.ready;
+  const trivia = Boolean(preview && preview.mode !== "personal");
   const start = useCallback(async () => {
-    if (busy || !preview?.maxPerPlayer) return;
+    if (
+      busy ||
+      !preview ||
+      (trivia ? !preview.available : !preview.maxPerPlayer)
+    )
+      return;
     setBusy(true);
     setErr(null);
     try {
-      await api(`/api/games/${state.code}/start`, { method: "POST", body: { excludeUnready: unready > 0, perPlayer: per } });
+      await api(`/api/games/${state.code}/start`, {
+        method: "POST",
+        body: trivia
+          ? { excludeUnready: unready > 0, roundCount: count }
+          : { excludeUnready: unready > 0, perPlayer: per },
+      });
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Couldn't start");
       setBusy(false);
     }
-  }, [busy, preview, state.code, unready, per, onClose]);
+  }, [busy, preview, trivia, state.code, unready, per, count, onClose]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (!preview) return;
-      if (e.key === "ArrowRight" || e.key === "ArrowUp") setPer((v) => Math.min(preview.maxPerPlayer, v + 1));
-      if (e.key === "ArrowLeft" || e.key === "ArrowDown") setPer((v) => Math.max(1, v - 1));
+      if (trivia) {
+        if (e.key === "Enter") void start();
+        return;
+      }
+      if (e.key === "ArrowRight" || e.key === "ArrowUp")
+        setPer((v) => Math.min(preview.maxPerPlayer, v + 1));
+      if (e.key === "ArrowLeft" || e.key === "ArrowDown")
+        setPer((v) => Math.max(1, v - 1));
       if (e.key === "Enter") void start();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [preview, start, onClose]);
+  }, [preview, trivia, start, onClose]);
   // "fixed" here is relative to the scaled TV canvas (it has a CSS transform), so this covers the canvas.
   return (
-    <div className="fixed inset-0 z-40 bg-black/75 grid place-items-center" role="dialog" aria-labelledby="tv-start-title">
+    <div
+      className="fixed inset-0 z-40 bg-black/75 grid place-items-center"
+      role="dialog"
+      aria-labelledby="tv-start-title"
+    >
       <div
         className="rounded-[2rem] border-2 border-accent p-12 flex flex-col items-center gap-8 text-center pop-in w-[1300px] shadow-2xl"
-        style={{ background: "linear-gradient(160deg, var(--bg-1), var(--bg-2))" }}
+        style={{
+          background: "linear-gradient(160deg, var(--bg-1), var(--bg-2))",
+        }}
       >
         {!preview ? (
           <p className="text-4xl">{err ?? "Getting ready…"}</p>
+        ) : trivia ? (
+          <>
+            <h2 id="tv-start-title" className="font-display text-6xl font-bold">
+              {preview.readyPlayers} players. How many questions?
+            </h2>
+            {preview.available === 0 ? (
+              <p className="text-4xl text-bad">
+                {preview.mode === "custom"
+                  ? "No questions to play: pick an uploaded question group in Game settings."
+                  : "No trivia questions are loaded."}
+              </p>
+            ) : (
+              <QuestionCountPicker
+                available={preview.available}
+                value={count}
+                onChange={setCount}
+                seconds={preview.questionSeconds}
+                big
+              />
+            )}
+            {err && <p className="text-3xl text-bad">{err}</p>}
+            <div className="flex gap-5">
+              <button
+                type="button"
+                className="btn btn-primary !min-h-[90px] !px-12 !text-5xl"
+                disabled={busy || !preview.available}
+                onClick={() => void start()}
+              >
+                Start ➜
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost !min-h-[90px] !px-10 !text-4xl"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <h2 id="tv-start-title" className="font-display text-6xl font-bold">
-              {preview.readyPlayers} players ready. How many questions about each person?
+              {preview.readyPlayers} players ready. How many questions about
+              each person?
             </h2>
             {unready > 0 && (
               <p className="text-3xl text-accent-2">
-                {unready} {unready === 1 ? "person is" : "people are"} still answering and will watch instead.
+                {unready} {unready === 1 ? "person is" : "people are"} still
+                answering and will watch instead.
               </p>
             )}
-            <div className="flex gap-4 flex-wrap justify-center" role="radiogroup" aria-label="Questions per person">
-              {Array.from({ length: preview.maxPerPlayer }, (_, i) => i + 1).map((k) => (
+            <div
+              className="flex gap-4 flex-wrap justify-center"
+              role="radiogroup"
+              aria-label="Questions per person"
+            >
+              {Array.from(
+                { length: preview.maxPerPlayer },
+                (_, i) => i + 1,
+              ).map((k) => (
                 <button
                   key={k}
                   type="button"
@@ -889,19 +1296,40 @@ function TvStartDialog({ state, onClose }: { state: GameStateDTO; onClose: () =>
               ))}
             </div>
             <p className="text-4xl">
-              {per} × {preview.readyPlayers} people = <strong>{per * preview.readyPlayers} questions</strong>, about{" "}
-              {Math.max(1, Math.round((per * preview.readyPlayers * (preview.questionSeconds + 12)) / 60))} minutes
+              {per} × {preview.readyPlayers} people ={" "}
+              <strong>{per * preview.readyPlayers} questions</strong>, about{" "}
+              {Math.max(
+                1,
+                Math.round(
+                  (per *
+                    preview.readyPlayers *
+                    (preview.questionSeconds + 12)) /
+                    60,
+                ),
+              )}{" "}
+              minutes
             </p>
             {err && <p className="text-3xl text-bad">{err}</p>}
             <div className="flex gap-5">
-              <button type="button" className="btn btn-primary !min-h-[90px] !px-12 !text-5xl" disabled={busy} onClick={() => void start()}>
+              <button
+                type="button"
+                className="btn btn-primary !min-h-[90px] !px-12 !text-5xl"
+                disabled={busy}
+                onClick={() => void start()}
+              >
                 Lock roster &amp; start ➜
               </button>
-              <button type="button" className="btn btn-ghost !min-h-[90px] !px-10 !text-4xl" onClick={onClose}>
+              <button
+                type="button"
+                className="btn btn-ghost !min-h-[90px] !px-10 !text-4xl"
+                onClick={onClose}
+              >
                 Cancel
               </button>
             </div>
-            <p className="text-2xl text-muted">← → to choose · Enter to start · Esc to cancel</p>
+            <p className="text-2xl text-muted">
+              ← → to choose · Enter to start · Esc to cancel
+            </p>
           </>
         )}
       </div>
@@ -940,7 +1368,11 @@ const SHAME_LINES = [
   "We'd like to thank {n} for this lovely pause.",
 ];
 
-const TAUNTS_MANY = ["{n}… any day now!", "Still waiting on {n}.", "{n}, the clock is not your friend."];
+const TAUNTS_MANY = [
+  "{n}… any day now!",
+  "Still waiting on {n}.",
+  "{n}, the clock is not your friend.",
+];
 
 function joinNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
@@ -950,13 +1382,27 @@ function joinNames(names: string[]) {
 
 const HURRY_EVERY_S = 8;
 
-function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: number; sfx: React.RefObject<Sfx | null> }) {
+function TvQuestion({
+  state,
+  offsetMs,
+  sfx,
+}: {
+  state: GameStateDTO;
+  offsetMs: number;
+  sfx: React.RefObject<Sfx | null>;
+}) {
   const round = state.round!;
   const now = useServerNow(offsetMs, !round.paused, 100);
   // The question's text and tiles animate in when the countdown ends (not hidden under it).
-  const opened = !round.opensAt || (now > 0 && now >= new Date(round.opensAt).getTime());
+  const opened =
+    !round.opensAt || (now > 0 && now >= new Date(round.opensAt).getTime());
   const remaining =
-    round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.min(round.durationMs, Math.max(0, new Date(round.deadlineAt).getTime() - now));
+    round.paused || !round.deadlineAt || !now
+      ? round.remainingMs
+      : Math.min(
+          round.durationMs,
+          Math.max(0, new Date(round.deadlineAt).getTime() - now),
+        );
   const secs = Math.ceil(remaining / 1000);
   // Each big countdown number: a tick, and the announcer says it as it appears.
   const announcer = useAnnouncer();
@@ -978,23 +1424,35 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   const subject = players.find((p) => p.id === round.subjectPlayerId);
   // "Who submitted this answer?" rounds must not reveal who the subject is.
   const secret = round.type === "WHO_ANSWERED";
+  // Away players (stepped away or stopped answering) aren't waited for, teased or shamed.
+  const isAway = (p: (typeof players)[number]) =>
+    Boolean(p.away) && !locked.has(p.id);
   const guessers = players.filter((p) => p.id !== round.subjectPlayerId);
-  const laggards = guessers.filter((p) => !locked.has(p.id));
+  const laggards = guessers.filter((p) => !locked.has(p.id) && !isAway(p));
   const elapsedFrac = round.durationMs ? 1 - remaining / round.durationMs : 0;
   const slot = Math.floor((round.durationMs - remaining) / 3500);
 
-  const overtime = !round.paused && remaining <= 0 && Boolean(round.deadlineAt) && now > 0;
-  const overtimeSecs = overtime && round.deadlineAt ? Math.max(0, Math.floor((now - new Date(round.deadlineAt).getTime()) / 1000)) : 0;
+  const overtime =
+    !round.paused && remaining <= 0 && Boolean(round.deadlineAt) && now > 0;
+  const overtimeSecs =
+    overtime && round.deadlineAt
+      ? Math.max(
+          0,
+          Math.floor((now - new Date(round.deadlineAt).getTime()) / 1000),
+        )
+      : 0;
   const shameTargets = overtime ? laggards : [];
   const shameLine = shameTargets.length
-    ? SHAME_LINES[hashString(`${round.id}:shame:${Math.floor(overtimeSecs / 3)}`) % SHAME_LINES.length].replaceAll(
-        "{n}",
-        joinNames(shameTargets.map((l) => l.name)),
-      )
+    ? SHAME_LINES[
+        hashString(`${round.id}:shame:${Math.floor(overtimeSecs / 3)}`) %
+          SHAME_LINES.length
+      ].replaceAll("{n}", joinNames(shameTargets.map((l) => l.name)))
     : null;
   // While someone is still holding things up: "Hurry up!" the moment time runs out, then
   // every 8 seconds until they answer or the round is revealed. (No siren.)
-  const hurryBucket = shameTargets.length ? Math.floor(overtimeSecs / HURRY_EVERY_S) : -1;
+  const hurryBucket = shameTargets.length
+    ? Math.floor(overtimeSecs / HURRY_EVERY_S)
+    : -1;
   const lastHurry = useRef(-1);
   useEffect(() => {
     if (hurryBucket >= 0 && hurryBucket !== lastHurry.current) {
@@ -1004,17 +1462,34 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   }, [hurryBucket, sfx]);
 
   let taunt: string | null = null;
-  if (state.taunts && !round.paused && remaining > 0 && laggards.length && guessers.length > 1) {
-    const due = elapsedFrac >= 0.35 || (locked.size >= guessers.length / 2 && elapsedFrac >= 0.2);
+  if (
+    state.taunts &&
+    !round.paused &&
+    remaining > 0 &&
+    laggards.length &&
+    guessers.length > 1
+  ) {
+    const due =
+      elapsedFrac >= 0.35 ||
+      (locked.size >= guessers.length / 2 && elapsedFrac >= 0.2);
     if (due) {
       const h = hashString(`${round.id}:${slot}`);
       if (laggards.length === 1 && guessers.length > 2) {
-        taunt = TAUNTS_LAST[h % TAUNTS_LAST.length].replaceAll("{n}", laggards[0].name);
+        taunt = TAUNTS_LAST[h % TAUNTS_LAST.length].replaceAll(
+          "{n}",
+          laggards[0].name,
+        );
       } else if (laggards.length <= 3) {
         const target = laggards[h % laggards.length];
-        taunt = TAUNTS_ONE[(h >>> 4) % TAUNTS_ONE.length].replaceAll("{n}", target.name);
+        taunt = TAUNTS_ONE[(h >>> 4) % TAUNTS_ONE.length].replaceAll(
+          "{n}",
+          target.name,
+        );
       } else {
-        taunt = TAUNTS_MANY[h % TAUNTS_MANY.length].replaceAll("{n}", joinNames(laggards.map((l) => l.name)));
+        taunt = TAUNTS_MANY[h % TAUNTS_MANY.length].replaceAll(
+          "{n}",
+          joinNames(laggards.map((l) => l.name)),
+        );
       }
     }
   }
@@ -1024,8 +1499,11 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
   const stripOrder = secret
     ? players
     : [
-        ...guessers.filter((p) => order.has(p.id)).sort((a, b) => order.get(a.id)! - order.get(b.id)!),
-        ...guessers.filter((p) => !order.has(p.id)),
+        ...guessers
+          .filter((p) => order.has(p.id))
+          .sort((a, b) => order.get(a.id)! - order.get(b.id)!),
+        ...guessers.filter((p) => !order.has(p.id) && !isAway(p)),
+        ...guessers.filter((p) => isAway(p)),
       ];
   const stripRowH = size + 32;
   const stripRows = Math.max(1, Math.ceil(stripOrder.length / STRIP_PER_ROW));
@@ -1043,16 +1521,32 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             >
               ?
             </div>
+          ) : round.kind === "trivia" ||
+            (round.kind === "speed" && !round.subjectPlayerId) ? (
+            <div className="flex-none flex flex-col items-center gap-3 pop-in">
+              <Avatar name="Quiz" piece={TRIVIA_PIECE} size={220} />
+              <span className="panel-strong px-5 py-2 font-display text-3xl font-bold text-accent-2 whitespace-nowrap">
+                {round.kind === "speed"
+                  ? "⚡ Speed!"
+                  : round.difficulty
+                    ? DIFFICULTY_LABEL[round.difficulty]
+                    : "Quiz"}
+              </span>
+            </div>
           ) : round.bonus ? (
             <div className="flex-none flex flex-col items-center gap-3 pop-in">
               <Avatar name="Bonus" piece={BONUS_PIECE} size={220} />
               <span className="panel-strong px-5 py-2 font-display text-3xl font-bold text-accent-2 whitespace-nowrap">
-                {DIFFICULTY_LABEL[round.bonus.difficulty]} · up to {round.bonus.points.toLocaleString()}
+                {DIFFICULTY_LABEL[round.bonus.difficulty]} · up to{" "}
+                {round.bonus.points.toLocaleString()}
               </span>
             </div>
           ) : (
             subject && (
-              <div className="flex-none flex flex-col items-center pop-in" key={subject.id}>
+              <div
+                className="flex-none flex flex-col items-center pop-in"
+                key={subject.id}
+              >
                 <Avatar name={subject.name} piece={subject.piece} size={250} />
               </div>
             )
@@ -1063,51 +1557,118 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               return q.lead ? (
                 <h2 className="font-display font-bold">
                   <span className="block text-5xl text-accent-2 truncate leading-tight">
-                    <SplitText text={q.lead} effect="drop" step={22} play={opened} />
+                    <SplitText
+                      text={q.lead}
+                      effect="drop"
+                      step={22}
+                      play={opened}
+                    />
                   </span>
                   {/* Always two lines at most: long questions get smaller instead of spilling into the answers. */}
-                  <FitText text={q.question} max={86} min={44} className="mt-2" animate delay={350} play={opened} />
+                  <FitText
+                    text={q.question}
+                    max={86}
+                    min={44}
+                    className="mt-2"
+                    animate
+                    delay={350}
+                    play={opened}
+                  />
                 </h2>
               ) : (
                 <h2 className="font-display font-bold">
-                  <FitText text={round.questionText} max={74} min={40} animate play={opened} />
+                  <FitText
+                    text={round.questionText}
+                    max={74}
+                    min={40}
+                    animate
+                    play={opened}
+                  />
                 </h2>
               );
             })()}
             {round.clue && (
               <p className="mt-5 panel-strong inline-block px-8 py-4 font-display text-6xl">
-                “{round.clue}” <span className="text-3xl text-muted font-sans align-middle">for “{round.promptText}”</span>
+                “{round.clue}”{" "}
+                <span className="text-3xl text-muted font-sans align-middle">
+                  for “{round.promptText}”
+                </span>
               </p>
             )}
             <div className="h-[96px] mt-3 flex items-center">
               {taunt && (
-                <div key={taunt} className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block max-w-full">
+                <div
+                  key={taunt}
+                  className="-rotate-1 pop-in panel-strong px-8 py-3 border-4 !border-accent shadow-2xl inline-block max-w-full"
+                >
                   {/* Stays inside the question column so it never runs under the countdown ring. */}
-                  <span className={`block font-display font-bold text-accent-2 truncate ${taunt.length > 44 ? "text-4xl" : "text-5xl"}`}>{taunt}</span>
+                  <span
+                    className={`block font-display font-bold text-accent-2 truncate ${taunt.length > 44 ? "text-4xl" : "text-5xl"}`}
+                  >
+                    {taunt}
+                  </span>
                 </div>
               )}
             </div>
           </div>
-          <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={220} />
+          <CountdownRing
+            remainingMs={remaining}
+            durationMs={round.durationMs}
+            paused={round.paused}
+            size={220}
+          />
         </div>
-        <StaggerIn className="grid grid-cols-2 gap-5" from="sides" delay={700} step={140} play={opened}>
+        <StaggerIn
+          className="grid grid-cols-2 gap-5"
+          from="sides"
+          delay={700}
+          step={140}
+          play={opened}
+        >
           {round.options.map((o, i) => (
             <AnswerTile key={o.id} index={i} option={o} size="tv" />
           ))}
         </StaggerIn>
-        <div className="relative" style={{ height: stripRows * stripRowH }} aria-label="Who has locked in">
+        <div
+          className="relative"
+          style={{ height: stripRows * stripRowH }}
+          aria-label="Who has locked in"
+        >
           {stripOrder.map((p, i) => {
             // On mystery rounds the subject is shown like everyone else (as locked in) so nobody can tell.
-            const isIn = locked.has(p.id) || (secret && p.id === round.subjectPlayerId);
+            const isIn =
+              locked.has(p.id) || (secret && p.id === round.subjectPlayerId);
             return (
               <div
                 key={p.id}
                 className="absolute flex flex-col items-center w-[96px] transition-[left,top] duration-500 ease-out"
-                style={{ left: (i % STRIP_PER_ROW) * STRIP_SLOT, top: Math.floor(i / STRIP_PER_ROW) * stripRowH }}
+                style={{
+                  left: (i % STRIP_PER_ROW) * STRIP_SLOT,
+                  top: Math.floor(i / STRIP_PER_ROW) * stripRowH,
+                }}
                 title={p.name}
               >
-                <div className={`relative transition-all duration-300 ${isIn ? "pop-in" : overtime ? "shame-wobble" : "opacity-35 grayscale"}`}>
+                <div
+                  className={`relative transition-all duration-300 ${
+                    isIn
+                      ? "pop-in"
+                      : isAway(p)
+                        ? "opacity-25 grayscale"
+                        : overtime
+                          ? "shame-wobble"
+                          : "opacity-35 grayscale"
+                  }`}
+                >
                   <Avatar name={p.name} piece={p.piece} size={size} />
+                  {isAway(p) && (
+                    <span
+                      className="absolute -top-1 -right-1 text-2xl emoji-plain"
+                      role="img"
+                      aria-label="stepped away"
+                    >
+                      💤
+                    </span>
+                  )}
                   {isIn &&
                     (order.has(p.id) && !secret ? (
                       <span
@@ -1124,19 +1685,28 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
                       </span>
                     ))}
                 </div>
-                <span className={`text-lg truncate max-w-full ${isIn ? "text-ink" : "text-muted"}`}>{p.name}</span>
+                <span
+                  className={`text-lg truncate max-w-full ${isIn ? "text-ink" : "text-muted"}`}
+                >
+                  {p.name}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
       <TvFooter state={state}>
-        <span className="font-display text-4xl whitespace-nowrap" aria-live="polite">
+        <span
+          className="font-display text-4xl whitespace-nowrap"
+          aria-live="polite"
+        >
           {round.answeredCount} of {round.eligibleCount} locked in
         </span>
         {shameLine ? (
           <div className="shame-alert rounded-2xl border-4 border-white pl-4 pr-6 py-1.5 flex items-center gap-3 min-w-0 flex-1 shadow-2xl">
-            <span className="font-display text-3xl font-bold text-white whitespace-nowrap">🚨 SHAME ALERT</span>
+            <span className="font-display text-3xl font-bold text-white whitespace-nowrap">
+              🚨 SHAME ALERT
+            </span>
             <span className="flex -space-x-3 flex-none">
               {shameTargets.slice(0, 4).map((p) => (
                 <span key={p.id} className="shame-wobble">
@@ -1145,25 +1715,42 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               ))}
             </span>
             <span className="min-w-0">
-              <span key={shameLine} className="block font-display text-2xl font-bold text-white truncate pop-in">
+              <span
+                key={shameLine}
+                className="block font-display text-2xl font-bold text-white truncate pop-in"
+              >
                 {shameLine}
               </span>
               <span className="block text-lg text-white/90 truncate">
                 Time ran out {overtimeSecs}s ago. You can still answer…
-                {state.settings.autoReveal && overtimeSecs < state.settings.overtimeSeconds
+                {state.settings.autoReveal &&
+                overtimeSecs < state.settings.overtimeSeconds
                   ? ` Revealing in ${state.settings.overtimeSeconds - overtimeSecs}s.`
                   : ""}
               </span>
             </span>
           </div>
-        ) : round.bonus ? (
-          <span className="text-2xl text-muted">Bonus trivia! Everyone plays · fastest right answer {bonusLadder(round.bonus.points)}</span>
-        ) : secret ? (
-          <span className="text-2xl text-muted">One mystery person sits this one out 🤫</span>
-        ) : subject && (
-          <span className="flex items-center gap-2 text-2xl text-muted min-w-0">
-            <span className="truncate">{subject.name} sits this one out</span>
+        ) : round.kind === "speed" ? (
+          <span className="text-2xl text-accent-2 font-semibold">
+            ⚡ Speed question! Fastest right answers: {speedLadder()}
           </span>
+        ) : round.kind === "trivia" ? (
+          <span className="text-2xl text-muted">Everyone plays this one</span>
+        ) : round.bonus ? (
+          <span className="text-2xl text-muted">
+            Bonus trivia! Everyone plays · fastest right answer{" "}
+            {bonusLadder(round.bonus.points)}
+          </span>
+        ) : secret ? (
+          <span className="text-2xl text-muted">
+            One mystery person sits this one out 🤫
+          </span>
+        ) : (
+          subject && (
+            <span className="flex items-center gap-2 text-2xl text-muted min-w-0">
+              <span className="truncate">{subject.name} sits this one out</span>
+            </span>
+          )
         )}
       </TvFooter>
       {round.paused && (
@@ -1171,7 +1758,13 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
           <span className="font-display text-9xl font-bold">Paused</span>
         </div>
       )}
-      <PreQuestionCountdown round={round} offsetMs={offsetMs} variant="tv" seconds={state.countdownSeconds} onTick={onCountdownTick} />
+      <PreQuestionCountdown
+        round={round}
+        offsetMs={offsetMs}
+        variant="tv"
+        seconds={state.countdownSeconds}
+        onTick={onCountdownTick}
+      />
     </div>
   );
 }
@@ -1179,10 +1772,17 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
 const STRIP_SLOT = 108; // 96px item + 12px gap
 const STRIP_PER_ROW = 16;
 
-const ORDINAL_BG: Record<number, string> = { 0: "bg-[#ffd54a]", 1: "bg-[#d9dee8]", 2: "bg-[#e0a066]" };
+const ORDINAL_BG: Record<number, string> = {
+  0: "bg-[#ffd54a]",
+  1: "bg-[#d9dee8]",
+  2: "bg-[#e0a066]",
+};
 
 function ordinal(n: number) {
-  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  const s =
+    n % 100 >= 11 && n % 100 <= 13
+      ? "th"
+      : (["th", "st", "nd", "rd"][n % 10] ?? "th");
   return `${n}${s}`;
 }
 
@@ -1207,7 +1807,15 @@ function SloganBubble({ text, kind }: { text: string; kind: "win" | "lose" }) {
 
 // ---------- Reveal: who answered what, round winner/loser, stats ----------
 
-function PieceChip({ name, piece, compact }: { name: string; piece: string | null; compact?: boolean }) {
+function PieceChip({
+  name,
+  piece,
+  compact,
+}: {
+  name: string;
+  piece: string | null;
+  compact?: boolean;
+}) {
   if (compact) {
     return (
       <span title={name} aria-label={name}>
@@ -1223,7 +1831,12 @@ function PieceChip({ name, piece, compact }: { name: string; piece: string | nul
   );
 }
 
-type StatCard = { emoji: string; title: string; who?: { name: string; piece: string | null }[]; detail: string };
+type StatCard = {
+  emoji: string;
+  title: string;
+  who?: { name: string; piece: string | null }[];
+  detail: string;
+};
 
 function StatCarousel({ state }: { state: GameStateDTO }) {
   const s = state.stats;
@@ -1244,9 +1857,19 @@ function StatCarousel({ state }: { state: GameStateDTO }) {
         who: s.last,
         detail: `${s.last[0].points.toLocaleString()} points. Plenty of time to rally!`,
       });
-    for (const a of s.awards) out.push({ emoji: a.emoji, title: a.title, who: [{ name: a.name, piece: a.piece }], detail: a.detail });
+    for (const a of s.awards)
+      out.push({
+        emoji: a.emoji,
+        title: a.title,
+        who: [{ name: a.name, piece: a.piece }],
+        detail: a.detail,
+      });
     if (s.hardest && s.roundsPlayed > 1)
-      out.push({ emoji: "🤯", title: "Hardest question so far", detail: `“${s.hardest.answerText}”: only ${s.hardest.pctCorrect}% got it` });
+      out.push({
+        emoji: "🤯",
+        title: "Hardest question so far",
+        detail: `“${s.hardest.answerText}”: only ${s.hardest.pctCorrect}% got it`,
+      });
     return out;
   }, [s]);
   const [i, setI] = useState(0);
@@ -1258,20 +1881,32 @@ function StatCarousel({ state }: { state: GameStateDTO }) {
   if (!cards.length) return null;
   const c = cards[i % cards.length];
   return (
-    <div key={i} className="panel px-5 py-2 pop-in flex items-center gap-4 h-[96px] overflow-hidden">
+    <div
+      key={i}
+      className="panel px-5 py-2 pop-in flex items-center gap-4 h-[96px] overflow-hidden"
+    >
       <span className="text-5xl" aria-hidden="true">
         {c.emoji}
       </span>
       <div className="flex-1 min-w-0 flex items-center gap-4">
-        <p className="font-display text-3xl text-accent-2 whitespace-nowrap">{c.title}</p>
+        <p className="font-display text-3xl text-accent-2 whitespace-nowrap">
+          {c.title}
+        </p>
         {c.who && (
           <div className="flex items-center gap-3 flex-none min-w-0">
             {c.who.slice(0, 2).map((w) => (
-              <span key={w.name} className="flex items-center gap-1 font-display text-3xl font-bold whitespace-nowrap">
+              <span
+                key={w.name}
+                className="flex items-center gap-1 font-display text-3xl font-bold whitespace-nowrap"
+              >
                 <Avatar name={w.name} piece={w.piece} size={56} /> {w.name}
               </span>
             ))}
-            {c.who.length > 2 && <span className="font-display text-2xl text-muted whitespace-nowrap">+{c.who.length - 2} more</span>}
+            {c.who.length > 2 && (
+              <span className="font-display text-2xl text-muted whitespace-nowrap">
+                +{c.who.length - 2} more
+              </span>
+            )}
           </div>
         )}
         <p className="text-2xl text-muted truncate">{c.detail}</p>
@@ -1316,7 +1951,9 @@ function ShameSpotlight({
       onClick={() => setPhase("done")}
       aria-label={`Round loser: ${loser.name}. Tap to skip.`}
     >
-      <span className="font-display text-5xl font-bold text-bad">😬 Round loser</span>
+      <span className="font-display text-5xl font-bold text-bad">
+        😬 Round loser
+      </span>
       <span className="spotlight-drop">
         <span className="shame-wobble">
           <Avatar name={loser.name} piece={loser.piece} size={300} />
@@ -1335,27 +1972,39 @@ function ShameSpotlight({
   );
 }
 
-function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sfx | null> }) {
+function TvReveal({
+  state,
+  sfx,
+}: {
+  state: GameStateDTO;
+  sfx: React.RefObject<Sfx | null>;
+}) {
   const round = state.round!;
   const reveal = state.reveal;
   const byOption = useMemo(() => {
     const m: Record<string, { name: string; piece: string | null }[]> = {};
-    for (const g of reveal?.guesses ?? []) (m[g.optionId] ??= []).push({ name: g.name, piece: g.piece });
+    for (const g of reveal?.guesses ?? [])
+      (m[g.optionId] ??= []).push({ name: g.name, piece: g.piece });
     return m;
   }, [reveal]);
   if (!reveal) return null;
   const correct = round.options.find((o) => o.id === reveal.correctOptionId);
   const rs = reveal.roundStats;
   const compactChips = reveal.guesses.length > 6;
-  const loserPick = rs.loser?.reason === "wrong" ? reveal.guesses.find((g) => g.name === rs.loser!.name) : null;
-  const loserLabel = loserPick ? round.options.find((o) => o.id === loserPick.optionId)?.label : null;
+  const loserPick =
+    rs.loser?.reason === "wrong"
+      ? reveal.guesses.find((g) => g.name === rs.loser!.name)
+      : null;
+  const loserLabel = loserPick
+    ? round.options.find((o) => o.id === loserPick.optionId)?.label
+    : null;
   const statLine =
     rs.eligible === 0
       ? ""
       : rs.correct === rs.eligible
         ? "Everyone got it! 🎉"
         : rs.correct === 0
-          ? round.bonus
+          ? round.bonus || !reveal.subjectName
             ? "Nobody got it. That was a tough one!"
             : `Nobody got it. ${reveal.subjectName} fooled the whole family!`
           : `${rs.correct} of ${rs.eligible} got it right`;
@@ -1375,19 +2024,52 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
         />
       )}
       <div className="absolute top-[115px] left-14 w-[1150px] bottom-[176px] flex flex-col gap-4 overflow-hidden px-2 pb-2">
-        <p className="text-3xl text-muted leading-tight">{round.questionText}</p>
-        <div className="panel-strong px-7 py-5 pop-in flex items-center gap-6">
-          <Avatar name={reveal.subjectName || "Bonus"} piece={round.bonus ? BONUS_PIECE : reveal.subjectPiece} size={120} />
+        <p className="text-3xl text-muted leading-tight">
+          {round.questionText}
+        </p>
+        <div className="panel-strong neon-ring !bg-[#150d33] px-7 py-5 pop-in flex items-center gap-6">
+          <Avatar
+            name={reveal.subjectName || "Bonus"}
+            piece={
+              round.bonus
+                ? BONUS_PIECE
+                : reveal.subjectName
+                  ? reveal.subjectPiece
+                  : TRIVIA_PIECE
+            }
+            size={120}
+          />
           <div className="min-w-0">
             <p className="text-2xl text-muted">Correct answer</p>
-            <p className="font-display text-6xl font-bold gold-text leading-tight break-words"><ScrambleText text={correct?.label ?? reveal.answerText} duration={1000} delay={150} /></p>
+            <p className="font-display text-6xl font-bold gold-text leading-tight break-words">
+              <ScrambleText
+                text={correct?.label ?? reveal.answerText}
+                duration={1000}
+                delay={150}
+              />
+            </p>
             <p className="font-display text-3xl mt-1">
-              {round.bonus ? `Bonus! Fastest right answers: ${bonusLadder(round.bonus.points)}` : `${reveal.subjectName} submitted this!`}
+              {round.bonus
+                ? `Bonus! Fastest right answers: ${bonusLadder(round.bonus.points)}`
+                : round.kind === "speed"
+                  ? `⚡ Speed! Fastest right answers: ${speedLadder()}`
+                  : reveal.subjectName
+                    ? `${reveal.subjectName} submitted this!`
+                    : round.difficulty
+                      ? `${DIFFICULTY_LABEL[round.difficulty]} quiz question`
+                      : "Quiz question"}
             </p>
           </div>
         </div>
-        <p className="font-display text-3xl text-accent-2">How everyone answered</p>
-        <StaggerIn className="grid grid-cols-2 gap-4 flex-1 content-start" from="scale" delay={400} step={110}>
+        <p className="font-display text-3xl text-accent-2">
+          How everyone answered
+        </p>
+        <StaggerIn
+          className="grid grid-cols-2 gap-4 flex-1 content-start"
+          from="scale"
+          delay={400}
+          step={110}
+        >
           {round.options.map((o, i) => {
             const who = byOption[o.id] ?? [];
             return (
@@ -1402,10 +2084,17 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
                   who.length > 0 ? (
                     <span className="flex flex-wrap gap-1.5 mt-2">
                       {who.slice(0, compactChips ? 12 : 4).map((w) => (
-                        <PieceChip key={w.name} name={w.name} piece={w.piece} compact={compactChips} />
+                        <PieceChip
+                          key={w.name}
+                          name={w.name}
+                          piece={w.piece}
+                          compact={compactChips}
+                        />
                       ))}
                       {who.length > (compactChips ? 12 : 4) && (
-                        <span className="text-xl self-center">+{who.length - (compactChips ? 12 : 4)}</span>
+                        <span className="text-xl self-center">
+                          +{who.length - (compactChips ? 12 : 4)}
+                        </span>
                       )}
                     </span>
                   ) : null
@@ -1423,9 +2112,18 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
             </span>
             {rs.winner ? (
               <>
-                <Avatar name={rs.winner.name} piece={rs.winner.piece} size={68} />
-                <span className="font-display text-3xl font-bold truncate max-w-full">{rs.winner.name}</span>
-                <span className="text-lg text-muted">Fastest right answer · {(rs.winner.elapsedMs / 1000).toFixed(1)}s</span>
+                <Avatar
+                  name={rs.winner.name}
+                  piece={rs.winner.piece}
+                  size={68}
+                />
+                <span className="font-display text-3xl font-bold truncate max-w-full">
+                  {rs.winner.name}
+                </span>
+                <span className="text-lg text-muted">
+                  Fastest right answer ·{" "}
+                  {(rs.winner.elapsedMs / 1000).toFixed(1)}s
+                </span>
                 <SloganBubble text={rs.winner.slogan} kind="win" />
               </>
             ) : (
@@ -1433,11 +2131,15 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
             )}
           </div>
           <div className="panel p-4 flex flex-col items-center text-center gap-1">
-            <span className="font-display text-2xl text-bad">😬 Round loser</span>
+            <span className="font-display text-2xl text-bad">
+              😬 Round loser
+            </span>
             {rs.loser ? (
               <>
                 <Avatar name={rs.loser.name} piece={rs.loser.piece} size={68} />
-                <span className="font-display text-3xl font-bold truncate max-w-full">{rs.loser.name}</span>
+                <span className="font-display text-3xl font-bold truncate max-w-full">
+                  {rs.loser.name}
+                </span>
                 <span className="text-lg text-muted truncate max-w-full">
                   {rs.loser.reason === "missed"
                     ? "Didn't even answer!"
@@ -1448,7 +2150,9 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
                 <SloganBubble text={rs.loser.slogan} kind="lose" />
               </>
             ) : (
-              <span className="text-xl text-muted py-6">No losers this round!</span>
+              <span className="text-xl text-muted py-6">
+                No losers this round!
+              </span>
             )}
           </div>
         </div>
@@ -1458,7 +2162,9 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
         </div>
       </div>
       <TvFooter state={state}>
-        <span className="font-display text-4xl text-accent-2 truncate">{statLine}</span>
+        <span className="font-display text-4xl text-accent-2 truncate">
+          {statLine}
+        </span>
       </TvFooter>
     </div>
   );
@@ -1467,11 +2173,12 @@ function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sf
 // ---------- Full-screen leaderboard (between questions) ----------
 
 type BoardView = BoardId;
-const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] = BOARD_IDS.map((id) => ({
-  id,
-  label: BOARD_INFO[id].label,
-  title: BOARD_INFO[id].title,
-}));
+const BOARD_VIEWS: { id: BoardView; label: string; title: string }[] =
+  BOARD_IDS.map((id) => ({
+    id,
+    label: BOARD_INFO[id].label,
+    title: BOARD_INFO[id].title,
+  }));
 
 const ROTATE_MS = 5000;
 const MANUAL_HOLD_MS = 20000;
@@ -1514,7 +2221,8 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
     setCycle((c) => ({ n: c.n + 1, ms: MANUAL_HOLD_MS, held: true }));
   };
   const round = state.round;
-  const current: BoardView = views.some((v) => v.id === view) && hasRound ? view : views[0].id;
+  const current: BoardView =
+    views.some((v) => v.id === view) && hasRound ? view : views[0].id;
   // "Let's see who nailed that round" the first time the This round page comes up.
   const announcer = useAnnouncer();
   const roundCued = useRef(false);
@@ -1525,14 +2233,29 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
   }, [current, announcer]);
   return (
     <div className="h-full">
-      <TvHeader state={state} center={round ? (round.bonus ? "After the bonus question" : `After question ${round.number} of ${round.total}`) : "Leaderboard"} />
+      <TvHeader
+        state={state}
+        center={
+          round
+            ? round.bonus
+              ? "After the bonus question"
+              : `After question ${round.number} of ${round.total}`
+            : "Leaderboard"
+        }
+      />
       <div className="absolute top-[120px] inset-x-14 bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col items-center gap-2">
-          <h2 key={current} className="font-display text-7xl font-bold gold-text text-center pop-in">
+          <h2
+            key={current}
+            className="font-display text-7xl font-bold gold-text text-center pop-in"
+          >
             {(() => {
               // Emoji sit outside the gold gradient text, otherwise they render as solid gold blobs.
               const t = BOARD_VIEWS.find((v) => v.id === current)!.title;
-              const m = /^(.*?)\s*(\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*)$/u.exec(t);
+              const m =
+                /^(.*?)\s*(\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*)$/u.exec(
+                  t,
+                );
               return m ? (
                 <>
                   {m[1]}{" "}
@@ -1546,7 +2269,11 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
             })()}
           </h2>
           {hasRound && (
-            <div className="flex items-center justify-center flex-wrap gap-2 text-xl" role="tablist" aria-label="Leaderboard pages">
+            <div
+              className="flex items-center justify-center flex-wrap gap-2 text-xl"
+              role="tablist"
+              aria-label="Leaderboard pages"
+            >
               {views.map((v) => {
                 const active = current === v.id;
                 return (
@@ -1561,7 +2288,9 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
                       e.currentTarget.blur();
                     }}
                     className={`relative overflow-hidden rounded-full px-4 py-1 transition-colors ${
-                      active ? "bg-accent text-black font-semibold" : "bg-black/30 text-muted hover:bg-white/15 hover:text-ink"
+                      active
+                        ? "bg-accent text-black font-semibold"
+                        : "bg-black/30 text-muted hover:bg-white/15 hover:text-ink"
                     }`}
                   >
                     {v.label}
@@ -1570,7 +2299,9 @@ function TvLeaderboard({ state }: { state: GameStateDTO }) {
                         key={cycle.n}
                         aria-hidden="true"
                         className={`tab-timer absolute left-0 bottom-0 h-2 ${cycle.held ? "bg-[#b3264f]" : "bg-black/55"}`}
-                        style={{ "--tab-ms": `${cycle.ms}ms` } as React.CSSProperties}
+                        style={
+                          { "--tab-ms": `${cycle.ms}ms` } as React.CSSProperties
+                        }
                       />
                     )}
                   </button>
@@ -1615,7 +2346,8 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
   // The leader gets a double-height spotlight row. With a tie for first (or nobody scoring yet)
   // a spotlight would be misleading, so up to two co-leaders share it and bigger ties use the plain list.
   const leaders = standings.filter((s) => s.rank === 1);
-  const spotlight = leaders.length <= 2 && (leaders[0]?.points ?? 0) > 0 ? leaders : [];
+  const spotlight =
+    leaders.length <= 2 && (leaders[0]?.points ?? 0) > 0 ? leaders : [];
   const rest = standings.slice(spotlight.length);
   const twoCols = spotlight.length ? rest.length > 4 : rest.length > 5;
   const perPage = spotlight.length ? (twoCols ? 10 : 4) : 16;
@@ -1626,85 +2358,138 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
     const id = setInterval(() => setPage((p) => (p + 1) % pages), 4500);
     return () => clearInterval(id);
   }, [pages]);
-  const rows = rest.slice((page % pages) * perPage, (page % pages) * perPage + perPage);
+  const rows = rest.slice(
+    (page % pages) * perPage,
+    (page % pages) * perPage + perPage,
+  );
   const half = twoCols ? Math.ceil(rows.length / 2) : rows.length;
   const cols = twoCols ? [rows.slice(0, half), rows.slice(half)] : [rows];
   const big = !twoCols;
   // A single, clear last place (behind someone, not a tie) gets a little rain cloud.
   const lastRank = standings.length ? standings[standings.length - 1].rank : 0;
   const lastCount = standings.filter((x) => x.rank === lastRank).length;
-  const rainOn = (st: (typeof standings)[number]) => lastRank > 1 && lastCount === 1 && st.rank === lastRank && standings.length >= 3;
+  const rainOn = (st: (typeof standings)[number]) =>
+    lastRank > 1 &&
+    lastCount === 1 &&
+    st.rank === lastRank &&
+    standings.length >= 3;
   return (
     <>
       {spotlight.length > 0 && (
-        <div className={`grid gap-6 w-full mx-auto ${spotlight.length > 1 ? "grid-cols-2" : "grid-cols-1 max-w-[1300px]"}`}>
+        <div
+          className={`grid gap-6 w-full mx-auto ${spotlight.length > 1 ? "grid-cols-2" : "grid-cols-1 max-w-[1300px]"}`}
+        >
           {spotlight.map((s) => {
             const duo = spotlight.length > 1;
             return (
-              <div
-                key={s.playerId}
-                className={`shine flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-inset ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
-                aria-label={`First place: ${s.name}, ${s.points} points`}
-              >
-                {!duo && (
-                  <span className="text-8xl w-[1.2em] text-center" aria-hidden="true">
-                    <span className="crown-drop">👑</span>
+              <div key={s.playerId} className="neon-ring rounded-3xl bg-[#1d1440]">
+                <div
+                  className={`shine flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-inset ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
+                  aria-label={`First place: ${s.name}, ${s.points} points`}
+                >
+                  {!duo && (
+                    <span
+                      className="text-8xl w-[1.2em] text-center"
+                      aria-hidden="true"
+                    >
+                      <span className="crown-drop">👑</span>
+                    </span>
+                  )}
+                  <Avatar
+                    name={s.name}
+                    piece={s.piece}
+                    size={duo ? 150 : 164}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className={`truncate font-display font-bold ${duo ? "text-5xl" : "text-7xl"}`}
+                    >
+                      {duo && (
+                        <span aria-hidden="true">
+                          <span className="crown-drop">👑</span>{" "}
+                        </span>
+                      )}
+                      <SplitText
+                        text={s.name}
+                        effect="pop"
+                        delay={300}
+                        step={45}
+                      />
+                    </div>
+                    <div className="flex gap-5 text-3xl text-muted tabular-nums mt-2 whitespace-nowrap">
+                      {!duo && <span>1st place</span>}
+                      {duo && <span>Tied for 1st</span>}
+                      {s.lastRound != null && (
+                        <span className={s.lastRound > 0 ? "text-good" : ""}>
+                          {s.lastRound > 0
+                            ? `+${s.lastRound.toLocaleString()}`
+                            : "+0"}
+                        </span>
+                      )}
+                      {!duo && s.eligible > 0 && (
+                        <span>{Math.round(s.accuracy * 100)}%</span>
+                      )}
+                    </div>
+                  </div>
+                  <span
+                    className={`font-display font-bold tabular-nums gold-text ${duo ? "text-6xl" : "text-8xl"}`}
+                  >
+                    <CountUp value={s.points} delay={400} />
                   </span>
-                )}
-                <Avatar name={s.name} piece={s.piece} size={duo ? 150 : 164} />
-                <div className="flex-1 min-w-0">
-                  <div className={`truncate font-display font-bold ${duo ? "text-5xl" : "text-7xl"}`}>
-                    {duo && (
-                      <span aria-hidden="true">
-                        <span className="crown-drop">👑</span>{" "}
-                      </span>
-                    )}
-                    <SplitText text={s.name} effect="pop" delay={300} step={45} />
-                  </div>
-                  <div className="flex gap-5 text-3xl text-muted tabular-nums mt-2 whitespace-nowrap">
-                    {!duo && <span>1st place</span>}
-                    {duo && <span>Tied for 1st</span>}
-                    {s.lastRound != null && (
-                      <span className={s.lastRound > 0 ? "text-good" : ""}>{s.lastRound > 0 ? `+${s.lastRound.toLocaleString()}` : "+0"}</span>
-                    )}
-                    {!duo && s.eligible > 0 && <span>{Math.round(s.accuracy * 100)}%</span>}
-                  </div>
                 </div>
-                <span className={`font-display font-bold tabular-nums gold-text ${duo ? "text-6xl" : "text-8xl"}`}>
-                  <CountUp value={s.points} delay={400} />
-                </span>
               </div>
             );
           })}
         </div>
       )}
-      <div className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
+      <div
+        className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}
+      >
         {cols.map((col, ci) => (
-          <ol key={ci} className={`flex flex-col ${twoCols ? "gap-2" : "gap-3"}`}>
+          <ol
+            key={ci}
+            className={`flex flex-col ${twoCols ? "gap-2" : "gap-3"}`}
+          >
             {col.map((s) => (
               <li
                 key={s.playerId}
                 className={`flex items-center gap-4 rounded-2xl px-5 ${big ? "h-[98px] text-4xl" : "h-[72px] text-3xl"} ${
-                  s.rank === 1 ? "bg-accent/25 ring-2 ring-inset ring-accent" : "bg-black/30"
+                  s.rank === 1
+                    ? "bg-accent/25 ring-2 ring-inset ring-accent"
+                    : "bg-black/30"
                 } pop-in`}
               >
-                <span className="font-display font-bold w-[2.2ch] text-center text-accent-2">{s.rank}</span>
+                <span className="font-display font-bold w-[2.2ch] text-center text-accent-2">
+                  {s.rank}
+                </span>
                 <Avatar name={s.name} piece={s.piece} size={big ? 76 : 60} />
                 <span className="flex-1 min-w-0 truncate font-display font-semibold">
                   {s.name}
                   {rainOn(s) && (
-                    <span className="rain-cloud ml-3" role="img" aria-label="last place">
+                    <span
+                      className="rain-cloud ml-3"
+                      role="img"
+                      aria-label="last place"
+                    >
                       🌧️
                     </span>
                   )}
                 </span>
                 {s.lastRound !== undefined && s.lastRound !== null && (
-                  <span className={`text-2xl tabular-nums ${s.lastRound > 0 ? "text-good" : "text-muted"}`}>
-                    {s.lastRound > 0 ? `+${s.lastRound.toLocaleString()}` : "+0"}
+                  <span
+                    className={`text-2xl tabular-nums ${s.lastRound > 0 ? "text-good" : "text-muted"}`}
+                  >
+                    {s.lastRound > 0
+                      ? `+${s.lastRound.toLocaleString()}`
+                      : "+0"}
                   </span>
                 )}
-                <span className="text-2xl text-muted tabular-nums whitespace-nowrap">{s.eligible ? `${Math.round(s.accuracy * 100)}%` : "–"}</span>
-                <span className="font-display font-bold tabular-nums w-[5ch] text-right">{s.points.toLocaleString()}</span>
+                <span className="text-2xl text-muted tabular-nums whitespace-nowrap">
+                  {s.eligible ? `${Math.round(s.accuracy * 100)}%` : "–"}
+                </span>
+                <span className="font-display font-bold tabular-nums w-[5ch] text-right">
+                  {s.points.toLocaleString()}
+                </span>
               </li>
             ))}
           </ol>
@@ -1746,22 +2531,34 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
   return (
     <>
       <p className="text-center text-3xl text-muted -mt-1">
-        {toGo > 0 ? `${toGo} question${toGo === 1 ? "" : "s"} to go. Who's your money on?` : "Down the final stretch!"}
+        {toGo > 0
+          ? `${toGo} question${toGo === 1 ? "" : "s"} to go. Who's your money on?`
+          : "Down the final stretch!"}
       </p>
       <div className="relative mx-auto w-full max-w-[1760px] rounded-3xl overflow-hidden border-4 border-white/70 bg-[#2f7d3a] shadow-2xl">
         {/* Finish line */}
         <div
           className="absolute top-0 bottom-0 right-[190px] w-6 z-10"
-          style={{ background: "repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / 12px 12px" }}
+          style={{
+            background:
+              "repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / 12px 12px",
+          }}
           aria-hidden="true"
         />
         <ol aria-label="Horse race standings">
           {standings.map((s, i) => {
             const pct = s.points <= 0 ? 0 : (s.points / top) * 0.86;
             const share = weights[i] / sum;
-            const fav = i === 0 && s.points > 0 && (standings[1]?.points ?? -1) < s.points;
+            const fav =
+              i === 0 &&
+              s.points > 0 &&
+              (standings[1]?.points ?? -1) < s.points;
             const odds = Math.max(1, Math.round((1 - share) / share));
-            const oddsText = fav ? "Favorite" : odds >= 50 ? "Long shot" : `${odds}–1`;
+            const oddsText = fav
+              ? "Favorite"
+              : odds >= 50
+                ? "Long shot"
+                : `${odds}–1`;
             return (
               <li
                 key={s.playerId}
@@ -1769,8 +2566,14 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
                 style={{ height: laneH }}
               >
                 <span className="w-[300px] flex-none flex items-center gap-3 pl-4 pr-2 bg-black/35 h-full">
-                  <span className="font-display text-3xl text-accent-2 w-[1.6ch] text-right">{s.rank}</span>
-                  <span className={`truncate font-display font-semibold ${laneH < 56 ? "text-2xl" : "text-3xl"}`}>{s.name}</span>
+                  <span className="font-display text-3xl text-accent-2 w-[1.6ch] text-right">
+                    {s.rank}
+                  </span>
+                  <span
+                    className={`truncate font-display font-semibold ${laneH < 56 ? "text-2xl" : "text-3xl"}`}
+                  >
+                    {s.name}
+                  </span>
                 </span>
                 <span className="relative flex-1 h-full">
                   {/* Trail: a line under each runner from the gate to where they are now. */}
@@ -1778,7 +2581,9 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
                     aria-hidden="true"
                     className="absolute left-0 bottom-[3px] h-[6px] rounded-full bg-gradient-to-r from-white/10 via-white/50 to-accent ease-out"
                     style={{
-                      width: go ? `calc(${pct * 100}% - ${pct * av}px + ${av / 2}px)` : 0,
+                      width: go
+                        ? `calc(${pct * 100}% - ${pct * av}px + ${av / 2}px)`
+                        : 0,
                       transition: `width ${RACE_MS}ms cubic-bezier(.25,.8,.3,1) ${i * RACE_STAGGER}ms`,
                     }}
                   />
@@ -1798,16 +2603,30 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
                     </span>
                   </span>
                 </span>
-                <span className={`w-[190px] flex-none tabular-nums ${compact ? "flex items-baseline justify-center gap-2" : "text-center"}`}>
-                  <span className={`font-display font-bold leading-none ${compact ? "text-2xl" : "block text-3xl"}`}>{oddsText}</span>
-                  <span className={`text-white/80 ${compact ? "text-lg" : "block text-xl"}`}>{compact ? s.points.toLocaleString() : `${s.points.toLocaleString()} pts`}</span>
+                <span
+                  className={`w-[190px] flex-none tabular-nums ${compact ? "flex items-baseline justify-center gap-2" : "text-center"}`}
+                >
+                  <span
+                    className={`font-display font-bold leading-none ${compact ? "text-2xl" : "block text-3xl"}`}
+                  >
+                    {oddsText}
+                  </span>
+                  <span
+                    className={`text-white/80 ${compact ? "text-lg" : "block text-xl"}`}
+                  >
+                    {compact
+                      ? s.points.toLocaleString()
+                      : `${s.points.toLocaleString()} pts`}
+                  </span>
                 </span>
               </li>
             );
           })}
         </ol>
       </div>
-      <p className="text-center text-xl text-muted">Odds are just for fun. Bragging rights only!</p>
+      <p className="text-center text-xl text-muted">
+        Odds are just for fun. Bragging rights only!
+      </p>
     </>
   );
 }
@@ -1815,27 +2634,63 @@ function BetsBoard({ state }: { state: GameStateDTO }) {
 const RESULT_STYLE = {
   right: { mark: "✓", cls: "bg-good/30 border-good text-good", label: "right" },
   wrong: { mark: "✗", cls: "bg-bad/20 border-bad text-bad", label: "wrong" },
-  missed: { mark: "–", cls: "bg-black/30 border-white/20 text-muted", label: "no answer" },
-  subject: { mark: "★", cls: "bg-accent/20 border-accent text-accent-2", label: "question about them" },
+  missed: {
+    mark: "–",
+    cls: "bg-black/30 border-white/20 text-muted",
+    label: "no answer",
+  },
+  subject: {
+    mark: "★",
+    cls: "bg-accent/20 border-accent text-accent-2",
+    label: "question about them",
+  },
 } as const;
 
 /** The last page: everything about the current leader, round by round. */
-const FIELD_COLORS = ["#7dd3fc", "#f9a8d4", "#86efac", "#c4b5fd", "#fdba74", "#67e8f9", "#fca5a5", "#bef264", "#a5b4fc", "#fcd34d", "#5eead4", "#f0abfc"];
+const FIELD_COLORS = [
+  "#7dd3fc",
+  "#f9a8d4",
+  "#86efac",
+  "#c4b5fd",
+  "#fdba74",
+  "#67e8f9",
+  "#fca5a5",
+  "#bef264",
+  "#a5b4fc",
+  "#fcd34d",
+  "#5eead4",
+  "#f0abfc",
+];
 
 /** The last page: everything about the current leader, round by round, against the whole field. */
 function LeaderBoardPage({ state }: { state: GameStateDTO }) {
   const run = state.stats!.leaderRun!;
-  const accuracy = run.eligible ? Math.round((run.correct / run.eligible) * 100) : 0;
+  const accuracy = run.eligible
+    ? Math.round((run.correct / run.eligible) * 100)
+    : 0;
   const recent = run.history.slice(-12);
-  const field = run.field.length ? run.field : [{ playerId: run.playerId, name: run.name, piece: run.piece, ranks: run.history.map((h) => h.rank) }];
+  const field = run.field.length
+    ? run.field
+    : [
+        {
+          playerId: run.playerId,
+          name: run.name,
+          piece: run.piece,
+          ranks: run.history.map((h) => h.rank),
+        },
+      ];
   const maxRank = Math.max(2, ...field.flatMap((f) => f.ranks));
   const W = 1040;
   const Hh = 250;
   const padR = 70; // room for the end-of-line pieces
   const n = run.history.length;
-  const x = (i: number) => (n <= 1 ? (W - padR) / 2 : 36 + (i * (W - padR - 50)) / (n - 1));
+  const x = (i: number) =>
+    n <= 1 ? (W - padR) / 2 : 36 + (i * (W - padR - 50)) / (n - 1);
   const y = (rank: number) => 18 + ((rank - 1) * (Hh - 36)) / (maxRank - 1);
-  const pathFor = (ranks: number[]) => ranks.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
+  const pathFor = (ranks: number[]) =>
+    ranks
+      .map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r).toFixed(1)}`)
+      .join(" ");
   const others = field.filter((f) => f.playerId !== run.playerId);
   // End-of-line pieces: players sharing a final rank are fanned out sideways so none hide another.
   const ends = new Map<number, number>();
@@ -1849,22 +2704,45 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
   return (
     <div className="flex gap-8 flex-1 min-h-0 max-w-[1760px] w-full mx-auto">
       <div className="panel-strong w-[560px] flex-none flex flex-col items-center justify-center gap-3 px-6 py-4 ring-4 ring-inset ring-accent overflow-hidden">
-        <span className="text-5xl leading-none leader-float" style={{ animationDelay: "-0.4s" }} aria-hidden="true">
+        <span
+          className="text-5xl leading-none leader-float"
+          style={{ animationDelay: "-0.4s" }}
+          aria-hidden="true"
+        >
           👑
         </span>
         <span className="leader-float">
           <Avatar name={run.name} piece={run.piece} size={200} />
         </span>
-        <span className="font-display text-6xl font-bold text-center leading-tight">{run.name}</span>
-        <span className="text-3xl text-muted">{run.tied ? "Tied for 1st" : "In 1st place"}</span>
-        <span className="font-display text-7xl font-bold gold-text tabular-nums pop-in">{run.points.toLocaleString()}</span>
+        <span className="font-display text-6xl font-bold text-center leading-tight">
+          {run.name}
+        </span>
+        <span className="text-3xl text-muted">
+          {run.tied ? "Tied for 1st" : "In 1st place"}
+        </span>
+        <span className="font-display text-7xl font-bold gold-text tabular-nums pop-in">
+          {run.points.toLocaleString()}
+        </span>
         <div className="grid grid-cols-3 gap-3 w-full text-center">
           {[
-            { big: `${accuracy}%`, small: `${run.correct} of ${run.eligible} right` },
+            {
+              big: `${accuracy}%`,
+              small: `${run.correct} of ${run.eligible} right`,
+            },
             { big: `🔥 ${run.bestStreak}`, small: "best streak" },
-            { big: run.avgCorrectMs === null ? "–" : `${(run.avgCorrectMs / 1000).toFixed(1)}s`, small: "avg right answer" },
+            {
+              big:
+                run.avgCorrectMs === null
+                  ? "–"
+                  : `${(run.avgCorrectMs / 1000).toFixed(1)}s`,
+              small: "avg right answer",
+            },
           ].map((c, i) => (
-            <div key={c.small} className="rounded-2xl bg-black/30 py-2 tile-in" style={{ animationDelay: `${300 + i * 120}ms` }}>
+            <div
+              key={c.small}
+              className="rounded-2xl bg-black/30 py-2 tile-in"
+              style={{ animationDelay: `${300 + i * 120}ms` }}
+            >
               <div className="font-display text-4xl font-bold">{c.big}</div>
               <div className="text-lg text-muted">{c.small}</div>
             </div>
@@ -1874,7 +2752,10 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="panel p-4">
           <h3 className="font-display text-3xl">
-            Where everyone stood after each question <span className="text-2xl text-accent-2 font-sans">· gold = {run.name}</span>
+            Where everyone stood after each question{" "}
+            <span className="text-2xl text-accent-2 font-sans">
+              · gold = {run.name}
+            </span>
           </h3>
           <div className="relative w-full" style={{ height: Hh }}>
             <svg
@@ -1885,7 +2766,15 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
               aria-label={`${run.name}'s rank after each question: ${run.history.map((h) => h.rank).join(", ")}`}
             >
               {Array.from({ length: maxRank }, (_, r) => (
-                <line key={r} x1={30} x2={W - padR + 10} y1={y(r + 1)} y2={y(r + 1)} stroke="rgba(255,255,255,0.08)" strokeWidth={2} />
+                <line
+                  key={r}
+                  x1={30}
+                  x2={W - padR + 10}
+                  y1={y(r + 1)}
+                  y2={y(r + 1)}
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth={2}
+                />
               ))}
               {others.map((f, i) => (
                 <path
@@ -1893,7 +2782,12 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
                   d={pathFor(f.ranks)}
                   pathLength={1}
                   className="draw-line"
-                  style={{ ["--len" as string]: 1, animationDelay: `${i * 60}ms` } as React.CSSProperties}
+                  style={
+                    {
+                      ["--len" as string]: 1,
+                      animationDelay: `${i * 60}ms`,
+                    } as React.CSSProperties
+                  }
                   fill="none"
                   stroke={FIELD_COLORS[i % FIELD_COLORS.length]}
                   strokeOpacity={0.55}
@@ -1907,7 +2801,12 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
                 d={pathFor(run.history.map((h) => h.rank))}
                 pathLength={1}
                 className="draw-line"
-                style={{ ["--len" as string]: 1, animationDelay: "250ms" } as React.CSSProperties}
+                style={
+                  {
+                    ["--len" as string]: 1,
+                    animationDelay: "250ms",
+                  } as React.CSSProperties
+                }
                 fill="none"
                 stroke="#f5c542"
                 strokeWidth={8}
@@ -1916,10 +2815,16 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
-            <span className="absolute left-0 text-xl text-muted" style={{ top: `calc(${(y(1) / Hh) * 100}% - 0.7em)` }}>
+            <span
+              className="absolute left-0 text-xl text-muted"
+              style={{ top: `calc(${(y(1) / Hh) * 100}% - 0.7em)` }}
+            >
               1
             </span>
-            <span className="absolute left-0 text-xl text-muted" style={{ top: `calc(${(y(maxRank) / Hh) * 100}% - 0.7em)` }}>
+            <span
+              className="absolute left-0 text-xl text-muted"
+              style={{ top: `calc(${(y(maxRank) / Hh) * 100}% - 0.7em)` }}
+            >
               {maxRank}
             </span>
             {endPos.map(({ f, r, k }) => (
@@ -1933,14 +2838,21 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
                 }}
                 title={f.name}
               >
-                <Avatar name={f.name} piece={f.piece} size={f.playerId === run.playerId ? endSize + 12 : endSize} />
+                <Avatar
+                  name={f.name}
+                  piece={f.piece}
+                  size={f.playerId === run.playerId ? endSize + 12 : endSize}
+                />
               </span>
             ))}
           </div>
         </div>
         <div className="panel p-4 flex-1 min-h-0 overflow-hidden">
           <h3 className="font-display text-3xl mb-3">
-            {run.name}&apos;s questions{run.history.length > recent.length ? ` (last ${recent.length})` : ""}
+            {run.name}&apos;s questions
+            {run.history.length > recent.length
+              ? ` (last ${recent.length})`
+              : ""}
           </h3>
           <ol className="grid grid-cols-6 gap-3">
             {recent.map((h, i) => {
@@ -1953,14 +2865,26 @@ function LeaderBoardPage({ state }: { state: GameStateDTO }) {
                   aria-label={`Question ${h.number}: ${st.label}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-accent text-black font-display font-bold text-2xl px-3 leading-snug">Q{h.number}</span>
-                    <span className="font-display text-4xl font-bold leading-none">{st.mark}</span>
+                    <span className="rounded-full bg-accent text-black font-display font-bold text-2xl px-3 leading-snug">
+                      Q{h.number}
+                    </span>
+                    <span className="font-display text-4xl font-bold leading-none">
+                      {st.mark}
+                    </span>
                   </div>
                   <div className="flex items-baseline justify-between gap-2 mt-1 whitespace-nowrap">
                     <span className="text-xl text-ink tabular-nums">
-                      {h.result === "subject" ? "About them" : h.points > 0 ? `+${h.points.toLocaleString()}` : "+0"}
+                      {h.result === "subject"
+                        ? "About them"
+                        : h.points > 0
+                          ? `+${h.points.toLocaleString()}`
+                          : "+0"}
                     </span>
-                    {h.elapsedMs !== null && <span className="text-lg text-muted tabular-nums">{(h.elapsedMs / 1000).toFixed(1)}s</span>}
+                    {h.elapsedMs !== null && (
+                      <span className="text-lg text-muted tabular-nums">
+                        {(h.elapsedMs / 1000).toFixed(1)}s
+                      </span>
+                    )}
                   </div>
                 </li>
               );
@@ -1981,9 +2905,20 @@ function ReactionBoard({ state }: { state: GameStateDTO }) {
   const reveal = state.reveal!;
   const guessed = new Map(reveal.guesses.map((g) => [g.playerId, g]));
   const times = reveal.guesses.map((g) => g.elapsedMs).sort((a, b) => a - b);
-  const cutoff = times.length >= 2 ? times[Math.floor((times.length - 1) / 2)] : round.durationMs / 2;
-  type Entry = { id: string; name: string; piece: string | null; ms: number | null };
-  const boxes: Record<"fastRight" | "fastWrong" | "slowRight" | "slowWrong", Entry[]> = {
+  const cutoff =
+    times.length >= 2
+      ? times[Math.floor((times.length - 1) / 2)]
+      : round.durationMs / 2;
+  type Entry = {
+    id: string;
+    name: string;
+    piece: string | null;
+    ms: number | null;
+  };
+  const boxes: Record<
+    "fastRight" | "fastWrong" | "slowRight" | "slowWrong",
+    Entry[]
+  > = {
     fastRight: [],
     fastWrong: [],
     slowRight: [],
@@ -1992,16 +2927,60 @@ function ReactionBoard({ state }: { state: GameStateDTO }) {
   for (const p of state.players ?? []) {
     if (p.id === round.subjectPlayerId) continue;
     const g = guessed.get(p.id);
-    const e: Entry = { id: p.id, name: p.name, piece: p.piece, ms: g ? g.elapsedMs : null };
+    const e: Entry = {
+      id: p.id,
+      name: p.name,
+      piece: p.piece,
+      ms: g ? g.elapsedMs : null,
+    };
     const fast = g ? g.elapsedMs <= cutoff : false;
-    boxes[fast ? (g!.correct ? "fastRight" : "fastWrong") : g?.correct ? "slowRight" : "slowWrong"].push(e);
+    boxes[
+      fast
+        ? g!.correct
+          ? "fastRight"
+          : "fastWrong"
+        : g?.correct
+          ? "slowRight"
+          : "slowWrong"
+    ].push(e);
   }
-  for (const list of Object.values(boxes)) list.sort((a, b) => (a.ms ?? Infinity) - (b.ms ?? Infinity));
-  const cells: { key: keyof typeof boxes; emoji: string; title: string; sub: string; tone: string }[] = [
-    { key: "fastRight", emoji: "⚡", title: "Quick & right", sub: "Lightning brains", tone: "bg-good/25 border-good" },
-    { key: "fastWrong", emoji: "🙈", title: "Quick & wrong", sub: "Trigger happy", tone: "bg-bad/20 border-bad" },
-    { key: "slowRight", emoji: "🐢", title: "Slow & right", sub: "Slow and steady", tone: "bg-good/10 border-good/60" },
-    { key: "slowWrong", emoji: "🫠", title: "Slow & wrong", sub: "Took their time… still wrong", tone: "bg-black/30 border-white/20" },
+  for (const list of Object.values(boxes))
+    list.sort((a, b) => (a.ms ?? Infinity) - (b.ms ?? Infinity));
+  const cells: {
+    key: keyof typeof boxes;
+    emoji: string;
+    title: string;
+    sub: string;
+    tone: string;
+  }[] = [
+    {
+      key: "fastRight",
+      emoji: "⚡",
+      title: "Quick & right",
+      sub: "Lightning brains",
+      tone: "bg-good/25 border-good",
+    },
+    {
+      key: "fastWrong",
+      emoji: "🙈",
+      title: "Quick & wrong",
+      sub: "Trigger happy",
+      tone: "bg-bad/20 border-bad",
+    },
+    {
+      key: "slowRight",
+      emoji: "🐢",
+      title: "Slow & right",
+      sub: "Slow and steady",
+      tone: "bg-good/10 border-good/60",
+    },
+    {
+      key: "slowWrong",
+      emoji: "🫠",
+      title: "Slow & wrong",
+      sub: "Took their time… still wrong",
+      tone: "bg-black/30 border-white/20",
+    },
   ];
   // Bigger chips when the busiest box has room for them.
   const many = Math.max(...Object.values(boxes).map((b) => b.length)) > 4;
@@ -2012,30 +2991,56 @@ function ReactionBoard({ state }: { state: GameStateDTO }) {
       </p>
       <div className="grid grid-cols-[auto_1fr_1fr] grid-rows-[auto_1fr_1fr] gap-3 flex-1 min-h-0 max-w-[1700px] w-full mx-auto">
         <span />
-        <span className="text-center font-display text-3xl text-good">✓ Right</span>
-        <span className="text-center font-display text-3xl text-bad">✗ Wrong</span>
+        <span className="text-center font-display text-3xl text-good">
+          ✓ Right
+        </span>
+        <span className="text-center font-display text-3xl text-bad">
+          ✗ Wrong
+        </span>
         {(["Quick", "Slow"] as const).map((rowLabel, ri) => (
           <Fragment key={rowLabel}>
             <span className="font-display text-3xl text-accent-2 self-center [writing-mode:vertical-rl] rotate-180">
               {rowLabel === "Quick" ? "⚡ Quick" : "🐢 Slow"}
             </span>
             {cells.slice(ri * 2, ri * 2 + 2).map((c) => (
-              <div key={c.key} className={`rounded-3xl border-2 ${c.tone} px-5 py-3 flex flex-col gap-2 min-h-0 overflow-hidden pop-in`}>
+              <div
+                key={c.key}
+                className={`rounded-3xl border-2 ${c.tone} px-5 py-3 flex flex-col gap-2 min-h-0 overflow-hidden pop-in`}
+              >
                 <div className="flex items-baseline gap-3">
                   <span className="font-display text-4xl font-bold whitespace-nowrap">
                     {c.emoji} {c.title}
                   </span>
                   <span className="text-2xl text-muted truncate">{c.sub}</span>
-                  <span className="ml-auto font-display text-4xl text-accent-2">{boxes[c.key].length}</span>
+                  <span className="ml-auto font-display text-4xl text-accent-2">
+                    {boxes[c.key].length}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2 content-start">
-                  {boxes[c.key].length === 0 && <span className="text-2xl text-muted">Nobody</span>}
+                  {boxes[c.key].length === 0 && (
+                    <span className="text-2xl text-muted">Nobody</span>
+                  )}
                   {boxes[c.key].map((e) => (
-                    <span key={e.id} className="inline-flex items-center gap-2 rounded-full bg-black/30 pl-1 pr-5 py-1 pop-in">
-                      <Avatar name={e.name} piece={e.piece} size={many ? 64 : 84} />
-                      <span className={`font-display font-semibold ${many ? "text-2xl" : "text-3xl"}`}>{e.name}</span>
-                      <span className={`tabular-nums text-muted ${many ? "text-xl" : "text-2xl"}`}>
-                        {e.ms === null ? "no answer" : `${(e.ms / 1000).toFixed(1)}s`}
+                    <span
+                      key={e.id}
+                      className="inline-flex items-center gap-2 rounded-full bg-black/30 pl-1 pr-5 py-1 pop-in"
+                    >
+                      <Avatar
+                        name={e.name}
+                        piece={e.piece}
+                        size={many ? 64 : 84}
+                      />
+                      <span
+                        className={`font-display font-semibold ${many ? "text-2xl" : "text-3xl"}`}
+                      >
+                        {e.name}
+                      </span>
+                      <span
+                        className={`tabular-nums text-muted ${many ? "text-xl" : "text-2xl"}`}
+                      >
+                        {e.ms === null
+                          ? "no answer"
+                          : `${(e.ms / 1000).toFixed(1)}s`}
                       </span>
                     </span>
                   ))}
@@ -2056,7 +3061,9 @@ type HistoryEntry = BoardsDTO["history"][number];
 function currentAsHistory(state: GameStateDTO): HistoryEntry {
   const round = state.round!;
   const reveal = state.reveal!;
-  const pts = new Map((state.standings ?? []).map((s) => [s.playerId, s.lastRound ?? 0]));
+  const pts = new Map(
+    (state.standings ?? []).map((s) => [s.playerId, s.lastRound ?? 0]),
+  );
   const guessed = new Map(reveal.guesses.map((g) => [g.playerId, g]));
   const rows = (state.players ?? [])
     .filter((p) => p.id !== round.subjectPlayerId)
@@ -2084,8 +3091,18 @@ function currentAsHistory(state: GameStateDTO): HistoryEntry {
     number: round.number,
     roundId: round.id,
     questionText: round.questionText,
-    subject: round.bonus ? { ...BONUS_PERSON } : { playerId: round.subjectPlayerId ?? "", name: reveal.subjectName, piece: reveal.subjectPiece },
-    answer: round.options.find((o) => o.id === reveal.correctOptionId)?.label ?? reveal.answerText,
+    subject: round.bonus
+      ? { ...BONUS_PERSON }
+      : reveal.subjectName
+        ? {
+            playerId: round.subjectPlayerId ?? "",
+            name: reveal.subjectName,
+            piece: reveal.subjectPiece,
+          }
+        : { ...QUIZ_PERSON },
+    answer:
+      round.options.find((o) => o.id === reveal.correctOptionId)?.label ??
+      reveal.answerText,
     durationMs: round.durationMs,
     right: reveal.roundStats.correct,
     eligible: reveal.roundStats.eligible,
@@ -2097,9 +3114,17 @@ function currentAsHistory(state: GameStateDTO): HistoryEntry {
  * "This round": everyone's pick for the question just revealed, with ‹ › to step back through
  * every earlier question (browsing holds the leaderboard rotation, like clicking a tab).
  */
-function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => void }) {
+function RoundBoard({
+  state,
+  onBrowse,
+}: {
+  state: GameStateDTO;
+  onBrowse: () => void;
+}) {
   const latest = currentAsHistory(state);
-  const past = (state.stats?.boards?.history ?? []).filter((h) => h.roundId !== latest.roundId);
+  const past = (state.stats?.boards?.history ?? []).filter(
+    (h) => h.roundId !== latest.roundId,
+  );
   const all = [...past, latest];
   const [back, setBack] = useState(0); // 0 = the question just revealed
   const idx = Math.max(0, all.length - 1 - back);
@@ -2126,16 +3151,27 @@ function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => 
         >
           ‹
         </button>
-        <div key={h.roundId} className="panel-strong px-6 py-3 flex items-center gap-5 flex-1 min-w-0 tile-in">
+        <div
+          key={h.roundId}
+          className="panel-strong px-6 py-3 flex items-center gap-5 flex-1 min-w-0 tile-in"
+        >
           <Avatar name={h.subject.name} piece={h.subject.piece} size={72} />
           <div className="min-w-0 flex-1">
             <p className="text-2xl text-muted truncate">
-              <span className="rounded-full bg-accent text-black font-display font-bold px-3 mr-2">Q{h.number}</span>
+              <span className="rounded-full bg-accent text-black font-display font-bold px-3 mr-2">
+                Q{h.number}
+              </span>
               {h.questionText}
             </p>
             <p className="font-display text-4xl font-bold truncate">
               <span className="gold-text">{h.answer}</span>
-              {h.subject.piece !== BONUS_PIECE && <span className="text-2xl text-muted font-sans font-normal"> · {h.subject.name}&apos;s answer</span>}
+              {h.subject.piece !== BONUS_PIECE &&
+                h.subject.piece !== TRIVIA_PIECE && (
+                  <span className="text-2xl text-muted font-sans font-normal">
+                    {" "}
+                    · {h.subject.name}&apos;s answer
+                  </span>
+                )}
             </p>
           </div>
           <span className="font-display text-3xl text-accent-2 whitespace-nowrap">
@@ -2171,7 +3207,10 @@ function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => 
           </button>
         </p>
       )}
-      <div key={`rows-${h.roundId}`} className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}>
+      <div
+        key={`rows-${h.roundId}`}
+        className={`grid gap-6 ${twoCols ? "grid-cols-2" : "grid-cols-1 max-w-[1300px] w-full mx-auto"}`}
+      >
         {cols.map((col, ci) => (
           <ol key={ci} className="flex flex-col gap-2.5">
             {col.map((r) => {
@@ -2181,18 +3220,31 @@ function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => 
                   key={r.playerId}
                   className={`flex items-center gap-3 rounded-2xl px-4 py-2 text-2xl pop-in ${r.correct ? "bg-good/20" : "bg-black/30"}`}
                 >
-                  <span className={`font-bold text-3xl w-[1.2ch] ${r.correct ? "text-good" : "text-bad"}`} aria-label={r.correct ? "correct" : "wrong"}>
+                  <span
+                    className={`font-bold text-3xl w-[1.2ch] ${r.correct ? "text-good" : "text-bad"}`}
+                    aria-label={r.correct ? "correct" : "wrong"}
+                  >
                     {r.correct ? "✓" : "✗"}
                   </span>
                   <Avatar name={r.name} piece={r.piece} size={56} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-display text-3xl font-semibold">{r.name}</span>
-                    <span className="block truncate text-xl text-muted">{r.letter ? `${r.letter}: ${r.label}` : "Didn't answer"}</span>
+                    <span className="block truncate font-display text-3xl font-semibold">
+                      {r.name}
+                    </span>
+                    <span className="block truncate text-xl text-muted">
+                      {r.letter ? `${r.letter}: ${r.label}` : "Didn't answer"}
+                    </span>
                   </span>
-                  <span className={`tabular-nums whitespace-nowrap ${late ? "text-bad font-semibold" : "text-muted"}`}>
-                    {r.elapsedMs !== null ? `${late ? "🚨 " : ""}${(r.elapsedMs / 1000).toFixed(1)}s` : "—"}
+                  <span
+                    className={`tabular-nums whitespace-nowrap ${late ? "text-bad font-semibold" : "text-muted"}`}
+                  >
+                    {r.elapsedMs !== null
+                      ? `${late ? "🚨 " : ""}${(r.elapsedMs / 1000).toFixed(1)}s`
+                      : "—"}
                   </span>
-                  <span className={`font-display font-bold tabular-nums w-[5ch] text-right ${r.points > 0 ? "text-good" : "text-muted"}`}>
+                  <span
+                    className={`font-display font-bold tabular-nums w-[5ch] text-right ${r.points > 0 ? "text-good" : "text-muted"}`}
+                  >
                     +{r.points.toLocaleString()}
                   </span>
                 </li>
@@ -2207,7 +3259,13 @@ function RoundBoard({ state, onBrowse }: { state: GameStateDTO; onBrowse: () => 
 
 // ---------- Final: awards, then podium ----------
 
-function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) {
+function TvFinal({
+  state,
+  reduced,
+}: {
+  state: GameStateDTO;
+  reduced: boolean;
+}) {
   const standings = state.standings ?? [];
   const winners = standings.filter((s) => s.rank === 1);
   const awards = state.stats?.awards ?? [];
@@ -2221,17 +3279,26 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
     if (said.current || !announcer) return;
     said.current = true;
     if (awards.length) void announcer.crown();
-    else void announcer.extra(Math.random() < 0.5 ? "game-over" : "game-over-2", true);
+    else
+      void announcer.extra(
+        Math.random() < 0.5 ? "game-over" : "game-over-2",
+        true,
+      );
   }, [announcer, awards.length]);
   useEffect(() => {
     if (showPodium) return;
     let alive = true;
-    const id = setTimeout(async () => {
-      if (announcer) await announcer.champion();
-      if (!alive) return;
-      setAwardsDone(true);
-      void announcer?.extra(Math.random() < 0.5 ? "game-over" : "game-over-2");
-    }, Math.min(16000, 5000 + awards.length * 2000));
+    const id = setTimeout(
+      async () => {
+        if (announcer) await announcer.champion();
+        if (!alive) return;
+        setAwardsDone(true);
+        void announcer?.extra(
+          Math.random() < 0.5 ? "game-over" : "game-over-2",
+        );
+      },
+      Math.min(16000, 5000 + awards.length * 2000),
+    );
     return () => {
       alive = false;
       clearTimeout(id);
@@ -2242,10 +3309,25 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
     if (reduced || !showPodium) return;
     const end = Date.now() + 4000;
     let raf = 0;
-    const colors = state.theme === "thanksgiving" ? ["#f28c28", "#a3203a", "#ffc46b", "#fff6e6"] : ["#f5c542", "#ffffff", "#7c5cff", "#ff5d8f"];
+    const colors =
+      state.theme === "thanksgiving"
+        ? ["#f28c28", "#a3203a", "#ffc46b", "#fff6e6"]
+        : ["#f5c542", "#ffffff", "#7c5cff", "#ff5d8f"];
     const frame = () => {
-      confetti({ particleCount: 6, angle: 60, spread: 70, origin: { x: 0, y: 0.7 }, colors });
-      confetti({ particleCount: 6, angle: 120, spread: 70, origin: { x: 1, y: 0.7 }, colors });
+      confetti({
+        particleCount: 6,
+        angle: 60,
+        spread: 70,
+        origin: { x: 0, y: 0.7 },
+        colors,
+      });
+      confetti({
+        particleCount: 6,
+        angle: 120,
+        spread: 70,
+        origin: { x: 1, y: 0.7 },
+        colors,
+      });
       if (Date.now() < end) raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
@@ -2259,16 +3341,26 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
     return (
       <div className="h-full flex flex-col px-16 pt-10 pb-16 gap-8 overflow-hidden">
         <div className="text-center">
-          <p className="font-display text-4xl text-accent-2">Before we crown a winner…</p>
-          <h2 className="font-display text-8xl font-bold gold-text">The Awards</h2>
+          <p className="font-display text-4xl text-accent-2">
+            Before we crown a winner…
+          </p>
+          <h2 className="font-display text-8xl font-bold gold-text">
+            The Awards
+          </h2>
         </div>
         <div className="grid grid-cols-3 gap-6 content-start">
           {awards.map((a, i) => (
-            <div key={a.key} className="panel p-6 flex flex-col items-center text-center gap-2 rise" style={{ animationDelay: `${i * 700}ms` }}>
+            <div
+              key={a.key}
+              className="panel p-6 flex flex-col items-center text-center gap-2 rise"
+              style={{ animationDelay: `${i * 700}ms` }}
+            >
               <span className="text-6xl" aria-hidden="true">
                 {a.emoji}
               </span>
-              <span className="font-display text-3xl text-accent-2">{a.title}</span>
+              <span className="font-display text-3xl text-accent-2">
+                {a.title}
+              </span>
               <Avatar name={a.name} piece={a.piece} size={120} />
               <span className="font-display text-4xl font-bold">{a.name}</span>
               <span className="text-2xl text-muted">{a.detail}</span>
@@ -2295,13 +3387,24 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
         {winners.length > 0 && winners.length <= 2 && (
           <div className="flex justify-center gap-10 mt-3">
             {winners.map((w) => {
-              const slogan = state.players?.find((p) => p.id === w.playerId)?.winSlogan;
+              const slogan = state.players?.find(
+                (p) => p.id === w.playerId,
+              )?.winSlogan;
               return slogan ? (
-                <p key={w.playerId} className="font-display text-5xl font-bold slogan-pop" style={{ animationDelay: "0.6s" }}>
+                <p
+                  key={w.playerId}
+                  className="font-display text-5xl font-bold slogan-pop"
+                  style={{ animationDelay: "0.6s" }}
+                >
                   <span className="text-accent-2">“</span>
                   {slogan}
                   <span className="text-accent-2">”</span>
-                  {winners.length > 1 && <span className="text-3xl text-muted font-sans font-normal"> {w.name}</span>}
+                  {winners.length > 1 && (
+                    <span className="text-3xl text-muted font-sans font-normal">
+                      {" "}
+                      {w.name}
+                    </span>
+                  )}
                 </p>
               ) : null;
             })}
@@ -2312,12 +3415,19 @@ function TvFinal({ state, reduced }: { state: GameStateDTO; reduced: boolean }) 
         <div className="flex flex-col justify-end items-center gap-6">
           <Podium standings={standings} size="tv" />
           <p className="text-3xl text-muted">
-            Thanks for playing, everyone. What a {state.familyName ? `${state.familyName} family` : "family"}!
+            Thanks for playing, everyone. What a{" "}
+            {state.familyName ? `${state.familyName} family` : "family"}!
           </p>
         </div>
         <div className="panel p-6 flex flex-col gap-4 min-h-0">
           <h3 className="font-display text-4xl font-bold">Everyone</h3>
-          <Leaderboard standings={standings} size="tv" pageSize={8} autoPageMs={6000} showAccuracy />
+          <Leaderboard
+            standings={standings}
+            size="tv"
+            pageSize={8}
+            autoPageMs={6000}
+            showAccuracy
+          />
         </div>
       </div>
     </div>

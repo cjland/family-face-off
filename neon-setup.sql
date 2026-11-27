@@ -258,6 +258,46 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0007_modes_away_autoplay (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795805575264) THEN
+    EXECUTE $stmt$CREATE TABLE "custom_questions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"group_name" text NOT NULL,
+	"genre" text DEFAULT '' NOT NULL,
+	"difficulty" text DEFAULT 'medium' NOT NULL,
+	"question" text NOT NULL,
+	"options" jsonb NOT NULL,
+	"correct_index" integer NOT NULL,
+	"seconds" integer,
+	"audio_id" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "custom_questions_audio_id_unique" UNIQUE("audio_id"),
+	CONSTRAINT "custom_difficulty" CHECK ("custom_questions"."difficulty" in ('easy', 'medium', 'hard')),
+	CONSTRAINT "custom_options_count" CHECK (jsonb_array_length("custom_questions"."options") = 4),
+	CONSTRAINT "custom_correct_index" CHECK ("custom_questions"."correct_index" between 0 and 3),
+	CONSTRAINT "custom_seconds" CHECK ("custom_questions"."seconds" is null or "custom_questions"."seconds" between 5 and 120),
+	CONSTRAINT "custom_lengths" CHECK (char_length("custom_questions"."question") <= 300 and char_length("custom_questions"."group_name") <= 60 and char_length("custom_questions"."genre") <= 60)
+)$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" DROP CONSTRAINT "rounds_subject_or_bonus"$stmt$;
+    EXECUTE $stmt$ALTER TABLE "games" ADD COLUMN "phase_started_at" timestamp with time zone$stmt$;
+    EXECUTE $stmt$ALTER TABLE "games" ADD COLUMN "paused_at" timestamp with time zone$stmt$;
+    EXECUTE $stmt$ALTER TABLE "players" ADD COLUMN "away_at" timestamp with time zone$stmt$;
+    EXECUTE $stmt$ALTER TABLE "players" ADD COLUMN "away_reason" text$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD COLUMN "kind" text DEFAULT 'personal' NOT NULL$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD COLUMN "custom_question_id" uuid$stmt$;
+    EXECUTE $stmt$UPDATE "rounds" SET "kind" = 'bonus' WHERE "bonus_question_id" IS NOT NULL$stmt$;
+    EXECUTE $stmt$CREATE INDEX "custom_questions_group_idx" ON "custom_questions" USING btree ("group_name")$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD CONSTRAINT "rounds_custom_question_id_custom_questions_id_fk" FOREIGN KEY ("custom_question_id") REFERENCES "public"."custom_questions"("id") ON DELETE set null ON UPDATE no action$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD CONSTRAINT "rounds_kind" CHECK ("rounds"."kind" in ('personal', 'bonus', 'trivia', 'speed'))$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD CONSTRAINT "rounds_personal_source" CHECK ("rounds"."kind" <> 'personal' or ("rounds"."subject_player_id" is not null and "rounds"."source_player_prompt_id" is not null))$stmt$;
+    EXECUTE $stmt$ALTER TABLE "rounds" ADD CONSTRAINT "rounds_bonus_points" CHECK ("rounds"."kind" <> 'bonus' or "rounds"."bonus_points" > 0)$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('206c982851be13785d468ea30806361a247ae7671bde76cc97d50fa03b676050', 1795805575264);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true}]'::jsonb, true, NULL),

@@ -589,6 +589,84 @@ body {
   animation: trophy-bounce 1.4s ease-in-out 3;
 }
 
+
+/* ---- Neon logo-sting style (inspired by a glowing pill logo animation) ---- */
+/* A glowing outline whose blue → teal → gold gradient travels around the border. */
+@property --neon-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes neon-spin {
+  to {
+    --neon-angle: 360deg;
+  }
+}
+.neon-ring {
+  position: relative;
+  isolation: isolate;
+}
+.neon-ring::before,
+.neon-ring::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(from var(--neon-angle), #1e6bff, #2ee6c8, #ffd54a, #ff6bb5, #1e6bff);
+  animation: neon-spin 4s linear infinite;
+}
+.neon-ring::before {
+  inset: -5px;
+  padding: 5px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.neon-ring::after {
+  inset: -18px;
+  z-index: -1;
+  filter: blur(26px);
+  opacity: 0.45;
+}
+
+/* A bright band sweeps through gold text, left to right. */
+@keyframes text-sweep {
+  0% { background-position: 120% 0, 0 0; }
+  100% { background-position: -120% 0, 0 0; }
+}
+.gold-sweep {
+  background:
+    linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.85) 50%, transparent 65%) no-repeat,
+    linear-gradient(180deg, var(--accent-2), var(--accent));
+  background-size: 60% 100%, 100% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-sweep 2.6s ease-in-out 0.4s infinite;
+}
+
+/* The pill stretches open (logo sting), and the sparkle spins and changes colour. */
+@keyframes sting-open {
+  0% { width: 160px; opacity: 0; }
+  25% { width: 360px; opacity: 1; }
+  50% { width: 360px; }
+  100% { width: var(--sting-w, 1500px); }
+}
+.sting-pill {
+  width: var(--sting-w, 1500px);
+  animation: sting-open 1.8s cubic-bezier(0.7, 0, 0.2, 1) both;
+}
+@keyframes sparkle-spin {
+  0% { transform: rotate(0deg) scale(0.6); color: #1e6bff; }
+  50% { transform: rotate(180deg) scale(1.15); color: #2ee6c8; }
+  100% { transform: rotate(360deg) scale(0.6); color: #1e6bff; }
+}
+.sparkle-spin {
+  display: inline-block;
+  animation: sparkle-spin 2.4s ease-in-out infinite;
+}
+
 /* Host turned TV animations off in the game settings: behave like reduced motion. */
 html.no-motion *,
 html.no-motion *::before,

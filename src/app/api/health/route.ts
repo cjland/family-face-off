@@ -31,12 +31,14 @@ export async function GET() {
                exists (select 1 from information_schema.columns
                        where table_schema = 'public' and table_name = 'players' and column_name = 'win_slogan') as slogans,
                exists (select 1 from information_schema.columns
-                       where table_schema = 'public' and table_name = 'rounds' and column_name = 'bonus_question_id') as bonus
-      `)) as unknown as { rows: { photos: boolean; families: boolean; leaderboard: boolean; slogans: boolean; bonus: boolean }[] }
+                       where table_schema = 'public' and table_name = 'rounds' and column_name = 'bonus_question_id') as bonus,
+               exists (select 1 from information_schema.columns
+                       where table_schema = 'public' and table_name = 'players' and column_name = 'away_at') as modes
+      `)) as unknown as { rows: { photos: boolean; families: boolean; leaderboard: boolean; slogans: boolean; bonus: boolean; modes: boolean }[] }
     ).rows;
     database = true;
     if (!tables?.n) databaseError = "connected, but no questions loaded: run neon-setup.sql in the Neon SQL Editor";
-    else if (!schema?.photos || !schema?.families || !schema?.leaderboard || !schema?.slogans || !schema?.bonus) {
+    else if (!schema?.photos || !schema?.families || !schema?.leaderboard || !schema?.slogans || !schema?.bonus || !schema?.modes) {
       databaseError = "connected, but the database is out of date: run the latest neon-setup.sql in the Neon SQL Editor";
     }
   } catch (err) {

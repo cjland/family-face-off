@@ -79,11 +79,11 @@ export function assertSameOrigin(req: NextRequest) {
   if (!allowed.has(originHost)) throw new ApiError("FORBIDDEN", "Cross-site request blocked.");
 }
 
-export async function readJson<S extends z.ZodType>(req: NextRequest, schema: S): Promise<z.infer<S>> {
+export async function readJson<S extends z.ZodType>(req: NextRequest, schema: S, maxBytes = MAX_BODY_BYTES): Promise<z.infer<S>> {
   const len = Number(req.headers.get("content-length") ?? "0");
-  if (len > MAX_BODY_BYTES) throw new ApiError("PAYLOAD_TOO_LARGE", "Request is too large.");
+  if (len > maxBytes) throw new ApiError("PAYLOAD_TOO_LARGE", "Request is too large.");
   const text = await req.text();
-  if (text.length > MAX_BODY_BYTES) throw new ApiError("PAYLOAD_TOO_LARGE", "Request is too large.");
+  if (text.length > maxBytes) throw new ApiError("PAYLOAD_TOO_LARGE", "Request is too large.");
   let data: unknown = {};
   if (text.trim()) {
     try {

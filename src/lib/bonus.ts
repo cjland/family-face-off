@@ -45,6 +45,14 @@ export function bonusLadder(top: number): string {
 /** Stand-in "game piece" for bonus rounds in history and leaderboard pages (drawn as a 🎁). */
 export const BONUS_PIECE = "bonus:gift";
 export const BONUS_PERSON = { playerId: "bonus", name: "Bonus", piece: BONUS_PIECE };
+/** Stand-in for Quiz/Custom questions (not about anyone), drawn as a 🧠. */
+export const TRIVIA_PIECE = "trivia:brain";
+export const QUIZ_PERSON = { playerId: "quiz", name: "Quiz", piece: TRIVIA_PIECE };
+
+/** "1,000, 800, 600…" for speed questions. */
+export function speedLadder(): string {
+  return "1,000, 800, 600…";
+}
 
 export const DIFFICULTY_ORDER: BonusDifficulty[] = ["easy", "medium", "hard"];
 
@@ -128,8 +136,10 @@ export function interleave<R, B>(regular: R[], bonus: B[], slots: number[]): ({ 
 }
 
 /** "Question 3 of 24", or "Bonus question" for bonus rounds (they don't count toward the numbers). */
-export function roundLabel(round: { number: number; total: number; bonus?: { points: number } | null }): string {
-  return round.bonus ? "🎁 Bonus question" : `Question ${round.number} of ${round.total}`;
+export function roundLabel(round: { number: number; total: number; bonus?: { points: number } | null; kind?: string }): string {
+  if (round.bonus) return "🎁 Bonus question";
+  if (round.kind === "speed") return `⚡ Speed · Question ${round.number} of ${round.total}`;
+  return `Question ${round.number} of ${round.total}`;
 }
 
 export const DIFFICULTY_LABEL: Record<BonusDifficulty, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };

@@ -81,8 +81,9 @@ test("host, TV and three phones play a full game", async ({ browser }) => {
   const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const host = await hostCtx.newPage();
   await hostLogin(host);
-  // This test drives each reveal by hand, so turn the default auto reveal off.
+  // This test drives each step by hand, so turn the default auto reveal and autoplay off.
   await host.getByText("Auto reveal").click();
+  await host.getByText("Autoplay", { exact: true }).click();
   // It counts exactly three numbered questions, so no bonus trivia here (covered by integration tests).
   await host.getByText("🎁 Bonus trivia questions").click();
   await host.getByRole("button", { name: "Create game" }).first().click();
@@ -230,10 +231,9 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   const hostCtx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const host = await hostCtx.newPage();
   await hostLogin(host);
-  // Auto reveal is on by default; turn on auto next too.
-  await host.getByText("Auto next question").click();
+  // Auto reveal and autoplay are both on by default.
   await host.getByLabel("Seconds per question", { exact: true }).fill("8");
-  await host.getByRole("radio", { name: "Thanksgiving" }).check({ force: true });
+  await host.getByRole("radio", { name: "Thanksgiving", exact: true }).check({ force: true });
   await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);
   await hostAction(host, /Add 4 demo players/);
@@ -254,7 +254,8 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   // Bots answer on their own; auto reveal fires; auto next moves to Q2; then the game finishes.
   await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
   await shot(tv, "tv-reveal-thanksgiving");
-  await expect(tv.getByText(/Question 2 of 4/).first()).toBeVisible({ timeout: 30_000 });
+  // Autoplay: 10s on the answer, then 5s per leaderboard page, then the next question.
+  await expect(tv.getByText(/Question 2 of 4/).first()).toBeVisible({ timeout: 60_000 });
   await countdownDone(tv);
   await expect(tv.getByText("Correct answer")).toBeVisible({ timeout: 30_000 });
   await hostAction(host, "End game early…");

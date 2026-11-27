@@ -1,6 +1,5 @@
 "use client";
 
-
 import Link from "next/link";
 import { splitQuestion } from "@/lib/questionText";
 import { PreQuestionCountdown } from "@/components/PreQuestionCountdown";
@@ -9,7 +8,17 @@ import { useEffect, useState } from "react";
 import { PhotoPicker } from "@/components/PhotoButton";
 import { SloganPicker } from "@/components/SloganPicker";
 import { Questionnaire } from "@/components/Questionnaire";
-import { AnswerTile, Avatar, Banner, CountdownRing, LETTERS, Leaderboard, Spinner, Stage, TitleMark } from "@/components/ui";
+import {
+  AnswerTile,
+  Avatar,
+  Banner,
+  CountdownRing,
+  LETTERS,
+  Leaderboard,
+  Spinner,
+  Stage,
+  TitleMark,
+} from "@/components/ui";
 import { useGameState, useServerNow } from "@/hooks/useGameState";
 import { api, ApiClientError } from "@/lib/client/api";
 import { Sfx } from "@/lib/client/sound";
@@ -23,7 +32,9 @@ export default function PlayPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = (params.code ?? "").toUpperCase();
-  const { state, error, offsetMs, refresh } = useGameState(`/api/games/${code}/state?view=player`);
+  const { state, error, offsetMs, refresh } = useGameState(
+    `/api/games/${code}/state?view=player`,
+  );
 
   useEffect(() => {
     if (error?.status === 401) router.replace(`/join/${code}`);
@@ -56,7 +67,9 @@ export default function PlayPage() {
         <Spinner label="Connecting" />
         {error && error.status >= 500 && (
           <div className="mx-auto max-w-md px-5">
-            <Banner kind="error">Something went wrong loading the game. Tell the host! Retrying…</Banner>
+            <Banner kind="error">
+              Something went wrong loading the game. Tell the host! Retrying…
+            </Banner>
           </div>
         )}
       </Stage>
@@ -72,42 +85,91 @@ export default function PlayPage() {
             <Avatar name={me.name} piece={me.piece} size={44} />
             <span className="font-semibold truncate">{me.name}</span>
           </div>
-          <span className="panel px-3 py-1 font-display text-lg tabular-nums" aria-label={`Your score: ${me.points} points`}>
+          <span
+            className="panel px-3 py-1 font-display text-lg tabular-nums"
+            aria-label={`Your score: ${me.points} points`}
+          >
             {me.points.toLocaleString()} pts
           </span>
         </header>
-        {error && error.status === 0 && <Banner kind="error">{error.message}</Banner>}
-        <PlayBody state={state} code={code} offsetMs={offsetMs} refresh={refresh} />
+        {error && error.status === 0 && (
+          <Banner kind="error">{error.message}</Banner>
+        )}
+        <PlayBody
+          state={state}
+          code={code}
+          offsetMs={offsetMs}
+          refresh={refresh}
+        />
       </main>
     </Stage>
   );
 }
 
-function PlayBody({ state, code, offsetMs, refresh }: { state: GameStateDTO; code: string; offsetMs: number; refresh: () => void }) {
+function PlayBody({
+  state,
+  code,
+  offsetMs,
+  refresh,
+}: {
+  state: GameStateDTO;
+  code: string;
+  offsetMs: number;
+  refresh: () => void;
+}) {
   const me = state.me!;
 
   if (!me.active) {
     return (
       <Centered title="You're watching this one">
-        The host started before your questions were finished, so you&apos;re a spectator this round. Enjoy the show on the TV!
+        The host started before your questions were finished, so you&apos;re a
+        spectator this round. Enjoy the show on the TV!
       </Centered>
     );
   }
 
+  // Stepped away (or set aside for missing questions): one big button to come back.
+  const inGame =
+    state.phase === "PREPARING" ||
+    state.phase === "QUESTION" ||
+    state.phase === "REVEAL" ||
+    state.phase === "LEADERBOARD";
+  if (me.away && inGame)
+    return <AwayScreen code={code} reason={me.awayReason} refresh={refresh} />;
+
   switch (state.phase) {
     case "LOBBY":
-      return me.ready ? <ReadyWait state={state} code={code} refresh={refresh} /> : <Questionnaire code={code} onReady={refresh} />;
+      return me.ready ? (
+        <ReadyWait state={state} code={code} refresh={refresh} />
+      ) : (
+        <Questionnaire code={code} onReady={refresh} />
+      );
     case "PREPARING":
       return (
         <Centered title="Get ready!">
-          Everyone&apos;s in. The host is about to start the first question. Keep this screen open.
+          Everyone&apos;s in. The host is about to start the first question.
+          Keep this screen open.
         </Centered>
       );
     case "QUESTION":
       return (
         <>
-          <QuestionScreen key={state.round?.id} state={state} code={code} offsetMs={offsetMs} refresh={refresh} />
-          {state.round && <PreQuestionCountdown round={state.round} offsetMs={offsetMs} variant="phone" seconds={state.countdownSeconds} />}
+          <QuestionScreen
+            key={state.round?.id}
+            state={state}
+            code={code}
+            offsetMs={offsetMs}
+            refresh={refresh}
+          />
+          <StepAway code={code} refresh={refresh} />
+          {state.round && (
+            <PreQuestionCountdown
+              round={state.round}
+              offsetMs={offsetMs}
+              variant="phone"
+              seconds={state.countdownSeconds}
+            />
+          )}
         </>
       );
     case "REVEAL":
@@ -117,25 +179,113 @@ function PlayBody({ state, code, offsetMs, refresh }: { state: GameStateDTO; cod
         <section className="flex flex-col gap-5 pop-in">
           <div className="text-center flex flex-col gap-1 py-2">
             <h1 className="font-display text-4xl font-bold">Leaderboard</h1>
-            <p className="text-muted">Check the TV! The next question is coming up.</p>
+            <p className="text-muted">
+              Check the TV! The next question is coming up.
+            </p>
           </div>
           {state.me?.rank && (
             <p className="text-center text-2xl">
-              You&apos;re in <strong className="font-display text-accent-2 text-3xl">{ordinalLabel(state.me.rank)}</strong> place with{" "}
-              {state.me.points.toLocaleString()} points
+              You&apos;re in{" "}
+              <strong className="font-display text-accent-2 text-3xl">
+                {ordinalLabel(state.me.rank)}
+              </strong>{" "}
+              place with {state.me.points.toLocaleString()} points
             </p>
           )}
-          {state.standings && <Leaderboard standings={state.standings} highlightId={state.me?.id} pageSize={5} />}
+          {state.standings && (
+            <Leaderboard
+              standings={state.standings}
+              highlightId={state.me?.id}
+              pageSize={5}
+            />
+          )}
+          <StepAway code={code} refresh={refresh} />
         </section>
       );
     case "FINISHED":
       return <FinalScreen state={state} />;
     default:
-      return <Centered title="Game closed">This game is no longer running.</Centered>;
+      return (
+        <Centered title="Game closed">This game is no longer running.</Centered>
+      );
   }
 }
 
-function Centered({ title, children }: { title: string; children: React.ReactNode }) {
+/** Small "Step away" link: the game stops waiting for you until you tap "I'm back". */
+function StepAway({ code, refresh }: { code: string; refresh: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="flex justify-center pt-2 pb-24">
+      <button
+        type="button"
+        className="text-sm text-muted underline underline-offset-4 min-h-[44px] px-3"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await api(`/api/games/${code}/away`, {
+            method: "POST",
+            body: { away: true },
+          }).catch(() => {});
+          refresh();
+          setBusy(false);
+        }}
+      >
+        ⏸ Step away for a bit
+      </button>
+    </div>
+  );
+}
+
+function AwayScreen({
+  code,
+  reason,
+  refresh,
+}: {
+  code: string;
+  reason: "self" | "auto" | null;
+  refresh: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="flex flex-col items-center gap-6 text-center py-10 pop-in">
+      <div className="text-7xl" aria-hidden="true">
+        {reason === "auto" ? "👋" : "💤"}
+      </div>
+      <h1 className="font-display text-4xl font-bold">
+        {reason === "auto" ? "Still playing?" : "You've stepped away"}
+      </h1>
+      <p className="text-muted max-w-sm">
+        {reason === "auto"
+          ? "You missed a couple of questions, so the game stopped waiting for you. Tap below to jump back in."
+          : "The game won't wait for you (and you won't lose points) until you're back."}
+      </p>
+      <button
+        type="button"
+        className="btn btn-primary !text-2xl !min-h-[72px] !px-10"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await api(`/api/games/${code}/away`, {
+            method: "POST",
+            body: { away: false },
+          }).catch(() => {});
+          refresh();
+          setBusy(false);
+        }}
+      >
+        {reason === "auto" ? "Yes! I'm still playing" : "I'm back!"}
+      </button>
+    </section>
+  );
+}
+
+function Centered({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-10 pop-in">
       <h1 className="font-display text-4xl font-bold">{title}</h1>
@@ -144,7 +294,15 @@ function Centered({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string; refresh: () => void }) {
+function ReadyWait({
+  state,
+  code,
+  refresh,
+}: {
+  state: GameStateDTO;
+  code: string;
+  refresh: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   return (
@@ -154,7 +312,9 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
           ✅
         </div>
         <h1 className="font-display text-4xl font-bold">You&apos;re ready!</h1>
-        <p className="text-muted">Waiting for the host to start. Look at the TV!</p>
+        <p className="text-muted">
+          Waiting for the host to start. Look at the TV!
+        </p>
       </div>
       <div className="panel p-4">
         <p className="font-semibold mb-3" aria-live="polite">
@@ -162,7 +322,10 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
         </p>
         <ul className="flex flex-wrap gap-2">
           {state.lobby?.map((p) => (
-            <li key={p.id} className={`flex items-center gap-1 rounded-full pl-1 pr-3 py-0.5 text-sm ${p.ready ? "bg-good/25" : "bg-black/25 text-muted"}`}>
+            <li
+              key={p.id}
+              className={`flex items-center gap-1 rounded-full pl-1 pr-3 py-0.5 text-sm ${p.ready ? "bg-good/25" : "bg-black/25 text-muted"}`}
+            >
               <Avatar name={p.name} piece={p.piece} size={28} />
               {p.ready ? "✔ " : ""}
               {p.name}
@@ -180,9 +343,14 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
               setBusy(true);
               setPhotoError(null);
               try {
-                await api(`/api/games/${code}/photo`, { method: "POST", body: { image } });
+                await api(`/api/games/${code}/photo`, {
+                  method: "POST",
+                  body: { image },
+                });
               } catch (err) {
-                setPhotoError(`Your photo didn't upload: ${err instanceof ApiClientError ? err.message : "network problem"}`);
+                setPhotoError(
+                  `Your photo didn't upload: ${err instanceof ApiClientError ? err.message : "network problem"}`,
+                );
               }
               refresh();
               setBusy(false);
@@ -197,7 +365,9 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
               disabled={busy}
               onClick={async () => {
                 setBusy(true);
-                await api(`/api/games/${code}/photo`, { method: "DELETE" }).catch(() => {});
+                await api(`/api/games/${code}/photo`, {
+                  method: "DELETE",
+                }).catch(() => {});
                 refresh();
                 setBusy(false);
               }}
@@ -219,7 +389,10 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
             disabled={busy}
             onChange={async (b) => {
               setBusy(true);
-              await api(`/api/games/${code}/photo`, { method: "PATCH", body: { body: b } }).catch(() => {});
+              await api(`/api/games/${code}/photo`, {
+                method: "PATCH",
+                body: { body: b },
+              }).catch(() => {});
               refresh();
               setBusy(false);
             }}
@@ -228,28 +401,48 @@ function ReadyWait({ state, code, refresh }: { state: GameStateDTO; code: string
       )}
       {photoError && <Banner kind="error">{photoError}</Banner>}
       <SloganPicker code={code} me={state.me!} onSaved={refresh} />
-      <button
-        className="btn btn-ghost"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          await api(`/api/games/${code}/ready`, { method: "POST", body: { ready: false } }).catch(() => {});
-          refresh();
-          setBusy(false);
-        }}
-      >
-        Edit my answers
-      </button>
+      {state.mode === "personal" && (
+        <button
+          className="btn btn-ghost"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await api(`/api/games/${code}/ready`, {
+              method: "POST",
+              body: { ready: false },
+            }).catch(() => {});
+            refresh();
+            setBusy(false);
+          }}
+        >
+          Edit my answers
+        </button>
+      )}
     </section>
   );
 }
 
-function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDTO; code: string; offsetMs: number; refresh: () => void }) {
+function QuestionScreen({
+  state,
+  code,
+  offsetMs,
+  refresh,
+}: {
+  state: GameStateDTO;
+  code: string;
+  offsetMs: number;
+  refresh: () => void;
+}) {
   const round = state.round!;
   const me = state.me!;
   const now = useServerNow(offsetMs, !round.paused);
   const remaining =
-    round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.min(round.durationMs, Math.max(0, new Date(round.deadlineAt).getTime() - now));
+    round.paused || !round.deadlineAt || !now
+      ? round.remainingMs
+      : Math.min(
+          round.durationMs,
+          Math.max(0, new Date(round.deadlineAt).getTime() - now),
+        );
   const [selected, setSelected] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -259,7 +452,8 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
   if (me.isSubject) {
     return (
       <Centered title="This one's about you! 🎉">
-        Sit back and watch everyone guess your answer. You don&apos;t score on your own question.
+        Sit back and watch everyone guess your answer. You don&apos;t score on
+        your own question.
       </Centered>
     );
   }
@@ -279,9 +473,16 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
       /* sound is optional */
     }
     try {
-      await api(`/api/games/${code}/guess`, { method: "POST", body: { roundId: round.id, optionId: selected } });
+      await api(`/api/games/${code}/guess`, {
+        method: "POST",
+        body: { roundId: round.id, optionId: selected },
+      });
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Couldn't lock that in. Try again.");
+      setError(
+        err instanceof ApiClientError
+          ? err.message
+          : "Couldn't lock that in. Try again.",
+      );
     } finally {
       setSubmitting(false);
       refresh();
@@ -295,29 +496,50 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <span className="font-display text-accent-2">
-          {round.bonus ? `🎁 Bonus · up to ${round.bonus.points.toLocaleString()}` : `Q${round.number} of ${round.total}`}
+          {round.bonus
+            ? `🎁 Bonus · up to ${round.bonus.points.toLocaleString()}`
+            : round.kind === "speed"
+              ? `⚡ Speed! Q${round.number} of ${round.total}`
+              : `Q${round.number} of ${round.total}`}
         </span>
         {timeUp && !locked && (
-          <span role="status" className="shame-alert rounded-full border-2 border-white px-3 py-1 text-sm font-semibold text-white text-center">
+          <span
+            role="status"
+            className="shame-alert rounded-full border-2 border-white px-3 py-1 text-sm font-semibold text-white text-center"
+          >
             🚨 Time&apos;s up! Late answers still count
           </span>
         )}
-        <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={60} />
+        <CountdownRing
+          remainingMs={remaining}
+          durationMs={round.durationMs}
+          paused={round.paused}
+          size={60}
+        />
       </div>
       {(() => {
         const q = splitQuestion(round.questionText);
         return q.lead ? (
           <h1 className="font-display font-bold">
-            <span className="block text-lg text-accent-2 leading-tight">{q.lead}</span>
-            <span className="block text-[1.7rem] leading-snug mt-1">{q.question}</span>
+            <span className="block text-lg text-accent-2 leading-tight">
+              {q.lead}
+            </span>
+            <span className="block text-[1.7rem] leading-snug mt-1">
+              {q.question}
+            </span>
           </h1>
         ) : (
-          <h1 className="font-display text-2xl font-bold leading-snug">{round.questionText}</h1>
+          <h1 className="font-display text-2xl font-bold leading-snug">
+            {round.questionText}
+          </h1>
         );
       })()}
       {round.clue && (
         <p className="panel px-4 py-3 text-xl font-display">
-          “{round.clue}” <span className="block text-sm text-muted font-sans">answer to: {round.promptText}</span>
+          “{round.clue}”{" "}
+          <span className="block text-sm text-muted font-sans">
+            answer to: {round.promptText}
+          </span>
         </p>
       )}
       {round.paused && <Banner kind="info">The host paused the game.</Banner>}
@@ -328,7 +550,15 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
             index={i}
             option={o}
             size="md"
-            state={locked ? (o.id === locked ? "selected" : "dim") : selected === o.id ? "selected" : "idle"}
+            state={
+              locked
+                ? o.id === locked
+                  ? "selected"
+                  : "dim"
+                : selected === o.id
+                  ? "selected"
+                  : "idle"
+            }
             onClick={() => !disabled && setSelected(o.id)}
             disabled={disabled}
           />
@@ -337,8 +567,14 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
       {error && <Banner kind="error">{error}</Banner>}
       {locked ? (
         <div className="panel p-4 text-center pop-in" role="status">
-          <span className="font-display text-2xl">🔒 Locked in: {LETTERS[lockedIndex] ?? ""}</span>
-          {timeUp && <span className="block text-sm text-accent-2">Phew. Not a moment too soon.</span>}
+          <span className="font-display text-2xl">
+            🔒 Locked in: {LETTERS[lockedIndex] ?? ""}
+          </span>
+          {timeUp && (
+            <span className="block text-sm text-accent-2">
+              Phew. Not a moment too soon.
+            </span>
+          )}
           <span className="block text-muted text-sm mt-1">
             {round.answeredCount} of {round.eligibleCount} have answered
           </span>
@@ -347,8 +583,16 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
         <>
           {/* Pinned to the bottom so it's always on screen, even on small phones with browser toolbars. */}
           <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#140c33] via-[#140c33]/95 to-transparent z-10">
-            <button className="btn btn-primary text-xl w-full" disabled={!selected || disabled} onClick={lock}>
-              {submitting ? "Locking…" : selected ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}` : "Pick an answer"}
+            <button
+              className="btn btn-primary text-xl w-full"
+              disabled={!selected || disabled}
+              onClick={lock}
+            >
+              {submitting
+                ? "Locking…"
+                : selected
+                  ? `Lock in ${LETTERS[round.options.findIndex((o) => o.id === selected)]}`
+                  : "Pick an answer"}
             </button>
           </div>
         </>
@@ -377,17 +621,35 @@ function RevealScreen({ state }: { state: GameStateDTO }) {
       <div className="text-center flex flex-col gap-1 py-2">
         <h1 className={`font-display text-4xl font-bold ${tone}`}>{title}</h1>
         {result && !me.isSubject && (
-          <p className="text-2xl font-display">{result.correct ? `+${result.points.toLocaleString()} points` : "No points this round"}</p>
+          <p className="text-2xl font-display">
+            {result.correct
+              ? `+${result.points.toLocaleString()} points`
+              : "No points this round"}
+          </p>
         )}
       </div>
       <div className="panel p-4">
         <p className="text-sm text-muted">Correct answer</p>
-        <p className="font-display text-3xl font-bold break-words">{correct?.label ?? reveal.answerText}</p>
-        <p className="mt-1">{round.bonus ? "Bonus question" : `${reveal.subjectName} submitted this!`}</p>
+        <p className="font-display text-3xl font-bold break-words">
+          {correct?.label ?? reveal.answerText}
+        </p>
+        <p className="mt-1">
+          {round.bonus
+            ? "Bonus question"
+            : reveal.subjectName
+              ? `${reveal.subjectName} submitted this!`
+              : round.kind === "speed"
+                ? "Speed question"
+                : "Quiz question"}
+        </p>
       </div>
       {me.rank && (
         <p className="text-center text-xl">
-          You&apos;re in <strong className="font-display text-accent-2 text-2xl">{ordinalLabel(me.rank)}</strong> place
+          You&apos;re in{" "}
+          <strong className="font-display text-accent-2 text-2xl">
+            {ordinalLabel(me.rank)}
+          </strong>{" "}
+          place
         </p>
       )}
       {reveal.guesses.length > 0 && (
@@ -398,8 +660,13 @@ function RevealScreen({ state }: { state: GameStateDTO }) {
               <li key={g.playerId} className="flex items-center gap-2">
                 <Avatar name={g.name} piece={g.piece} size={32} />
                 <span className="font-semibold truncate">{g.name}</span>
-                <span className="text-muted truncate flex-1 text-right">{round.options.find((o) => o.id === g.optionId)?.label}</span>
-                <span aria-label={g.correct ? "correct" : "wrong"} className={g.correct ? "text-good" : "text-muted"}>
+                <span className="text-muted truncate flex-1 text-right">
+                  {round.options.find((o) => o.id === g.optionId)?.label}
+                </span>
+                <span
+                  aria-label={g.correct ? "correct" : "wrong"}
+                  className={g.correct ? "text-good" : "text-muted"}
+                >
                   {g.correct ? "✓" : "✗"}
                 </span>
               </li>
@@ -407,7 +674,13 @@ function RevealScreen({ state }: { state: GameStateDTO }) {
           </ul>
         </div>
       )}
-      {state.standings && <Leaderboard standings={state.standings} highlightId={me.id} pageSize={5} />}
+      {state.standings && (
+        <Leaderboard
+          standings={state.standings}
+          highlightId={me.id}
+          pageSize={5}
+        />
+      )}
     </section>
   );
 }
@@ -420,20 +693,30 @@ function FinalScreen({ state }: { state: GameStateDTO }) {
         <TitleMark title="Game over!" theme={state.theme} size="md" />
         {me.rank && (
           <p className="text-2xl mt-2">
-            You finished <strong className="font-display text-accent-2 text-3xl">{ordinalLabel(me.rank)}</strong> with{" "}
-            {me.points.toLocaleString()} points
+            You finished{" "}
+            <strong className="font-display text-accent-2 text-3xl">
+              {ordinalLabel(me.rank)}
+            </strong>{" "}
+            with {me.points.toLocaleString()} points
           </p>
         )}
-        <p className="text-muted">Thanks for playing. Everyone&apos;s a winner at this table!</p>
+        <p className="text-muted">
+          Thanks for playing. Everyone&apos;s a winner at this table!
+        </p>
       </div>
       {state.stats && state.stats.awards.length > 0 && (
         <div className="grid grid-cols-2 gap-2">
           {state.stats.awards.map((a) => (
-            <div key={a.key} className="panel p-3 flex flex-col items-center text-center gap-1">
+            <div
+              key={a.key}
+              className="panel p-3 flex flex-col items-center text-center gap-1"
+            >
               <span className="text-2xl" aria-hidden="true">
                 {a.emoji}
               </span>
-              <span className="text-sm text-accent-2 font-semibold">{a.title}</span>
+              <span className="text-sm text-accent-2 font-semibold">
+                {a.title}
+              </span>
               <Avatar name={a.name} piece={a.piece} size={44} />
               <span className="font-display font-bold">{a.name}</span>
               <span className="text-xs text-muted">{a.detail}</span>
@@ -441,7 +724,13 @@ function FinalScreen({ state }: { state: GameStateDTO }) {
           ))}
         </div>
       )}
-      {state.standings && <Leaderboard standings={state.standings} highlightId={me.id} pageSize={5} />}
+      {state.standings && (
+        <Leaderboard
+          standings={state.standings}
+          highlightId={me.id}
+          pageSize={5}
+        />
+      )}
     </section>
   );
 }

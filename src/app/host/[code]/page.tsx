@@ -1,5 +1,6 @@
 "use client";
 
+import { QuestionCountPicker } from "@/components/QuestionCountPicker";
 import { defaultBonusCount, DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
 import { formatMinutes, plannedMinutes, plannedQuestions } from "@/lib/plan";
 import Link from "next/link";
@@ -13,7 +14,17 @@ import { api, ApiClientError, joinUrlFor, prettyUrl } from "@/lib/client/api";
 import type { GameStateDTO } from "@/lib/dto";
 import { isPhotoPiece } from "@/lib/pieces";
 
-type Preview = { readyPlayers: number; totalPlayers: number; maxPerPlayer: number; suggestedPerPlayer: number; questionSeconds: number };
+type Preview = {
+  mode: "personal" | "quiz" | "custom";
+  readyPlayers: number;
+  totalPlayers: number;
+  maxPerPlayer: number;
+  suggestedPerPlayer: number;
+  /** Quiz / Custom: trivia questions available, and the planned number. */
+  available: number;
+  suggestedQuestions: number;
+  questionSeconds: number;
+};
 
 export default function HostConsole() {
   const params = useParams<{ code: string }>();
@@ -231,6 +242,12 @@ function LobbyControls({
     bonusQuestions: state.settings.bonusQuestions,
     bonusCount: state.settings.bonusCount ?? undefined,
     pieceGroups: state.settings.pieceGroups as SettingsDraft["pieceGroups"],
+    mode: state.mode,
+    questionGroups: state.settings.questionGroups,
+    speedQuestions: state.settings.speedQuestions,
+    speedCount: state.settings.speedCount ?? undefined,
+    speedSeconds: state.settings.speedSeconds,
+    autoAway: state.settings.autoAway,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;
@@ -238,17 +255,23 @@ function LobbyControls({
 
   const [startDialog, setStartDialog] = useState<Preview | null>(null);
   const [perPlayer, setPerPlayer] = useState(2);
+  const [questions, setQuestions] = useState(10);
 
   const openStart = () =>
     act(async () => {
       const p = await api<Preview>(`/api/games/${code}/preview`);
       setPerPlayer(p.suggestedPerPlayer);
+      setQuestions(p.suggestedQuestions);
       setStartDialog(p);
     });
 
+  const trivia = startDialog && startDialog.mode !== "personal";
   const confirmStart = () =>
     act(async () => {
-      await api(`/api/games/${code}/start`, { method: "POST", body: { excludeUnready: unready > 0, perPlayer } });
+      await api(`/api/games/${code}/start`, {
+        method: "POST",
+        body: trivia ? { excludeUnready: unready > 0, roundCount: questions } : { excludeUnready: unready > 0, perPlayer },
+      });
       setStartDialog(null);
     });
 
@@ -346,7 +369,17 @@ function LobbyControls({
                 {unready} {unready === 1 ? "person is" : "people are"} still answering and will watch instead of play.
               </Banner>
             )}
-            {startDialog.maxPerPlayer === 0 ? (
+            {trivia ? (
+              startDialog.available === 0 ? (
+                <Banner kind="error">
+                  {startDialog.mode === "custom"
+                    ? "No questions to play. Pick an uploaded question group in Game settings (or upload one on the host page)."
+                    : "No trivia questions are loaded. Run the latest neon-setup.sql."}
+                </Banner>
+              ) : (
+                <QuestionCountPicker available={startDialog.available} value={questions} onChange={setQuestions} seconds={startDialog.questionSeconds} />
+              )
+            ) : startDialog.maxPerPlayer === 0 ? (
               <Banner kind="error">Not enough different questions yet. Wait for more answers.</Banner>
             ) : (
               <>
@@ -377,7 +410,11 @@ function LobbyControls({
               </>
             )}
             <div className="flex gap-3">
-              <button className="btn btn-primary" disabled={busy || startDialog.maxPerPlayer === 0} onClick={confirmStart}>
+              <button
+                className="btn btn-primary"
+                disabled={busy || (trivia ? startDialog.available === 0 : startDialog.maxPerPlayer === 0)}
+                onClick={confirmStart}
+              >
                 Lock roster & start
               </button>
               <button className="btn btn-ghost" disabled={busy} onClick={() => setStartDialog(null)}>
@@ -489,15 +526,29 @@ function RoundControls({
               </button>
             </>
           ) : (
-            <button className="btn btn-primary" disabled={busy} onClick={() => action("next")}>
-              {state.phase === "REVEAL" ? "Show leaderboard ➜" : round.number >= round.total ? "Show final results ➜" : "Next question ➜"}
-            </button>
+            <>
+              <button className="btn btn-primary" disabled={busy} onClick={() => action("next")}>
+                {state.phase === "REVEAL" ? "Show leaderboard ➜" : round.number >= round.total ? "Show final results ➜" : "Next question ➜"}
+              </button>
+              {state.autoplay &&
+                (state.paused ? (
+                  <button className="btn btn-ghost" disabled={busy} onClick={() => action("resume")}>
+                    ▶ Resume autoplay
+                  </button>
+                ) : (
+                  <button className="btn btn-ghost" disabled={busy} onClick={() => action("pause")}>
+                    ❚❚ Pause here
+                  </button>
+                ))}
+            </>
           )}
           <EndButton busy={busy} onEnd={() => action("end")} />
         </div>
         <p className="text-sm text-muted">
           {state.settings.autoReveal ? `Auto reveal is on (+${state.settings.overtimeSeconds}s after time runs out). ` : ""}
-          {state.settings.autoNext ? `Auto next after ${state.settings.revealSeconds}s. ` : ""}
+          {state.settings.autoNext
+            ? `Autoplay is on: the answer shows for ${state.settings.revealSeconds}s, then ${state.settings.leaderboardPageSeconds}s per leaderboard page, then the next question. `
+            : ""}
           The correct answer stays hidden here until the reveal, so you can play along on your phone too.
         </p>
       </section>

@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { BonusDifficulty } from "@/lib/bonus";
 import type { DB } from "@/db/client";
-import { families, games, guesses, playerPrompts, players, rounds, scoreEvents, type Game, type Player, type Round } from "@/db/schema";
+import { customQuestions, families, games, guesses, playerPrompts, players, rounds, scoreEvents, type Game, type Player, type Round } from "@/db/schema";
 import { displayKey } from "@/lib/crypto";
 import type { GameStateDTO, RoundDTO, StandingDTO, View } from "@/lib/dto";
 import { ApiError } from "@/lib/errors";
@@ -56,11 +56,11 @@ export async function computeStandings(db: DB, gameId: string, includeInactive =
  * "Question 3 of 24". Bonus rounds don't count: a bonus round gets the number of the regular
  * question before it, and the TV shows "Bonus question" instead.
  */
-function roundNumbering(all: { id: string; ordinal: number; status: Round["status"]; bonus: string | null }[], currentId: string) {
+function roundNumbering(all: { id: string; ordinal: number; status: Round["status"]; kind: string }[], currentId: string) {
   const live = all.filter((r) => r.status !== "VOID" && r.status !== "RESERVE").sort((a, b) => a.ordinal - b.ordinal);
-  const counted = live.filter((r) => !r.bonus);
+  const counted = live.filter((r) => r.kind !== "bonus");
   const cur = all.find((r) => r.id === currentId);
-  if (cur?.bonus) return { number: counted.filter((r) => r.ordinal < cur.ordinal).length, total: counted.length };
+  if (cur?.kind === "bonus") return { number: counted.filter((r) => r.ordinal < cur.ordinal).length, total: counted.length };
   const idx = counted.findIndex((r) => r.id === currentId);
   return { number: idx >= 0 ? idx + 1 : counted.length, total: counted.length };
 }
@@ -79,10 +79,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   // Automatic transitions (auto reveal / auto next / demo bots), evaluated only when due.
   const settings0 = parseSettings(game.settings);
   const needsTick =
-    (game.phase === "QUESTION" || game.phase === "REVEAL" || game.phase === "LEADERBOARD") &&
-    (settings0.autoReveal || settings0.autoNext || (auth.demoTools && auth.view !== "player"));
-  if (needsTick && game.currentRoundId) {
-    const round = (await db.select().from(rounds).where(eq(rounds.id, game.currentRoundId)))[0] ?? null;
+    ((game.phase === "QUESTION" || game.phase === "REVEAL" || game.phase === "LEADERBOARD") &&
+      (settings0.autoReveal || settings0.autoNext || (auth.demoTools && auth.view !== "player"))) ||
+    // Autoplay starts the first question by itself.
+    (game.phase === "PREPARING" && settings0.autoNext);
+  if (needsTick && (game.currentRoundId || game.phase === "PREPARING")) {
+    const round = game.currentRoundId ? ((await db.select().from(rounds).where(eq(rounds.id, game.currentRoundId)))[0] ?? null) : null;
     const { eligibleCount, answeredCount } = round ? await roundCounts(db, game.id, round) : { eligibleCount: 0, answeredCount: 0 };
     const changed = await tick(db, {
       game,
@@ -105,6 +107,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       piece: players.piece,
       winSlogan: players.winSlogan,
       loseSlogan: players.loseSlogan,
+      awayAt: players.awayAt,
     })
     .from(players)
     .where(and(eq(players.gameId, game.id), eq(players.active, true)))
@@ -121,6 +124,11 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
     music: settings.music,
     taunts: settings.taunts,
     shameSpotlight: settings.shameSpotlight,
+    mode: settings.mode,
+    autoplay: settings.autoNext,
+    // Paused between questions (getting ready, reveal, leaderboard); questions pause on the round.
+    paused: Boolean(game.pausedAt),
+    phaseStartedAt: game.phaseStartedAt?.toISOString() ?? null,
     sound: settings.sound,
     animations: settings.animations,
     voice: settings.voice,
@@ -144,6 +152,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       bonusQuestions: settings.bonusQuestions,
       bonusCount: settings.bonusCount ?? null,
       pieceGroups: settings.pieceGroups,
+      questionGroups: settings.questionGroups,
+      speedQuestions: settings.speedQuestions,
+      speedCount: settings.speedCount ?? null,
+      speedSeconds: settings.speedSeconds,
+      autoAway: settings.autoAway,
+      leaderboardPageSeconds: settings.leaderboardPageSeconds,
     },
     counts: { players: activePlayers.length, ready: activePlayers.filter((p) => p.readyAt).length },
     lobby: null,
@@ -158,11 +172,12 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   };
 
   if (game.phase === "LOBBY" || game.phase === "PREPARING") {
-    state.lobby = activePlayers.map((p) => ({ id: p.id, name: p.name, ready: Boolean(p.readyAt), piece: p.piece }));
+    state.lobby = activePlayers.map((p) => ({ id: p.id, name: p.name, ready: Boolean(p.readyAt), piece: p.piece, away: Boolean(p.awayAt) }));
   }
   const privileged = auth.view !== "player";
   if (privileged) {
     state.players = activePlayers.map((p) => ({
+      away: Boolean(p.awayAt),
       id: p.id,
       name: p.name,
       ready: Boolean(p.readyAt),
@@ -180,7 +195,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
 
   if (round) {
     const all = await db
-      .select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status, bonus: rounds.bonusQuestionId })
+      .select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status, kind: rounds.kind })
       .from(rounds)
       .where(eq(rounds.gameId, game.id));
     const { number, total } = roundNumbering(all, round.id);
@@ -201,14 +216,21 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       remainingMs: round.status === "OPEN" ? Math.min(round.durationMs, remainingActiveMs(round, now)) : 0,
       answeredCount,
       eligibleCount,
+      kind: round.kind as RoundDTO["kind"],
+      difficulty: (round.bonusDifficulty as BonusDifficulty | null) ?? null,
       bonus:
-        round.bonusQuestionId && round.bonusPoints
+        round.kind === "bonus" && round.bonusPoints
           ? { difficulty: (round.bonusDifficulty ?? "medium") as BonusDifficulty, points: round.bonusPoints, ordinal: round.ordinal }
           : null,
     };
     if (privileged) {
       // Which bank question this is (e.g. "q001"), so the TV can play the announcer's clip.
       if (round.bonusQuestionId) dto.promptId = round.bonusQuestionId;
+      else if (round.customQuestionId) {
+        // Uploaded questions: their audio id (questions/<id>.mp3), if a clip was recorded.
+        const [cq] = await db.select({ audioId: customQuestions.audioId }).from(customQuestions).where(eq(customQuestions.id, round.customQuestionId));
+        dto.promptId = cq?.audioId ?? null;
+      }
       else if (round.sourcePlayerPromptId) {
         const [src] = await db
           .select({ promptId: playerPrompts.promptId })
@@ -247,7 +269,9 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
         : [];
       const g2 = roundGuesses.map((g) => ({ ...g, correct: g.optionId === round!.correctOptionId }));
       const right = g2.filter((g) => g.correct).sort((a, b) => a.elapsedMs - b.elapsedMs);
-      const eligibleNow = activePlayers.filter((p) => !round!.excludedPlayerIds.includes(p.id));
+      const eligibleNow = activePlayers.filter(
+        (p) => !round!.excludedPlayerIds.includes(p.id) && (!p.awayAt || g2.some((g) => g.playerId === p.id)),
+      );
       const guessed = new Set(g2.map((g) => g.playerId));
       // There is always a loser: no answer counts as the slowest wrong answer; among wrong
       // answers the slowest loses; if everyone was right, the slowest right answer loses.
@@ -338,6 +362,8 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       active: me.active,
       ready: Boolean(me.readyAt),
       eligible: me.active && !isSubject,
+      away: Boolean(me.awayAt),
+      awayReason: me.awayAt ? ((me.awayReason as "self" | "auto" | null) ?? "self") : null,
       isSubject,
       lockedOptionId,
       points: mine?.points ?? 0,
@@ -366,16 +392,18 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
   return state;
 }
 
+/** Who this question waits for: everyone playing, minus its subject and anyone away who hasn't answered. */
 async function roundCounts(db: DB, gameId: string, round: Round) {
-  const active = await db.select({ id: players.id }).from(players).where(and(eq(players.gameId, gameId), eq(players.active, true)));
+  const active = await db
+    .select({ id: players.id, awayAt: players.awayAt })
+    .from(players)
+    .where(and(eq(players.gameId, gameId), eq(players.active, true)));
   const excluded = new Set(round.excludedPlayerIds);
-  const eligibleIds = active.map((p) => p.id).filter((id) => !excluded.has(id));
-  if (!eligibleIds.length) return { eligibleCount: 0, answeredCount: 0 };
-  const [{ n }] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(guesses)
-    .where(and(eq(guesses.roundId, round.id), inArray(guesses.playerId, eligibleIds)));
-  return { eligibleCount: eligibleIds.length, answeredCount: n };
+  const guessed = new Set(
+    (await db.select({ playerId: guesses.playerId }).from(guesses).where(eq(guesses.roundId, round.id))).map((g) => g.playerId),
+  );
+  const eligible = active.filter((p) => !excluded.has(p.id) && (!p.awayAt || guessed.has(p.id)));
+  return { eligibleCount: eligible.length, answeredCount: eligible.filter((p) => guessed.has(p.id)).length };
 }
 
 export async function getResults(db: DB, code: string) {

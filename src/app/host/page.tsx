@@ -1,5 +1,6 @@
 "use client";
 
+import { QuestionLibrary } from "@/components/QuestionLibrary";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -405,7 +406,8 @@ export default function HostDashboard() {
                     </ul>
                   )}
                 </section>
-                <AboutPanel />
+                <QuestionLibrary />
+              <AboutPanel />
               </div>
             </div>
           </>

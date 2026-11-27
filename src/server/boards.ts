@@ -1,11 +1,12 @@
 import type { BoardsDTO, StandingDTO } from "@/lib/dto";
-import { BONUS_PERSON } from "@/lib/bonus";
+import { BONUS_PERSON, QUIZ_PERSON } from "@/lib/bonus";
 
 type RoundRow = {
   id: string;
   ordinal: number;
-  /** Null for bonus rounds. */
+  /** Null for bonus and quiz rounds. */
   subject: string | null;
+  kind?: string;
   correctOptionId: string;
   answerText: string;
   promptText: string;
@@ -30,8 +31,8 @@ export function computeBoards(
   const byRound = new Map<string, GuessRow[]>();
   for (const g of allGuesses) byRound.set(g.roundId, [...(byRound.get(g.roundId) ?? []), g]);
   const eligibleIds = (r: RoundRow) => roster.filter((p) => p.id !== r.subject && !r.excluded.includes(p.id)).map((p) => p.id);
-  const person = (id: string | null) => {
-    if (!id) return { ...BONUS_PERSON };
+  const person = (id: string | null, kind?: string) => {
+    if (!id) return kind === "bonus" ? { ...BONUS_PERSON } : { ...QUIZ_PERSON };
     const p = who.get(id);
     return { playerId: id, name: p?.name ?? "Someone", piece: p?.piece ?? null };
   };
@@ -50,7 +51,7 @@ export function computeBoards(
     else if (elig >= 2 && right === elig) badge = "everybody";
     else if (gs.length >= 3 && correctCount > 0 && correctCount < othersMax && [...counts.values()].every((c) => c >= correctCount || c === 0))
       badge = "surprise";
-    return { ...person(r.subject), number: i + 1, prompt: r.promptText, answer: r.answerText, pctCorrect: pct, right, eligible: elig, badge };
+    return { ...person(r.subject, r.kind), number: i + 1, prompt: r.promptText, answer: r.answerText, pctCorrect: pct, right, eligible: elig, badge };
   });
   stumpers.sort((a, b) => a.pctCorrect - b.pctCorrect || b.number - a.number);
 
@@ -108,7 +109,7 @@ export function computeBoards(
     for (const [optionId, fooled] of counts) {
       if (fooled < 2) continue;
       const label = r.options.find((o) => o.id === optionId)?.label ?? "?";
-      graveyard.push({ label, fooled, subjectName: person(r.subject).name, prompt: r.promptText, actual: r.answerText, bonus: !r.subject });
+      graveyard.push({ label, fooled, subjectName: person(r.subject, r.kind).name, prompt: r.promptText, actual: r.answerText, bonus: !r.subject });
     }
   }
   graveyard.sort((a, b) => b.fooled - a.fooled);
@@ -140,7 +141,7 @@ export function computeBoards(
       number: i + 1,
       roundId: r.id,
       questionText: r.questionText,
-      subject: person(r.subject),
+      subject: person(r.subject, r.kind),
       answer: r.options.find((o) => o.id === r.correctOptionId)?.label ?? r.answerText,
       durationMs: r.durationMs,
       right: rows.filter((x) => x.correct).length,

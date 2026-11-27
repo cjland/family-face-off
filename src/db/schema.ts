@@ -67,6 +67,9 @@ export const games = pgTable(
     version: integer("version").notNull().default(0),
     rosterLockedAt: ts("roster_locked_at"),
     prepareError: text("prepare_error"),
+    /** When the current phase began (autoplay timing), and when the host paused it (reveal/leaderboard). */
+    phaseStartedAt: ts("phase_started_at"),
+    pausedAt: ts("paused_at"),
     createdAt: ts("created_at").notNull().defaultNow(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
     finishedAt: ts("finished_at"),
@@ -93,6 +96,9 @@ export const players = pgTable(
     tokenHash: text("token_hash").notNull(),
     readyAt: ts("ready_at"),
     active: boolean("active").notNull().default(true),
+    /** Stepped away (paused themselves, or stopped answering): skipped until they're back. */
+    awayAt: ts("away_at"),
+    awayReason: text("away_reason"),
     isBot: boolean("is_bot").notNull().default(false),
     /** Game piece id (see src/lib/pieces.ts). */
     piece: text("piece"),
@@ -147,6 +153,34 @@ export const prompts = pgTable(
     seasonal: text("seasonal"),
   },
   (t) => [check("prompts_template_has_name", sql`${t.questionTemplate} like '%{name}%'`)],
+);
+
+/**
+ * Questions the host uploaded with the template (Custom mode). Grouped by group name, with a
+ * genre and difficulty; audio_id names the announcer clip (questions/<audio_id>.mp3) if recorded.
+ */
+export const customQuestions = pgTable(
+  "custom_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupName: text("group_name").notNull(),
+    genre: text("genre").notNull().default(""),
+    difficulty: text("difficulty").notNull().default("medium"),
+    question: text("question").notNull(),
+    options: jsonb("options").$type<string[]>().notNull(),
+    correctIndex: integer("correct_index").notNull(),
+    seconds: integer("seconds"),
+    audioId: text("audio_id").notNull().unique(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("custom_questions_group_idx").on(t.groupName),
+    check("custom_difficulty", sql`${t.difficulty} in ('easy', 'medium', 'hard')`),
+    check("custom_options_count", sql`jsonb_array_length(${t.options}) = 4`),
+    check("custom_correct_index", sql`${t.correctIndex} between 0 and 3`),
+    check("custom_seconds", sql`${t.seconds} is null or ${t.seconds} between 5 and 120`),
+    check("custom_lengths", sql`char_length(${t.question}) <= 300 and char_length(${t.groupName}) <= 60 and char_length(${t.genre}) <= 60`),
+  ],
 );
 
 /** Bonus trivia (one right answer, extra points), mixed into the middle of a game. */
@@ -217,6 +251,9 @@ export const rounds = pgTable(
     sourcePlayerPromptId: uuid("source_player_prompt_id").references(() => playerPrompts.id, { onDelete: "cascade" }),
     /** Set for bonus rounds: which bonus question, and what a right answer is worth. */
     bonusQuestionId: text("bonus_question_id").references(() => bonusQuestions.id),
+    /** personal (about a player), bonus (trivia mid-game, paid by place), trivia (Quiz/Custom mode), speed (short timer, paid by place). */
+    kind: text("kind").notNull().default("personal"),
+    customQuestionId: uuid("custom_question_id").references(() => customQuestions.id, { onDelete: "set null" }),
     bonusPoints: integer("bonus_points"),
     bonusDifficulty: text("bonus_difficulty"),
     type: roundType("type").notNull(),
@@ -239,10 +276,10 @@ export const rounds = pgTable(
     index("rounds_game_idx").on(t.gameId),
     check("rounds_options_count", sql`jsonb_array_length(${t.options}) = 4`),
     check("rounds_duration_pos", sql`${t.durationMs} > 0`),
-    check(
-      "rounds_subject_or_bonus",
-      sql`(${t.bonusQuestionId} is null and ${t.subjectPlayerId} is not null and ${t.sourcePlayerPromptId} is not null) or (${t.bonusQuestionId} is not null and ${t.bonusPoints} > 0)`,
-    ),
+    check("rounds_kind", sql`${t.kind} in ('personal', 'bonus', 'trivia', 'speed')`),
+    // Personal questions are about someone; bonus questions pay by place.
+    check("rounds_personal_source", sql`${t.kind} <> 'personal' or (${t.subjectPlayerId} is not null and ${t.sourcePlayerPromptId} is not null)`),
+    check("rounds_bonus_points", sql`${t.kind} <> 'bonus' or ${t.bonusPoints} > 0`),
   ],
 );
 

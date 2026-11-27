@@ -1,6 +1,6 @@
 "use client";
 
-import { BONUS_PIECE } from "@/lib/bonus";
+import { BONUS_PIECE, TRIVIA_PIECE } from "@/lib/bonus";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import type { OptionDTO, StandingDTO } from "@/lib/dto";
@@ -268,6 +268,17 @@ export function FaceOnBody({ src, body, size }: { src: string; body: BodyId; siz
 }
 
 export function Avatar({ name, size = 48, piece }: { name: string; size?: number; piece?: string | null }) {
+  if (piece === TRIVIA_PIECE) {
+    return (
+      <span
+        aria-hidden="true"
+        className="flex-none grid place-items-center rounded-full bg-gradient-to-b from-[#7cc4ff] to-[#3b6fd6] shadow-[0_4px_10px_rgba(0,0,0,0.45)] emoji-plain"
+        style={{ width: size, height: size, fontSize: Math.round(size * 0.58) }}
+      >
+        🧠
+      </span>
+    );
+  }
   if (piece === BONUS_PIECE) {
     return (
       <span

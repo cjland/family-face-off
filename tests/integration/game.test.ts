@@ -19,8 +19,12 @@ import {
   saveAnswers,
   setReady,
   setSlogans,
+  setAway,
+  updateSettings,
 } from "@/server/lobby";
 import { getGameState, type StateAuth } from "@/server/state";
+import { listQuestionGroups, questionAudioList, uploadQuestions, deleteQuestionGroup } from "@/server/questions";
+import { customQuestions } from "@/db/schema";
 import { decodePhoto, getPhoto, removePhoto, setPhoto, setPhotoBody } from "@/server/photos";
 import { readFileSync } from "node:fs";
 import { closeTestDb, resetGames, testDb } from "../support/db";
@@ -57,7 +61,7 @@ async function fillAndReady(code: string, player: Player, i: number) {
 }
 
 async function setupGame(n: number, settings: Record<string, unknown> = {}) {
-  const game = await createGame(db, { title: "Test", settings: { roundCount: 6, countdownSeconds: 0, bonusQuestions: false, ...settings } });
+  const game = await createGame(db, { title: "Test", settings: { roundCount: 6, countdownSeconds: 0, bonusQuestions: false, autoNext: false, ...settings } });
   const ps: { player: Player; token: string }[] = [];
   for (let i = 0; i < n; i++) {
     const r = await joinGame(db, game.code, `Player ${i + 1}`, null);
@@ -398,10 +402,13 @@ describe("game loop", () => {
     // Not yet due.
     const s2 = await getGameState(db, game.code, auth("display"));
     expect(s2.phase).toBe("REVEAL");
-    await db.update(rounds).set({ revealedAt: sql`now() - interval '10 seconds'` }).where(eq(rounds.id, r.id));
+    await db.execute(sql`update games set phase_started_at = now() - interval '10 seconds' where id = ${game.id}`);
     const s3 = await getGameState(db, game.code, auth("display"));
     expect(s3.phase).toBe("LEADERBOARD");
-    await db.execute(sql`update games set updated_at = now() - interval '10 seconds' where id = ${game.id}`);
+    // The leaderboard stays up one page-time (5s) per chosen page (4 by default).
+    await db.execute(sql`update games set phase_started_at = now() - interval '15 seconds' where id = ${game.id}`);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("LEADERBOARD");
+    await db.execute(sql`update games set phase_started_at = now() - interval '21 seconds' where id = ${game.id}`);
     const s4 = await getGameState(db, game.code, auth("display"));
     expect(s4.phase).toBe("QUESTION");
     expect(s4.round?.number).toBe(2);
@@ -500,7 +507,7 @@ describe("families, pieces, questions per person, stats", () => {
   });
 
   it("shows lock-ins (not choices) during a question, and awards after reveals", async () => {
-    const { game, ps } = await setupGame(4, { roundCount: 4 });
+    const { game, ps } = await setupGame(4, { roundCount: 4, autoAway: false });
     await startGame(db, game.id, { excludeUnready: false });
     for (let q = 0; q < 3; q++) {
       if (q === 0) await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
@@ -581,7 +588,7 @@ describe("player photos", () => {
 
 describe("bonus questions", () => {
   it("go in the middle of the game, easy to hard, everyone plays and they don't count as numbered questions", async () => {
-    const { game, ps } = await setupGame(4, { bonusQuestions: true });
+    const { game, ps } = await setupGame(4, { bonusQuestions: true, autoAway: false });
     await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
     const rs = (await db.select().from(rounds).where(eq(rounds.gameId, game.id))).filter((r) => r.status === "PENDING").sort((a, b) => a.ordinal - b.ordinal);
     const bonus = rs.filter((r) => r.bonusQuestionId);
@@ -639,6 +646,174 @@ describe("bonus questions", () => {
     await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
     const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
     expect(rs.some((r) => r.bonusQuestionId)).toBe(false);
+  });
+});
+
+describe("players stepping away", () => {
+  it("skips someone who paused themselves; answering brings them back", async () => {
+    const { game, ps } = await setupGame(4, { autoReveal: false });
+    await startGame(db, game.id, { excludeUnready: false });
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    const { r } = await current(game.code);
+    const guessers = ps.filter((p) => p.player.id !== r.subjectPlayerId);
+    await setAway(db, await findGame(db, game.code), guessers[2].player, true);
+    let tv = await getGameState(db, game.code, auth("display"));
+    expect(tv.round!.eligibleCount).toBe(2);
+    expect(tv.players!.find((p) => p.id === guessers[2].player.id)!.away).toBe(true);
+    const me = await getGameState(db, game.code, auth("player", await refreshPlayer(guessers[2].player.id)));
+    expect(me.me).toMatchObject({ away: true, awayReason: "self" });
+    await submitGuess(db, game.id, guessers[0].player, r.id, r.correctOptionId);
+    await submitGuess(db, game.id, guessers[1].player, r.id, r.correctOptionId);
+    await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+    const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
+    expect(ev.map((e) => e.playerId)).not.toContain(guessers[2].player.id); // no score, no miss
+    // Back by answering the next question.
+    await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+    await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+    const { r: r2 } = await current(game.code);
+    const back = ps.find((p) => p.player.id === guessers[2].player.id && p.player.id !== r2.subjectPlayerId);
+    if (back) {
+      await submitGuess(db, game.id, back.player, r2.id, r2.correctOptionId);
+      expect((await refreshPlayer(back.player.id)).awayAt).toBeNull();
+      tv = await getGameState(db, game.code, auth("display"));
+      expect(tv.players!.find((p) => p.id === back.player.id)!.away).toBe(false);
+    }
+  });
+
+  it("sets aside someone who misses two in a row, and the game stops waiting for them", async () => {
+    const { game, ps } = await setupGame(4, { autoReveal: false, roundCount: 8 });
+    await startGame(db, game.id, { excludeUnready: false });
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    const quiet = ps[3].player;
+    for (let q = 0; q < 3; q++) {
+      const { r } = await current(game.code);
+      for (const p of ps.slice(0, 3)) if (p.player.id !== r.subjectPlayerId) await submitGuess(db, game.id, p.player, r.id, r.correctOptionId);
+      await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+      const awayNow = (await refreshPlayer(quiet.id)).awayAt;
+      if (awayNow) break;
+      await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+      await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+    }
+    const p = await refreshPlayer(quiet.id);
+    expect(p.awayAt).not.toBeNull();
+    expect(p.awayReason).toBe("auto");
+    await setAway(db, await findGame(db, game.code), p, false);
+    expect((await refreshPlayer(quiet.id)).awayAt).toBeNull();
+  });
+});
+
+describe("autoplay and pausing between questions", () => {
+  it("starts the first question by itself, and pause holds the reveal timer", async () => {
+    const { game, ps } = await setupGame(3, { autoNext: true, autoReveal: true });
+    await startGame(db, game.id, { excludeUnready: false });
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("PREPARING");
+    await db.execute(sql`update games set phase_started_at = now() - interval '7 seconds' where id = ${game.id}`);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("QUESTION");
+    const { r } = await current(game.code);
+    for (const p of ps) if (p.player.id !== r.subjectPlayerId) await submitGuess(db, game.id, p.player, r.id, r.correctOptionId);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL");
+    await performAction(db, game.id, "pause", (await findGame(db, game.code)).version);
+    await db.execute(sql`update games set phase_started_at = now() - interval '30 seconds', paused_at = now() - interval '25 seconds' where id = ${game.id}`);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL"); // paused: stays
+    await performAction(db, game.id, "resume", (await findGame(db, game.code)).version);
+    // 5s had passed before the pause, so 5 more seconds of reveal are left.
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL");
+    const g = await findGame(db, game.code);
+    expect(Date.now() - g.phaseStartedAt!.getTime()).toBeLessThan(8000);
+  });
+});
+
+describe("game modes", () => {
+  it("Quiz mode plays built-in trivia: everyone ready on join, everyone plays every question", async () => {
+    const game = await createGame(db, { title: "Quiz", settings: { mode: "quiz", roundCount: 5, countdownSeconds: 0, autoNext: false, autoReveal: false } });
+    const ps: Player[] = [];
+    for (let i = 0; i < 3; i++) ps.push((await joinGame(db, game.code, `Quizzer ${i + 1}`, null)).player);
+    expect(ps.every((p) => p.readyAt)).toBe(true);
+    const preview = await previewRounds(db, await findGame(db, game.code));
+    expect(preview).toMatchObject({ mode: "quiz", available: 20, suggestedQuestions: 5 });
+    await startGame(db, game.id, { excludeUnready: false, roundCount: 6 });
+    const rs = (await db.select().from(rounds).where(eq(rounds.gameId, game.id))).sort((a, b) => a.ordinal - b.ordinal);
+    expect(rs).toHaveLength(6);
+    expect(rs.every((r) => r.kind === "trivia" && r.subjectPlayerId === null && r.bonusQuestionId)).toBe(true);
+    const order = { easy: 0, medium: 1, hard: 2 } as Record<string, number>;
+    expect(rs.map((r) => order[r.bonusDifficulty!])).toEqual([...rs.map((r) => order[r.bonusDifficulty!])].sort());
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    const tv = await getGameState(db, game.code, auth("display"));
+    expect(tv.round).toMatchObject({ kind: "trivia", number: 1, total: 6, eligibleCount: 3, bonus: null });
+    expect(tv.round!.promptId).toMatch(/^b\d{3}$/);
+    const { r } = await current(game.code);
+    await submitGuess(db, game.id, ps[0], r.id, r.correctOptionId);
+    await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+    const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
+    expect(ev).toHaveLength(3);
+    expect(ev.find((e) => e.playerId === ps[0].id)!.points).toBeGreaterThanOrEqual(1025);
+  });
+
+  it("Custom mode plays uploaded question groups", async () => {
+    await db.delete(customQuestions);
+    const csv = [
+      "Group Name,Genre,Difficulty,Question,Choice A,Choice B,Choice C,Choice D,Correct (A-D),Seconds (optional)",
+      'Test Trivia,Science,easy,"What do plants breathe in, mostly?",Oxygen,Carbon dioxide,Helium,Nitrogen,B,',
+      "Test Trivia,Science,hard,Speed of light is about?,300 km/s,300000 km/s,3000 km/s,30 km/s,B,30",
+      "Test Trivia,Math,medium,What is 7 x 8?,54,56,58,64,B,",
+      "Bad Row,,easy,Missing choices,A,B,,,A,",
+      "Other Group,Fun,whatever,Pick D,1,2,3,4,D,",
+    ].join("\n");
+    const res = await uploadQuestions(db, csv, false);
+    expect(res.added).toBe(4);
+    expect(res.errors.map((e) => e.row)).toEqual(expect.arrayContaining([5, 6]));
+    // Uploading the same file again adds nothing new.
+    expect((await uploadQuestions(db, csv, false)).added).toBe(0);
+    const groups = await listQuestionGroups(db);
+    expect(groups.find((g) => g.name === "Test Trivia")).toMatchObject({ count: 3, easy: 1, medium: 1, hard: 1 });
+    expect(await questionAudioList(db, "Test Trivia")).toContain("questions/cq-");
+
+    const game = await createGame(db, { title: "Custom", settings: { mode: "custom", questionGroups: ["Test Trivia"], roundCount: 10, countdownSeconds: 0, autoNext: false } });
+    for (let i = 0; i < 3; i++) await joinGame(db, game.code, `Custom ${i + 1}`, null);
+    await startGame(db, game.id, { excludeUnready: false });
+    const rs = (await db.select().from(rounds).where(eq(rounds.gameId, game.id))).sort((a, b) => a.ordinal - b.ordinal);
+    expect(rs).toHaveLength(3); // only 3 in the group
+    expect(rs.every((r) => r.kind === "trivia" && r.customQuestionId)).toBe(true);
+    expect(rs.find((r) => r.questionText.startsWith("Speed of light"))!.durationMs).toBe(30_000);
+    expect((await findGame(db, game.code)).prepareError).toContain("Only 3 questions");
+    expect(await deleteQuestionGroup(db, "Other Group")).toBe(1);
+  });
+
+  it("switching a lobby to Quiz makes everyone ready, and back to Get Personal un-readies unfinished players", async () => {
+    const game = await createGame(db, { title: "Switch", settings: {} });
+    const p = (await joinGame(db, game.code, "Halfway", null)).player;
+    expect(p.readyAt).toBeNull();
+    await updateSettings(db, game.code, { mode: "quiz" });
+    expect((await refreshPlayer(p.id)).readyAt).not.toBeNull();
+    await updateSettings(db, game.code, { mode: "personal" });
+    expect((await refreshPlayer(p.id)).readyAt).toBeNull();
+  });
+});
+
+describe("speed questions", () => {
+  it("get a short timer and pay by finishing place, never first or last", async () => {
+    const { game, ps } = await setupGame(4, { speedQuestions: true, speedCount: 2, speedSeconds: 8, autoReveal: false, autoAway: false });
+    await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
+    const rs = (await db.select().from(rounds).where(and(eq(rounds.gameId, game.id), eq(rounds.status, "PENDING")))).sort((a, b) => a.ordinal - b.ordinal);
+    const speed = rs.filter((r) => r.kind === "speed");
+    expect(speed).toHaveLength(2);
+    expect(speed.every((r) => r.durationMs === 8000 && r.subjectPlayerId)).toBe(true);
+    expect(rs[0].kind).not.toBe("speed");
+    expect(rs[rs.length - 1].kind).not.toBe("speed");
+    // Play up to the first speed question.
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    while ((await current(game.code)).r.kind !== "speed") {
+      await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+      await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+      await performAction(db, game.id, "next", (await findGame(db, game.code)).version);
+    }
+    const { r } = await current(game.code);
+    const guessers = ps.filter((p) => p.player.id !== r.subjectPlayerId);
+    for (const p of guessers) await submitGuess(db, game.id, p.player, r.id, r.correctOptionId);
+    await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
+    const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
+    expect(ev.map((e) => e.points).sort((a, b) => b - a)).toEqual([1000, 800, 600]);
+    expect((await getGameState(db, game.code, auth("display"))).round!.kind).toBe("speed");
   });
 });
 

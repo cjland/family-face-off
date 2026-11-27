@@ -8,6 +8,9 @@ export type Theme = (typeof THEMES)[number];
 export const MUSIC = ["gameshow", "suspense", "lounge", "off"] as const;
 export type MusicStyle = (typeof MUSIC)[number];
 
+export const GAME_MODES = ["personal", "quiz", "custom"] as const;
+export type GameMode = (typeof GAME_MODES)[number];
+
 export const settingsSchema = z
   .object({
     theme: z.enum(THEMES).default("classic"),
@@ -20,8 +23,12 @@ export const settingsSchema = z
     overtimeSeconds: z.number().int().min(0).max(30).default(5),
     /** Full-screen "5, 4, 3, 2, 1" before each question; answers open when it hits zero. */
     countdownSeconds: z.number().int().min(0).max(10).default(5),
-    autoNext: z.boolean().default(false),
-    revealSeconds: z.number().int().min(3).max(30).default(8),
+    /** Autoplay: after the reveal, show the leaderboard, then go to the next question by itself. */
+    autoNext: z.boolean().default(true),
+    /** Autoplay: how long the answer stays up before the leaderboard. */
+    revealSeconds: z.number().int().min(3).max(30).default(10),
+    /** Autoplay: seconds per leaderboard page (the leaderboard stays up for every chosen page). */
+    leaderboardPageSeconds: z.number().int().min(3).max(15).default(5),
     replaceSkipped: z.boolean().default(true),
     aiDistractors: z.boolean().default(false),
     maxPlayers: z.number().int().min(3).max(50).default(50),
@@ -47,6 +54,20 @@ export const settingsSchema = z
     plannedPlayers: z.number().int().min(3).max(50).optional(),
     /** The fastest right answer each round gets a random 25–50 bonus (on by default). */
     fastestBonus: z.boolean().default(true),
+    /**
+     * Game mode: personal (questions about the players, from their 8 answers), quiz (built-in
+     * trivia), custom (the host's uploaded questions, by group).
+     */
+    mode: z.enum(GAME_MODES).default("personal"),
+    /** Custom mode: which uploaded question groups to play. */
+    questionGroups: z.array(z.string().max(60)).max(50).default([]),
+    /** Speed questions: some questions get a short timer and pay by finishing place. */
+    speedQuestions: z.boolean().default(false),
+    speedCount: z.number().int().min(1).max(20).optional(),
+    speedSeconds: z.number().int().min(4).max(15).default(8),
+    /** Players who miss this many questions in a row are set aside until they say they're back. */
+    autoAway: z.boolean().default(true),
+    autoAwayMisses: z.number().int().min(1).max(5).default(2),
     /** Bonus trivia questions in the middle of the game (on by default). */
     bonusQuestions: z.boolean().default(true),
     /** How many bonus questions; unset = one each time through everyone (questions per person). */

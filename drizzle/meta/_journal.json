@@ -50,6 +50,13 @@
       "when": 1795727273645,
       "tag": "0006_bonus_questions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795805575264,
+      "tag": "0007_modes_away_autoplay",
+      "breakpoints": true
     }
   ]
 }

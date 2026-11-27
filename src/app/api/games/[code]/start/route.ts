@@ -9,6 +9,8 @@ type Ctx = { params: Promise<{ code: string }> };
 const body = z.object({
   excludeUnready: z.boolean().default(false),
   perPlayer: z.number().int().min(1).max(8).optional(),
+  /** Quiz and Custom modes: how many questions. */
+  roundCount: z.number().int().min(1).max(80).optional(),
 });
 
 export const maxDuration = 60;
@@ -16,7 +18,7 @@ export const maxDuration = 60;
 export const POST = route<Ctx>(async (req, ctx, db) => {
   await requireHost(db, req);
   const game = await findGame(db, normalizeCode((await ctx.params).code));
-  const { excludeUnready, perPlayer } = await readJson(req, body);
-  const result = await startGame(db, game.id, { excludeUnready, perPlayer }, prepareOptions());
+  const { excludeUnready, perPlayer, roundCount } = await readJson(req, body);
+  const result = await startGame(db, game.id, { excludeUnready, perPlayer, roundCount }, prepareOptions());
   return json(result);
 });

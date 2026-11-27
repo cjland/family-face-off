@@ -21,6 +21,7 @@ export async function computeStats(db: DB, gameId: string, standings: StandingDT
       id: rounds.id,
       ordinal: rounds.ordinal,
       subject: rounds.subjectPlayerId,
+      kind: rounds.kind,
       correctOptionId: rounds.correctOptionId,
       questionText: rounds.questionText,
       answerText: rounds.answerText,

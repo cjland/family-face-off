@@ -44,6 +44,10 @@ export type RoundDTO = {
   promptId?: string | null;
   /** Display/host only: who sits this one out. */
   subjectPlayerId?: string;
+  /** personal (about a player), bonus (mid-game trivia), trivia (Quiz/Custom), speed (short timer). */
+  kind: "personal" | "bonus" | "trivia" | "speed";
+  /** Trivia/bonus difficulty, if any. */
+  difficulty: "easy" | "medium" | "hard" | null;
   /** Bonus trivia round: everyone plays, a right answer is worth `points`. */
   bonus: { difficulty: "easy" | "medium" | "hard"; points: number; ordinal: number } | null;
 };
@@ -151,6 +155,9 @@ export type MeDTO = {
   active: boolean;
   ready: boolean;
   eligible: boolean;
+  /** Stepped away: "self" (they paused) or "auto" (stopped answering, asked "Still playing?"). */
+  away: boolean;
+  awayReason: "self" | "auto" | null;
   isSubject: boolean;
   lockedOptionId: string | null;
   points: number;
@@ -163,6 +170,8 @@ export type LobbyPlayerDTO = {
   name: string;
   ready: boolean;
   piece: string | null;
+  /** Stepped away (skipped until they're back). */
+  away?: boolean;
   /** TV/host only: catchphrases (picked-for-you ones filled in). */
   winSlogan?: string;
   loseSlogan?: string;
@@ -186,6 +195,13 @@ export type GameStateDTO = {
   music: MusicStyle;
   taunts: boolean;
   shameSpotlight: boolean;
+  mode: "personal" | "quiz" | "custom";
+  /** Autoplay: the game moves on by itself (reveal, leaderboard, next question). */
+  autoplay: boolean;
+  /** Paused between questions (a question's own pause is round.paused). */
+  paused: boolean;
+  /** When the current phase began (for "next question in…" countdowns). */
+  phaseStartedAt: string | null;
   sound: boolean;
   animations: boolean;
   voice: boolean;
@@ -210,6 +226,12 @@ export type GameStateDTO = {
     bonusQuestions: boolean;
     bonusCount: number | null;
     pieceGroups: string[];
+    questionGroups: string[];
+    speedQuestions: boolean;
+    speedCount: number | null;
+    speedSeconds: number;
+    autoAway: boolean;
+    leaderboardPageSeconds: number;
   };
   counts: { players: number; ready: number };
   lobby: LobbyPlayerDTO[] | null;

@@ -1,8 +1,9 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import type { DB } from "@/db/client";
 import {
   bonusQuestions,
+  customQuestions,
   games,
   guesses,
   playerPrompts,
@@ -17,6 +18,7 @@ import {
 import { ApiError } from "@/lib/errors";
 import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
 import { hashString, createRng } from "@/lib/prng";
+import { defaultSpeedCount, pickTrivia, SPEED_MIN_POINTS, SPEED_TOP_POINTS, speedPlacePoints, speedPositions } from "@/lib/trivia";
 import { BONUS_MIN_POINTS, BONUS_POINTS, bonusPlacePoints, bonusPlaces, bonusSlots, defaultBonusCount, interleave, pickBonus, type BonusDifficulty } from "@/lib/bonus";
 import { bonusIntroDurationMs, introDurationMs } from "@/server/introTiming";
 import { randomInt } from "node:crypto";
@@ -47,9 +49,11 @@ async function lockGame(tx: DB, gameId: string, mode: "update" | "share"): Promi
 }
 
 async function bumpGame(tx: DB, gameId: string, patch: PgUpdateSetSource<typeof games>) {
+  // A new phase starts its autoplay clock now, unpaused.
+  const phase = patch.phase ? { phaseStartedAt: sql`now()`, pausedAt: null } : {};
   await tx
     .update(games)
-    .set({ ...patch, version: sql`${games.version} + 1`, updatedAt: sql`now()` })
+    .set({ ...phase, ...patch, version: sql`${games.version} + 1`, updatedAt: sql`now()` })
     .where(eq(games.id, gameId));
 }
 
@@ -64,12 +68,19 @@ export type StartResult = { started: true; excluded: number };
 export async function startGame(
   db: DB,
   gameId: string,
-  opts: { excludeUnready: boolean; perPlayer?: number },
+  opts: { excludeUnready: boolean; perPlayer?: number; roundCount?: number },
   prepareOpts?: PrepareOptions,
 ): Promise<StartResult> {
   const result = await db.transaction(async (tx) => {
-    const { game } = await lockGame(tx, gameId, "update");
+    const { game, now } = await lockGame(tx, gameId, "update");
     if (game.phase !== "LOBBY") throw new ApiError("WRONG_PHASE", "This game has already started.");
+    if (parseSettings(game.settings).mode !== "personal") {
+      // Quiz and Custom modes need nothing from players: everyone who joined plays.
+      await tx
+        .update(players)
+        .set({ readyAt: now })
+        .where(and(eq(players.gameId, game.id), eq(players.active, true), sql`${players.readyAt} is null`));
+    }
     const roster = await tx.select().from(players).where(and(eq(players.gameId, game.id), eq(players.active, true)));
     const ready = roster.filter((p) => p.readyAt);
     const unready = roster.filter((p) => !p.readyAt);
@@ -91,7 +102,11 @@ export async function startGame(
       phase: "PREPARING",
       rosterLockedAt: sql`now()`,
       prepareError: null,
-      settings: { ...settings, perPlayer: opts.perPlayer ?? settings.perPlayer },
+      settings: {
+        ...settings,
+        perPlayer: opts.perPlayer ?? settings.perPlayer,
+        roundCount: opts.roundCount ? Math.max(1, Math.min(80, opts.roundCount)) : settings.roundCount,
+      },
     });
     return { started: true as const, excluded: unready.length };
   });
@@ -147,6 +162,29 @@ export async function loadGenerationInput(db: DB, gameId: string) {
 /** Runs the generator without writing anything (lobby preview and the start dialog). */
 export async function previewRounds(db: DB, game: Game) {
   const settings = parseSettings(game.settings);
+  if (settings.mode !== "personal") {
+    // Quiz / Custom: how many trivia questions there are to choose from.
+    const [{ n: players_ }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(players)
+      .where(and(eq(players.gameId, game.id), eq(players.active, true)));
+    const [{ n: available }] =
+      settings.mode === "quiz"
+        ? await db.select({ n: sql<number>`count(*)::int` }).from(bonusQuestions).where(eq(bonusQuestions.active, true))
+        : settings.questionGroups.length
+          ? await db.select({ n: sql<number>`count(*)::int` }).from(customQuestions).where(inArray(customQuestions.groupName, settings.questionGroups))
+          : [{ n: 0 }];
+    return {
+      mode: settings.mode,
+      readyPlayers: players_,
+      totalPlayers: players_,
+      maxPerPlayer: 0,
+      suggestedPerPlayer: 0,
+      available,
+      suggestedQuestions: Math.min(available, settings.roundCount),
+      questionSeconds: settings.questionSeconds,
+    };
+  }
   const input = await loadGenerationInput(db, game.id);
   const readyIds = new Set(
     (
@@ -167,6 +205,9 @@ export async function previewRounds(db: DB, game: Game) {
   // The host's plan from the setup screen if there is one, otherwise a sensible default.
   const suggested = Math.max(1, Math.min(maxPerPlayer, settings.perPlayer ?? (roster.length >= 10 ? 2 : roster.length >= 6 ? 3 : 4)));
   return {
+    mode: settings.mode,
+    available: 0,
+    suggestedQuestions: 0,
     readyPlayers: roster.length,
     totalPlayers: input.roster.length,
     maxPerPlayer,
@@ -184,6 +225,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
   if (!game) throw new ApiError("GAME_NOT_FOUND", "Game not found.");
   if (game.phase !== "PREPARING") throw new ApiError("WRONG_PHASE", "Rounds can only be prepared before the first question.");
   const settings = parseSettings(game.settings);
+  if (settings.mode !== "personal") return prepareTriviaRounds(db, game, opts);
   const input = await loadGenerationInput(db, gameId);
 
   let extraDistractors: Record<string, string[]> | undefined;
@@ -252,6 +294,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
       options: r.options,
       correctOptionId: r.correctOptionId,
       excludedPlayerIds: r.excludedPlayerIds,
+      kind: "personal" as RoundKind,
       status,
       durationMs,
     });
@@ -263,6 +306,7 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
         subjectPlayerId: null,
         sourcePlayerPromptId: null,
         bonusQuestionId: b.id,
+        kind: "bonus" as RoundKind,
         bonusPoints: BONUS_POINTS[difficulty] ?? BONUS_POINTS.medium,
         bonusDifficulty: difficulty,
         type: "WHAT_ANSWER" as const,
@@ -276,8 +320,11 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
         durationMs: b.timeSeconds * 1000,
       };
     };
-    const ordered = interleave(result.rounds, bonus, bonusSlots(result.rounds.length, bonus.length)).map((x) =>
-      x.kind === "regular" ? regularRow(x.item, "PENDING") : bonusRow(x.item),
+    const ordered = applySpeed(
+      interleave(result.rounds, bonus, bonusSlots(result.rounds.length, bonus.length)).map((x) =>
+        x.kind === "regular" ? regularRow(x.item, "PENDING") : bonusRow(x.item),
+      ),
+      settings,
     );
     const all = [...ordered, ...result.reserves.map((r) => regularRow(r, "RESERVE"))];
     await tx.insert(rounds).values(all.map((row, i) => ({ ...row, ordinal: i + 1 })));
@@ -288,6 +335,88 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
     await bumpGame(tx, gameId, { prepareError: note });
   });
   return { planned: result.rounds.length, achievable: result.achievable };
+}
+
+/** Autoplay: how long the "Get ready!" roster shows before the first question starts by itself. */
+export const AUTO_FIRST_QUESTION_MS = 6000;
+
+export type RoundKind = "personal" | "bonus" | "trivia" | "speed";
+
+/**
+ * Speed questions: some numbered questions (never the first or last) get a short timer and pay
+ * by finishing place. Works on rows in play order; bonus rows are left alone.
+ */
+function applySpeed<T extends { kind: RoundKind; durationMs: number; bonusPoints?: number | null }>(rows: T[], settings: ReturnType<typeof parseSettings>): T[] {
+  if (!settings.speedQuestions) return rows;
+  const numbered = rows.map((r, i) => ({ r, i })).filter((x) => x.r.kind !== "bonus");
+  const count = Math.min(settings.speedCount ?? defaultSpeedCount(numbered.length), Math.max(0, numbered.length - 2));
+  const pick = new Set(speedPositions(numbered.length, count).map((p) => numbered[p]?.i));
+  return rows.map((r, i) => (pick.has(i) ? { ...r, kind: "speed" as RoundKind, durationMs: settings.speedSeconds * 1000, bonusPoints: SPEED_TOP_POINTS } : r));
+}
+
+/** Quiz mode (built-in trivia) and Custom mode (uploaded question groups). Everyone plays every question. */
+async function prepareTriviaRounds(db: DB, game: Game, opts: PrepareOptions): Promise<{ planned: number; achievable: number }> {
+  const settings = parseSettings(game.settings);
+  const seed = String(opts.seed ?? `${game.id}:${Date.now()}`);
+  type Item = { key: string; builtIn: boolean; question: string; options: string[]; correctIndex: number; difficulty: string; seconds: number | null };
+  let pool: Item[];
+  if (settings.mode === "quiz") {
+    const bank = await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true));
+    pool = bank.map((b) => ({ key: b.id, builtIn: true, question: b.question, options: b.options, correctIndex: b.correctIndex, difficulty: b.difficulty, seconds: null }));
+  } else {
+    const groups = settings.questionGroups;
+    const bank = groups.length ? await db.select().from(customQuestions).where(inArray(customQuestions.groupName, groups)) : [];
+    pool = bank.map((c) => ({ key: c.id, builtIn: false, question: c.question, options: c.options, correctIndex: c.correctIndex, difficulty: c.difficulty, seconds: c.seconds }));
+  }
+  const chosen = pickTrivia(pool, settings.roundCount, seed);
+  const rng = createRng(`${seed}:trivia-options`);
+  const optId = () => "o_" + Math.floor(rng() * 36 ** 6).toString(36).padStart(6, "0");
+  await db.transaction(async (tx) => {
+    const { game: locked } = await lockGame(tx, game.id, "update");
+    if (locked.phase !== "PREPARING") throw new ApiError("WRONG_PHASE", "The game has already moved on.");
+    await tx.delete(rounds).where(eq(rounds.gameId, game.id));
+    if (!chosen.length) {
+      await bumpGame(tx, game.id, {
+        prepareError:
+          settings.mode === "custom"
+            ? "No questions to play: pick at least one uploaded question group in the game settings."
+            : "No trivia questions are loaded. Run the latest neon-setup.sql.",
+      });
+      return;
+    }
+    const rows = applySpeed(
+      chosen.map((c) => {
+        const options = c.options.map((label) => ({ id: optId(), label }));
+        return {
+          gameId: game.id,
+          subjectPlayerId: null,
+          sourcePlayerPromptId: null,
+          bonusQuestionId: c.builtIn ? c.key : null,
+          customQuestionId: c.builtIn ? null : c.key,
+          kind: "trivia" as RoundKind,
+          bonusPoints: null as number | null,
+          bonusDifficulty: c.difficulty,
+          type: "WHAT_ANSWER" as const,
+          questionText: c.question,
+          promptText: c.question,
+          answerText: c.options[c.correctIndex],
+          options,
+          correctOptionId: options[c.correctIndex].id,
+          excludedPlayerIds: [] as string[],
+          status: "PENDING" as const,
+          durationMs: (c.seconds ?? settings.questionSeconds) * 1000,
+        };
+      }),
+      settings,
+    );
+    await tx.insert(rounds).values(rows.map((row, i) => ({ ...row, ordinal: i + 1 })));
+    const note =
+      chosen.length < settings.roundCount
+        ? `Only ${chosen.length} question${chosen.length === 1 ? "" : "s"} available (asked for ${settings.roundCount}). No question is repeated.`
+        : null;
+    await bumpGame(tx, game.id, { prepareError: note });
+  });
+  return { planned: chosen.length, achievable: pool.length };
 }
 
 // ---------- Transitions (all inside a transaction holding the game row lock) ----------
@@ -320,14 +449,15 @@ async function openNextRound(tx: DB, game: Game, now: Date): Promise<void> {
   let leadMs = COUNTDOWN_LEAD_MS;
   if (countdownMs > 0 && settings.voice && settings.sound) {
     const all = await tx
-      .select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status, bonus: rounds.bonusQuestionId })
+      .select({ id: rounds.id, ordinal: rounds.ordinal, status: rounds.status, kind: rounds.kind })
       .from(rounds)
       .where(eq(rounds.gameId, game.id));
-    const intro = next.bonusDifficulty
+    const intro =
+      next.kind === "bonus" && next.bonusDifficulty
       ? bonusIntroDurationMs(game.code, next.ordinal, next.bonusDifficulty)
       : (() => {
           const counted = all
-            .filter((x) => x.status !== "VOID" && x.status !== "RESERVE" && !x.bonus)
+            .filter((x) => x.status !== "VOID" && x.status !== "RESERVE" && x.kind !== "bonus")
             .sort((a, b) => a.ordinal - b.ordinal);
           const number = counted.findIndex((x) => x.id === next.id) + 1;
           return introDurationMs(game.code, number, counted.length);
@@ -352,56 +482,74 @@ async function currentRound(tx: DB, game: Game): Promise<Round | null> {
 async function revealRound(tx: DB, game: Game, round: Round, now: Date): Promise<void> {
   const settings = parseSettings(game.settings);
   const eligible = await tx
-    .select({ id: players.id })
+    .select({ id: players.id, awayAt: players.awayAt })
     .from(players)
     .where(and(eq(players.gameId, game.id), eq(players.active, true)));
   const excluded = new Set(round.excludedPlayerIds);
   const roundGuesses = await tx.select().from(guesses).where(eq(guesses.roundId, round.id));
   const byPlayer = new Map(roundGuesses.map((g) => [g.playerId, g]));
-  const scoring = eligible.filter((p) => !excluded.has(p.id));
+  // Players who stepped away (and didn't answer anyway) sit this one out: no score, no miss.
+  const scoring = eligible.filter((p) => !excluded.has(p.id) && (!p.awayAt || byPlayer.has(p.id)));
+  const answers = scoring.flatMap((p) => {
+    const g = byPlayer.get(p.id);
+    return g ? [{ playerId: p.id, correct: g.optionId === round.correctOptionId, elapsedMs: g.elapsedMs }] : [];
+  });
   // Fastest right answer (on time) gets a random 25–50 bonus, decided once here.
-  const fastest = fastestCorrect(
-    scoring.flatMap((p) => {
-      const g = byPlayer.get(p.id);
-      return g ? [{ playerId: p.id, correct: g.optionId === round.correctOptionId, elapsedMs: g.elapsedMs }] : [];
-    }),
-    round.durationMs,
-  );
+  const fastest = fastestCorrect(answers, round.durationMs);
   const bonus = randomInt(FASTEST_BONUS_MIN, FASTEST_BONUS_MAX + 1);
-  // Bonus rounds pay by finishing place among right answers (1,500, 1,200, 900… min 300).
-  const places = round.bonusPoints
-    ? bonusPlaces(
-        scoring.flatMap((p) => {
-          const g = byPlayer.get(p.id);
-          return g ? [{ playerId: p.id, correct: g.optionId === round.correctOptionId, elapsedMs: g.elapsedMs }] : [];
-        }),
-        round.durationMs,
-      )
-    : new Map<string, number>();
-  const events = scoring
-    .map((p) => {
-      const g = byPlayer.get(p.id);
-      const correct = Boolean(g && g.optionId === round.correctOptionId);
-      const place = places.get(p.id);
-      const base = round.bonusPoints
-        ? correct
-          ? place
-            ? bonusPlacePoints(round.bonusPoints, place)
-            : BONUS_MIN_POINTS
-          : 0
-        : pointsFor({
-            correct,
-            speedBonus: settings.speedBonus,
-            remainingMs: g ? round.durationMs - g.elapsedMs : 0,
-            durationMs: round.durationMs,
-          });
-      // The 25–50 speed bonus is for normal questions; bonus questions already reward speed.
-      const points = base + (!round.bonusPoints && settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
-      return { roundId: round.id, playerId: p.id, points, isCorrect: correct };
-    });
+  // Bonus and speed questions pay by finishing place among right answers.
+  const byPlace = round.kind === "bonus" || round.kind === "speed";
+  const places = byPlace ? bonusPlaces(answers, round.durationMs) : new Map<string, number>();
+  const events = scoring.map((p) => {
+    const g = byPlayer.get(p.id);
+    const correct = Boolean(g && g.optionId === round.correctOptionId);
+    const place = places.get(p.id);
+    let base: number;
+    if (round.kind === "bonus") base = correct ? (place ? bonusPlacePoints(round.bonusPoints ?? BONUS_POINTS.easy, place) : BONUS_MIN_POINTS) : 0;
+    else if (round.kind === "speed") base = correct ? (place ? speedPlacePoints(place) : SPEED_MIN_POINTS) : 0;
+    else
+      base = pointsFor({
+        correct,
+        speedBonus: settings.speedBonus,
+        remainingMs: g ? round.durationMs - g.elapsedMs : 0,
+        durationMs: round.durationMs,
+      });
+    // The 25–50 speed bonus is for normal questions; bonus and speed questions already reward speed.
+    const points = base + (!byPlace && settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
+    return { roundId: round.id, playerId: p.id, points, isCorrect: correct };
+  });
   if (events.length) await tx.insert(scoreEvents).values(events).onConflictDoNothing();
+  if (settings.autoAway) await markAwayAfterMisses(tx, game, round, scoring.filter((p) => !byPlayer.has(p.id)).map((p) => p.id), settings.autoAwayMisses, now);
   await tx.update(rounds).set({ status: "REVEALED", revealedAt: now, pausedAt: null }).where(eq(rounds.id, round.id));
   await bumpGame(tx, game.id, { phase: "REVEAL" });
+}
+
+/**
+ * Someone who missed `misses` questions in a row (this one included) is set aside as "away":
+ * the game stops waiting for them and their phone asks "Still playing?".
+ */
+async function markAwayAfterMisses(tx: DB, game: Game, round: Round, missedNow: string[], misses: number, now: Date) {
+  if (!missedNow.length) return;
+  let away = missedNow;
+  if (misses > 1) {
+    const history = await tx
+      .select({ playerId: scoreEvents.playerId, ordinal: rounds.ordinal, guessed: guesses.id })
+      .from(scoreEvents)
+      .innerJoin(rounds, eq(rounds.id, scoreEvents.roundId))
+      .leftJoin(guesses, and(eq(guesses.roundId, scoreEvents.roundId), eq(guesses.playerId, scoreEvents.playerId)))
+      .where(and(eq(rounds.gameId, game.id), inArray(scoreEvents.playerId, missedNow), sql`${rounds.id} <> ${round.id}`))
+      .orderBy(desc(rounds.ordinal));
+    away = missedNow.filter((id) => {
+      const before = history.filter((h) => h.playerId === id).slice(0, misses - 1);
+      return before.length === misses - 1 && before.every((h) => !h.guessed);
+    });
+  }
+  if (away.length) {
+    await tx
+      .update(players)
+      .set({ awayAt: now, awayReason: "auto" })
+      .where(and(inArray(players.id, away), sql`${players.awayAt} is null`));
+  }
 }
 
 export type ActionResult = { ok: true; noop: boolean; version: number; phase: Game["phase"] };
@@ -411,9 +559,9 @@ function alreadyDone(action: GameAction, game: Game, round: Round | null): boole
     case "reveal":
       return game.phase === "REVEAL" || game.phase === "FINISHED";
     case "pause":
-      return game.phase === "QUESTION" && Boolean(round?.pausedAt);
+      return game.phase === "QUESTION" ? Boolean(round?.pausedAt) : Boolean(game.pausedAt);
     case "resume":
-      return game.phase === "QUESTION" && !round?.pausedAt;
+      return game.phase === "QUESTION" ? !round?.pausedAt : !game.pausedAt;
     case "end":
       return game.phase === "FINISHED";
     case "open":
@@ -484,6 +632,11 @@ async function applyAction(tx: DB, game: Game, round: Round | null, action: Game
       return revealRound(tx, game, round, now);
     }
     case "pause": {
+      // Between questions (getting ready, the reveal, the leaderboard): hold autoplay where it is.
+      if (game.phase === "PREPARING" || game.phase === "REVEAL" || game.phase === "LEADERBOARD") {
+        if (game.pausedAt) return;
+        return bumpGame(tx, game.id, { pausedAt: now });
+      }
       if (game.phase !== "QUESTION" || !round || round.status !== "OPEN") throw new ApiError("WRONG_PHASE", "Nothing to pause.");
       if (round.pausedAt) return;
       const remaining = Math.max(0, (round.deadlineAt?.getTime() ?? now.getTime()) - now.getTime());
@@ -491,6 +644,13 @@ async function applyAction(tx: DB, game: Game, round: Round | null, action: Game
       return bumpGame(tx, game.id, {});
     }
     case "resume": {
+      if (game.phase === "PREPARING" || game.phase === "REVEAL" || game.phase === "LEADERBOARD") {
+        if (!game.pausedAt) return;
+        // The autoplay clock picks up where it left off.
+        const held = now.getTime() - game.pausedAt.getTime();
+        const started = new Date((game.phaseStartedAt ?? game.pausedAt).getTime() + held);
+        return bumpGame(tx, game.id, { pausedAt: null, phaseStartedAt: started });
+      }
       if (game.phase !== "QUESTION" || !round || round.status !== "OPEN") throw new ApiError("WRONG_PHASE", "Nothing to resume.");
       if (!round.pausedAt) return;
       const remaining = round.remainingMs ?? 0;
@@ -561,7 +721,11 @@ export async function submitGuess(db: DB, gameId: string, player: Player, roundI
       .values({ roundId, playerId: player.id, optionId, submittedAt: now, elapsedMs })
       .onConflictDoNothing({ target: [guesses.roundId, guesses.playerId] })
       .returning({ optionId: guesses.optionId });
-    if (inserted[0]) return { locked: true, optionId, roundId };
+    if (inserted[0]) {
+      // Answering means you're back, if you'd stepped away.
+      await tx.update(players).set({ awayAt: null, awayReason: null }).where(and(eq(players.id, player.id), sql`${players.awayAt} is not null`));
+      return { locked: true, optionId, roundId };
+    }
     const [existing] = await tx
       .select({ optionId: guesses.optionId })
       .from(guesses)
@@ -591,6 +755,9 @@ export async function tick(db: DB, ctx: TickContext): Promise<boolean> {
   const settings = parseSettings(game.settings);
   let changed = false;
 
+  // Paused between questions: nothing moves on by itself.
+  if (game.pausedAt) return false;
+
   if (ctx.runBots && game.phase === "QUESTION" && round && round.status === "OPEN" && !round.pausedAt) {
     changed = (await runBots(db, game, round, now)) || changed;
   }
@@ -605,15 +772,24 @@ export async function tick(db: DB, ctx: TickContext): Promise<boolean> {
     }
   }
 
+  // Autoplay: the answer stays up for revealSeconds, the leaderboard for one page-time per chosen page.
+  const phaseStart = (game.phaseStartedAt ?? game.updatedAt).getTime();
   if (game.phase === "REVEAL" && settings.autoNext && round?.revealedAt) {
-    if (now.getTime() >= round.revealedAt.getTime() + settings.revealSeconds * 1000) {
+    const start = game.phaseStartedAt ? phaseStart : round.revealedAt.getTime();
+    if (now.getTime() >= start + settings.revealSeconds * 1000) {
       return (await guardedAction(db, game, "next")) || changed;
     }
   }
-  // The leaderboard step started when the game row was last updated.
   if (game.phase === "LEADERBOARD" && settings.autoNext) {
-    if (now.getTime() >= game.updatedAt.getTime() + settings.revealSeconds * 1000) {
+    const pages = Math.max(1, settings.boards.length);
+    if (now.getTime() >= phaseStart + pages * settings.leaderboardPageSeconds * 1000) {
       return (await guardedAction(db, game, "next")) || changed;
+    }
+  }
+  // Autoplay: once the questions are ready, the first one starts by itself after a short "Get ready!".
+  if (game.phase === "PREPARING" && settings.autoNext) {
+    if (now.getTime() >= phaseStart + AUTO_FIRST_QUESTION_MS) {
+      return (await guardedAction(db, game, "open")) || changed;
     }
   }
   return changed;
@@ -624,7 +800,7 @@ async function guardedAction(db: DB, game: Game, action: GameAction): Promise<bo
     const r = await performAction(db, game.id, action, game.version);
     return !r.noop;
   } catch (err) {
-    if (err instanceof ApiError && (err.code === "VERSION_CONFLICT" || err.code === "WRONG_PHASE")) return false;
+    if (err instanceof ApiError && (err.code === "VERSION_CONFLICT" || err.code === "WRONG_PHASE" || err.code === "GENERATION_FAILED")) return false;
     throw err;
   }
 }

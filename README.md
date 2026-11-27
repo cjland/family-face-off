@@ -9,6 +9,7 @@
 - **You need:** a TV or big screen (a laptop plugged into the TV works), everyone's phones, and a second screen for the host (your phone or laptop).
 - **150 built-in questions**, each with six tap-to-answer choices (four normal, two silly), or players type their own answer. Plus **20 🎁 bonus trivia questions** mixed into the middle of the game.
 - **A game-show announcer** reads every question aloud and counts down with the TV.
+- **Three game modes:** Get Personal (questions about each other), Quiz (built-in trivia) and Custom (upload your own questions with a spreadsheet template).
 - **Fun extras:** 40 game pieces or your own face on a costume, your own win/lose catchphrases, a 5-4-3-2-1 countdown, lock-in order, taunts and a 🚨 SHAME ALERT for slowpokes, ten rotating leaderboard pages, awards, a podium and confetti. There's a classic game-show look and a Thanksgiving theme.
 
 **Contents:** [How a game works](#how-a-game-works) · [Running game night](#running-game-night) · [Settings](#game-settings) · [Troubleshooting](#troubleshooting) · [Setting it up (Neon + Vercel)](#setting-it-up-on-neon--vercel) · [Local development](#local-development) · [For developers](#for-developers)
@@ -191,7 +192,9 @@ At the end: award cards (Knows the family best, Biggest mystery, Open book, Fast
 | Move to the next step | The big ➜ button at the bottom of the TV, or **→**, **Space**, **Enter** or a presentation clicker. The host screen has the same buttons. |
 | Wait for everyone | The TV won't reveal until everyone has locked in, so nobody gets skipped by accident. |
 | Move on without someone who walked away | Once time is up, a small **⏭** appears next to the SHAME ALERT. Tap it twice to reveal without them. |
-| Pause | **⏸ Pause** at the bottom left of the TV (or the **P** key), or **❚❚ Pause** on the host screen. It freezes the timer everywhere. |
+| Pause | **⏸ Pause** at the bottom left of the TV (or the **P** key), or **❚❚ Pause** on the host screen. It works during a question (the timer freezes everywhere) and between questions (autoplay holds on the reveal or leaderboard until you resume). |
+| Step away (players) | On their phone: **⏸ Step away for a bit**. The game stops waiting for them, and they don't lose points, until they tap **I'm back!** (or answer a question). |
+| Someone stopped answering | With **Set aside players who stop answering** on, after 2 missed questions in a row the game stops waiting for them (💤 on the TV) and their phone asks **Still playing?** |
 | Skip a question | **Skip question** on the host screen (no points awarded). |
 | Look at a leaderboard page | Click its tab on the TV. It holds for 20 seconds, then rotation continues. |
 | Turn TV sound or animations off | **TV sound** and **TV animations** in the game settings (both on by default; animations play even if the computer is set to reduce motion). |
@@ -218,13 +221,15 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 
 | Setting | Default | What it does |
 |---|---|---|
+| Game mode | Get Personal | **Get Personal**: players answer 8 questions about themselves, then guess each other's answers. **Quiz**: built-in trivia; players just join and play. **Custom**: your own uploaded questions (see [Your own questions](#-your-own-questions-custom-mode)) |
 | Theme | Classic game show | Or Thanksgiving: warm colors, falling leaves, Thanksgiving questions |
-| Plan the game | 12 people, 3 each | Enter about how many people are coming and pick 3–8 questions about each person. Each choice shows the total questions and roughly how long the game takes (about 30 seconds per question on top of the answer time). You can change it when you press Start |
+| Plan the game | 12 people, 3 each (Quiz/Custom: 20 questions) | Enter about how many people are coming and pick 3–8 questions about each person. Each choice shows the total questions and roughly how long the game takes (about 30 seconds per question on top of the answer time). You can change it when you press Start |
 | Seconds per question | 20 | 5–120 seconds, with quick picks for 10, 15, 20, 30 and 45 |
 | Speed bonus | On | The fastest right answer each round gets a surprise 25–50 extra points |
 | Shame spotlight | On | At each reveal, the slowest person who got it wrong (or didn't answer) gets a few seconds in a full-screen spotlight with their losing catchphrase and a sad trombone |
 | Characters players can pick | Both groups | **Creatures & Things** (rocket, dino, unicorn…) and **People & Pros** (chef, detective, surfer…), 20 each |
-| 🎁 Bonus trivia questions | On, Auto | Thanksgiving trivia in the middle of the game (see below). **Auto** means one each time through everyone (the same as questions per person), or pick 1–8 |
+| ⚡ Speed questions | Off | Every so often a question gets a short timer (5–10s, 8 by default), and right answers score by finishing place: 1,000, 800, 600… (never less than 200). **Auto** is about one in six |
+| 🎁 Bonus trivia questions (Get Personal only) | On, Auto | Thanksgiving trivia in the middle of the game (see below). **Auto** means one each time through everyone (the same as questions per person), or pick 1–8 |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
 | Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
 | TV sound | On | Beeps, pops, "Hurry up!", music and the announcer. The TV needs one click or key press before browsers allow sound |
@@ -232,7 +237,8 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | TV animations | On | Countdowns, races, pop-ins and confetti on the TV |
 | Tease slowpokes | On | Named, good-natured taunts on the TV |
 | Auto reveal | On, +5s | Reveal as soon as everyone has answered, or a few seconds after time runs out (+2s, +5s, +10s or +15s for latecomers) |
-| Auto next question | Off | Move on 8 seconds after each reveal |
+| Autoplay | On | Runs the game by itself: the first question starts on its own, each answer shows for 10 seconds, then each leaderboard page for 5 seconds, then the next question. Pause any time |
+| Set aside players who stop answering | On | After 2 missed questions in a row the game stops waiting for that player until they say they're still playing |
 | AI wrong-answer helper | Off | Only shown if OpenRouter is set up (see below) |
 
 ### 🎁 Bonus questions
@@ -245,6 +251,18 @@ Bonus questions are Thanksgiving trivia with one right answer (like "Which city 
 - Answer time is 15, 20 or 25 seconds, by difficulty.
 - The game prefers questions your family hasn't had in earlier games.
 - There are 20 of them (`b001`–`b020`), in `src/data/bonusQuestions.ts` and the `bonus_questions` table. Each has an announcer clip in `public/audio/questions`.
+
+### 📝 Your own questions (Custom mode)
+
+The host page has a **Question library**:
+
+1. **⬇ Template** downloads a spreadsheet (CSV) with these columns: Group Name, Genre, Difficulty (easy/medium/hard), Question, Choice A–D, Correct (A–D), and optional Seconds (5–120). It has three clearly-marked sample rows; replace them with your own.
+2. Fill it in with Excel, Numbers or Google Sheets and save/export it as **CSV**.
+3. **⬆ Upload CSV**. Rows with problems are listed by row number and skipped; the rest are added. Uploading the same questions again doesn't duplicate them (or tick **Replace groups** to start a group over).
+4. Each group appears in the library with its question count. In **Game mode → Custom**, tick the groups to play.
+5. **🎙 Audio list** downloads which announcer clips to record: each question gets an Audio ID, and its clip goes in `public/audio/questions/<Audio ID>.mp3` (answer clips are listed for later). Until a clip exists, the announcer says "read it on the screen" instead.
+
+In Quiz and Custom modes everyone plays every question, questions go from easy to hard, and a right answer is worth 1,000 (plus the speed bonus).
 
 **Scoring:** 1,000 points per right answer. The fastest right answer each round also gets a surprise bonus of 25 to 50 points (a new random amount each round), so every round has a clear winner. Wrong or missed answers score 0. Late right answers score 1,000 with no bonus. Ties share a place.
 
