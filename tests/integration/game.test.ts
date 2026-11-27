@@ -390,7 +390,7 @@ describe("game loop", () => {
   });
 
   it("auto-reveals once everyone eligible has answered, and auto-advances after the reveal pause", async () => {
-    const { game, ps } = await setupGame(3, { autoReveal: true, autoNext: true, revealSeconds: 3 });
+    const { game, ps } = await setupGame(3, { autoReveal: true, autoNext: true, revealSeconds: 3, shameSpotlight: false });
     await startGame(db, game.id, { excludeUnready: false });
     await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
     const { r } = await current(game.code);
@@ -817,3 +817,18 @@ describe("speed questions", () => {
   });
 });
 
+
+describe("reveal with spotlights", () => {
+  it("autoplay keeps the reveal up 16 seconds when the winner/loser spotlights are on", async () => {
+    const { game, ps } = await setupGame(3, { autoReveal: true, autoNext: true, revealSeconds: 10, shameSpotlight: true });
+    await startGame(db, game.id, { excludeUnready: false });
+    await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
+    const { r } = await current(game.code);
+    for (const p of ps) if (p.player.id !== r.subjectPlayerId) await submitGuess(db, game.id, p.player, r.id, r.correctOptionId);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL");
+    await db.execute(sql`update games set phase_started_at = now() - interval '12 seconds' where id = ${game.id}`);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("REVEAL");
+    await db.execute(sql`update games set phase_started_at = now() - interval '17 seconds' where id = ${game.id}`);
+    expect((await getGameState(db, game.code, auth("display"))).phase).toBe("LEADERBOARD");
+  });
+});

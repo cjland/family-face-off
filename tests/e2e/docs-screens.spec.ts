@@ -169,7 +169,7 @@ test("README screenshots", async ({ browser }) => {
   }
 
   await host.getByRole("button", { name: "End game early…" }).click();
-  await host.getByLabel("Type END to confirm").fill("END");
+  for (const l of ["E", "N", "D"]) await host.getByRole("button", { name: `Tap ${l}` }).click();
   await host.getByRole("button", { name: "Yes, end the game" }).click();
   await expect(tv.getByText("The Awards")).toBeVisible();
   await tv.waitForTimeout(3000);

@@ -1916,56 +1916,79 @@ function StatCarousel({ state }: { state: GameStateDTO }) {
 }
 
 /**
- * Highlighted shame: a few seconds after the reveal, the round loser (wrong answer or no answer)
- * gets a full-screen spotlight with their losing catchphrase and a sad trombone. Tap to skip.
+ * Spotlights at the reveal: the round winner gets 5 seconds (fanfare, win catchphrase), then the
+ * round loser gets 5 seconds (sad trombone, losing catchphrase). Tap to skip ahead.
  */
 const SPOT_DELAY_MS = 1600;
-const SPOT_MS = 4500;
-function ShameSpotlight({
+const SPOT_MS = 5000;
+type SpotPerson = { name: string; piece: string | null; slogan: string };
+function RoundSpotlights({
+  winner,
+  winnerDetail,
   loser,
-  detail,
+  loserDetail,
   sfx,
 }: {
-  loser: { name: string; piece: string | null; slogan: string };
-  detail: string;
+  winner: SpotPerson | null;
+  winnerDetail: string;
+  loser: SpotPerson | null;
+  loserDetail: string;
   sfx: React.RefObject<Sfx | null>;
 }) {
-  const [phase, setPhase] = useState<"wait" | "on" | "done">("wait");
+  const steps = [winner ? ("winner" as const) : null, loser ? ("loser" as const) : null].filter(Boolean) as ("winner" | "loser")[];
+  const [idx, setIdx] = useState(-1); // -1 = not yet, steps.length = done
   useEffect(() => {
-    const a = setTimeout(() => {
-      setPhase("on");
-      if (sfx.current?.enabled) sfx.current.sadTrombone();
-    }, SPOT_DELAY_MS);
-    const b = setTimeout(() => setPhase("done"), SPOT_DELAY_MS + SPOT_MS);
-    return () => {
-      clearTimeout(a);
-      clearTimeout(b);
-    };
-  }, [sfx]);
-  if (phase !== "on") return null;
+    if (!steps.length) return;
+    const t = setTimeout(() => setIdx(0), SPOT_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [steps.length]);
+  const current = idx >= 0 && idx < steps.length ? steps[idx] : null;
+  useEffect(() => {
+    if (!current) return;
+    if (sfx.current?.enabled) {
+      if (current === "winner") sfx.current.fanfare();
+      else sfx.current.sadTrombone();
+    }
+    const t = setTimeout(() => setIdx((i) => i + 1), SPOT_MS);
+    return () => clearTimeout(t);
+  }, [current, sfx]);
+  if (!current) return null;
+  const p = current === "winner" ? winner! : loser!;
+  const win = current === "winner";
   return (
     <button
+      key={current}
       type="button"
-      className="spotlight-overlay absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 text-center cursor-pointer"
+      className={`spotlight-overlay ${win ? "spotlight-win" : ""} absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 text-center cursor-pointer`}
       style={{ ["--spot-ms" as string]: `${SPOT_MS}ms` }}
-      onClick={() => setPhase("done")}
-      aria-label={`Round loser: ${loser.name}. Tap to skip.`}
+      onClick={() => setIdx((i) => i + 1)}
+      aria-label={`${win ? "Round winner" : "Round loser"}: ${p.name}. Tap to skip.`}
     >
-      <span className="font-display text-5xl font-bold text-bad">
-        😬 Round loser
+      <span className={`font-display text-5xl font-bold ${win ? "text-good" : "text-bad"}`}>
+        {win ? (
+          <>
+            <span className="trophy-bounce">🏆</span> Round winner
+          </>
+        ) : (
+          "😬 Round loser"
+        )}
       </span>
       <span className="spotlight-drop">
-        <span className="shame-wobble">
-          <Avatar name={loser.name} piece={loser.piece} size={300} />
+        <span className={win ? "inline-block" : "shame-wobble"}>
+          <Avatar name={p.name} piece={p.piece} size={300} />
         </span>
       </span>
       <span className="font-display text-8xl font-bold">
-        <SplitText text={loser.name} effect="drop" delay={500} step={60} />
+        <SplitText text={p.name} effect={win ? "pop" : "drop"} delay={500} step={60} />
       </span>
-      <span className="text-4xl text-muted max-w-[1400px]">{detail}</span>
-      {loser.slogan && (
-        <span className="slogan-pop mt-2 rounded-3xl bg-bad/85 px-10 py-4 font-display text-6xl font-bold text-white max-w-[1500px]">
-          “{loser.slogan}”
+      <span className="text-4xl text-muted max-w-[1400px]">{win ? winnerDetail : loserDetail}</span>
+      {p.slogan && (
+        <span
+          className={`slogan-pop mt-2 rounded-3xl px-10 py-4 font-display text-6xl font-bold max-w-[1500px] ${
+            win ? "bg-accent text-black" : "bg-bad/85 text-white"
+          }`}
+        >
+          “{p.slogan}”
         </span>
       )}
     </button>
@@ -2012,15 +2035,19 @@ function TvReveal({
   return (
     <div className="h-full">
       <TvHeader state={state} right={roundLabel(round)} />
-      {state.shameSpotlight && rs.loser && rs.loser.reason !== "slowest" && (
-        <ShameSpotlight
-          loser={rs.loser}
-          sfx={sfx}
-          detail={
-            rs.loser.reason === "missed"
+      {state.shameSpotlight && (rs.winner || (rs.loser && rs.loser.reason !== "slowest")) && (
+        <RoundSpotlights
+          winner={rs.winner}
+          winnerDetail={rs.winner ? `Fastest right answer · ${(rs.winner.elapsedMs / 1000).toFixed(1)}s` : ""}
+          loser={rs.loser && rs.loser.reason !== "slowest" ? rs.loser : null}
+          loserDetail={
+            rs.loser?.reason === "missed"
               ? "Didn't even answer!"
-              : `Went with “${loserLabel ?? "?"}” · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`
+              : rs.loser
+                ? `Went with “${loserLabel ?? "?"}” · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`
+                : ""
           }
+          sfx={sfx}
         />
       )}
       <div className="absolute top-[115px] left-14 w-[1150px] bottom-[176px] flex flex-col gap-4 overflow-hidden px-2 pb-2">

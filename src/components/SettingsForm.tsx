@@ -760,8 +760,8 @@ export function SettingsForm({
         />
         <Toggle
           id="shameSpotlight"
-          label="Shame spotlight"
-          hint="At each reveal, whoever got it wrong (or didn't answer) and was slowest gets a few seconds in the spotlight, with their losing catchphrase and a sad trombone."
+          label="Winner & loser spotlights"
+          hint="At each reveal, the round winner gets 5 seconds in the spotlight (fanfare and their winning catchphrase), then whoever got it wrong (or didn't answer) and was slowest gets 5 seconds (sad trombone and their losing catchphrase). With autoplay, the reveal stays up 16 seconds to fit both."
           checked={value.shameSpotlight}
           onChange={(v) => set("shameSpotlight", v)}
         />

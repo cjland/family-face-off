@@ -261,7 +261,7 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   await hostAction(host, "End game early…");
   await expect(host.getByText("Are you sure you want to end the game?")).toBeVisible();
   await expect(host.getByRole("button", { name: "Yes, end the game" })).toBeDisabled();
-  await host.getByLabel("Type END to confirm").fill("end");
+  for (const l of ["E", "N", "D"]) await host.getByRole("button", { name: `Tap ${l}` }).click();
   await hostAction(host, "Yes, end the game");
   await expect(tv.getByText(/The Awards|Final results/).first()).toBeVisible();
   await expect(tv.getByText("Final results")).toBeVisible({ timeout: 20_000 });

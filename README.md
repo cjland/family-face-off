@@ -226,7 +226,7 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 | Plan the game | 12 people, 3 each (Quiz/Custom: 20 questions) | Enter about how many people are coming and pick 3–8 questions about each person. Each choice shows the total questions and roughly how long the game takes (about 30 seconds per question on top of the answer time). You can change it when you press Start |
 | Seconds per question | 20 | 5–120 seconds, with quick picks for 10, 15, 20, 30 and 45 |
 | Speed bonus | On | The fastest right answer each round gets a surprise 25–50 extra points |
-| Shame spotlight | On | At each reveal, the slowest person who got it wrong (or didn't answer) gets a few seconds in a full-screen spotlight with their losing catchphrase and a sad trombone |
+| Winner & loser spotlights | On | At each reveal the round winner gets 5 seconds in a gold spotlight (fanfare), then the slowest person who got it wrong or didn't answer gets 5 seconds with a sad trombone. With autoplay the reveal stays up at least 16 seconds so both fit. Tap to skip |
 | Characters players can pick | Both groups | **Creatures & Things** (rocket, dino, unicorn…) and **People & Pros** (chef, detective, surfer…), 20 each |
 | ⚡ Speed questions | Off | Every so often a question gets a short timer (5–10s, 8 by default), and right answers score by finishing place: 1,000, 800, 600… (never less than 200). **Auto** is about one in six |
 | 🎁 Bonus trivia questions (Get Personal only) | On, Auto | Thanksgiving trivia in the middle of the game (see below). **Auto** means one each time through everyone (the same as questions per person), or pick 1–8 |
@@ -460,3 +460,7 @@ The script plays a short game with two pretend players and eight labelled demo b
 - Removing a player is only possible before the game starts (by design: the roster locks at start).
 - A player who loses their phone's cookie (different phone, private browsing, cleared data) can't rejoin a game that has started.
 - The inappropriate-word filter is intentionally small; the host can remove players in the lobby.
+
+## Answer pools
+
+Each question can have up to ~30 answer options; each player sees 6 of them (4 regular, 2 humorous), different per player. See [docs/answer-pools](docs/answer-pools/README.md) to export the list, expand it with a model and import it back.

@@ -14,7 +14,7 @@ import {
   settingsSchema,
   type GameSettings,
 } from "@/lib/settings";
-import { seasonMatchesTheme } from "@/lib/promptBank";
+import { pickShownOptions, seasonMatchesTheme } from "@/lib/promptBank";
 import { validateSlogan } from "@/lib/slogans";
 import { cleanText, normalizeName, validateAnswer, validateDisplayName } from "@/lib/text";
 
@@ -318,6 +318,7 @@ export type QuestionnaireItem = {
 export async function getQuestionnaire(db: DB, player: Player): Promise<QuestionnaireItem[]> {
   const rows = await db
     .select({
+      id: playerPrompts.id,
       slot: playerPrompts.slot,
       promptId: playerPrompts.promptId,
       prompt: prompts.text,
@@ -329,7 +330,12 @@ export async function getQuestionnaire(db: DB, player: Player): Promise<Question
     .innerJoin(prompts, eq(prompts.id, playerPrompts.promptId))
     .where(eq(playerPrompts.playerId, player.id))
     .orderBy(asc(playerPrompts.slot));
-  return rows.map((r) => ({ ...r, answer: r.answer ?? "", options: r.options.map((o) => ({ id: o.id, text: o.text })) }));
+  // Each player sees their own six from the question's pool (stable per player and question).
+  return rows.map(({ id, ...r }) => ({
+    ...r,
+    answer: r.answer ?? "",
+    options: pickShownOptions(r.options, id, r.optionId).map((o) => ({ id: o.id, text: o.text })),
+  }));
 }
 
 function assertEditable(game: Game, player: Player) {

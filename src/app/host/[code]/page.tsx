@@ -173,12 +173,31 @@ function EndButton({ busy, onEnd }: { busy: boolean; onEnd: () => void }) {
     <div className="basis-full panel-strong !border-bad p-4 flex flex-col gap-3 pop-in" role="alertdialog" aria-labelledby="end-title">
       <p id="end-title" className="font-display text-xl font-bold text-bad">Are you sure you want to end the game?</p>
       <p className="text-sm text-muted">This ends it for everyone and jumps straight to the final results. It can&apos;t be undone.</p>
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">
-          Type <strong>END</strong> to confirm
+      <div className="flex flex-col gap-2">
+        <span className="text-sm" id="end-letters">
+          Tap <strong>E</strong>, <strong>N</strong>, <strong>D</strong> in order to confirm
         </span>
-        <input className="input !min-h-[44px] max-w-[200px] uppercase" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
-      </label>
+        {/* No typing: tap the three letters in order (a wrong tap starts over). */}
+        <div className="flex gap-2" role="group" aria-labelledby="end-letters">
+          {["E", "N", "D"].map((letter, i) => {
+            const done = typed.length > i;
+            return (
+              <button
+                key={letter}
+                type="button"
+                aria-label={`Tap ${letter}`}
+                aria-pressed={done}
+                className={`w-16 h-16 rounded-2xl font-display text-3xl font-bold border-2 transition ${
+                  done ? "bg-bad text-white border-bad" : "bg-black/30 border-white/25 hover:border-white/60"
+                }`}
+                onClick={() => setTyped((t) => ("END".startsWith(t + letter) ? t + letter : ""))}
+              >
+                {letter}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="flex gap-3">
         <button
           type="button"

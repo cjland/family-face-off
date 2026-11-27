@@ -337,6 +337,9 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
   return { planned: result.rounds.length, achievable: result.achievable };
 }
 
+/** Autoplay reveal time when the winner and loser spotlights are on: 1.6s + 5s + 5s + about 4s on the answer. */
+export const REVEAL_WITH_SPOTLIGHTS_S = 16;
+
 /** Autoplay: how long the "Get ready!" roster shows before the first question starts by itself. */
 export const AUTO_FIRST_QUESTION_MS = 6000;
 
@@ -776,7 +779,10 @@ export async function tick(db: DB, ctx: TickContext): Promise<boolean> {
   const phaseStart = (game.phaseStartedAt ?? game.updatedAt).getTime();
   if (game.phase === "REVEAL" && settings.autoNext && round?.revealedAt) {
     const start = game.phaseStartedAt ? phaseStart : round.revealedAt.getTime();
-    if (now.getTime() >= start + settings.revealSeconds * 1000) {
+    // With the winner/loser spotlights (5s each after a short beat), keep the answer up long
+    // enough to show both and then the answer again.
+    const hold = settings.shameSpotlight ? Math.max(settings.revealSeconds, REVEAL_WITH_SPOTLIGHTS_S) : settings.revealSeconds;
+    if (now.getTime() >= start + hold * 1000) {
       return (await guardedAction(db, game, "next")) || changed;
     }
   }

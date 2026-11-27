@@ -1,0 +1,2648 @@
+[
+  {
+    "id": "q001",
+    "category": "Food & Drink",
+    "question": "Which food could you eat every week?",
+    "seasonal": null,
+    "regular": [
+      "Pizza",
+      "Tacos",
+      "Burgers",
+      "Pasta"
+    ],
+    "humorous": [
+      "Free samples at Costco",
+      "Someone else's leftovers"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q002",
+    "category": "Food & Drink",
+    "question": "Which dessert would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Ice cream",
+      "Chocolate cake",
+      "Apple pie",
+      "Cheesecake"
+    ],
+    "humorous": [
+      "An entire birthday cake",
+      "All of the above, twice"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q003",
+    "category": "Food & Drink",
+    "question": "What is your favorite breakfast?",
+    "seasonal": null,
+    "regular": [
+      "Pancakes",
+      "Eggs & bacon",
+      "Cereal",
+      "French toast"
+    ],
+    "humorous": [
+      "Cold pizza",
+      "Breakfast at noon"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q004",
+    "category": "Food & Drink",
+    "question": "Which food would you least like to eat?",
+    "seasonal": null,
+    "regular": [
+      "Liver",
+      "Anchovies",
+      "Brussels sprouts",
+      "Oysters"
+    ],
+    "humorous": [
+      "Mystery refrigerator leftovers",
+      "Whatever the dog just rejected"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q005",
+    "category": "Food & Drink",
+    "question": "Which snack would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Potato chips",
+      "Popcorn",
+      "Cookies",
+      "Pretzels"
+    ],
+    "humorous": [
+      "A family-size bag for one",
+      "Whatever someone else ordered"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q006",
+    "category": "Food & Drink",
+    "question": "What is your favorite fruit?",
+    "seasonal": null,
+    "regular": [
+      "Apple",
+      "Banana",
+      "Strawberry",
+      "Watermelon"
+    ],
+    "humorous": [
+      "Fruit-shaped candy",
+      "Grapes disguised as jelly"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q007",
+    "category": "Food & Drink",
+    "question": "Which type of restaurant would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Italian",
+      "Mexican",
+      "American",
+      "Asian"
+    ],
+    "humorous": [
+      "Anywhere someone else pays",
+      "Costco food court"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q008",
+    "category": "Food & Drink",
+    "question": "What would you most like to drink?",
+    "seasonal": null,
+    "regular": [
+      "Water",
+      "Soda",
+      "Lemonade",
+      "Iced tea"
+    ],
+    "humorous": [
+      "Chocolate syrup",
+      "A milkshake the size of my head"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q009",
+    "category": "Food & Drink",
+    "question": "Which ice cream flavor would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Chocolate",
+      "Vanilla",
+      "Strawberry",
+      "Cookies & cream"
+    ],
+    "humorous": [
+      "Whatever comes in the biggest tub",
+      "Ice cream with more ice cream"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q010",
+    "category": "Food & Drink",
+    "question": "What is your favorite Thanksgiving food?",
+    "seasonal": "Thanksgiving",
+    "regular": [
+      "Turkey",
+      "Stuffing",
+      "Mashed potatoes",
+      "Pumpkin pie"
+    ],
+    "humorous": [
+      "Tomorrow's leftovers",
+      "Gravy with a side of gravy"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q011",
+    "category": "Food & Drink",
+    "question": "Which pizza topping would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Pepperoni",
+      "Sausage",
+      "Mushrooms",
+      "Extra cheese"
+    ],
+    "humorous": [
+      "Absolutely everything",
+      "Another pizza on top"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q012",
+    "category": "Food & Drink",
+    "question": "How do you like your food?",
+    "seasonal": null,
+    "regular": [
+      "Mild",
+      "Spicy",
+      "Sweet",
+      "Salty"
+    ],
+    "humorous": [
+      "Free",
+      "Prepared by somebody else"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q013",
+    "category": "Food & Drink",
+    "question": "Which sandwich would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Turkey",
+      "Ham & cheese",
+      "Peanut butter & jelly",
+      "Grilled cheese"
+    ],
+    "humorous": [
+      "Ice cream sandwich",
+      "Two sandwiches stacked together"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q014",
+    "category": "Food & Drink",
+    "question": "What would you eat at a fair?",
+    "seasonal": null,
+    "regular": [
+      "Corn dog",
+      "Funnel cake",
+      "Cotton candy",
+      "Churros"
+    ],
+    "humorous": [
+      "Deep-fried anything",
+      "Whatever won't fit through the door"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q015",
+    "category": "Food & Drink",
+    "question": "What is your biggest weakness around food?",
+    "seasonal": null,
+    "regular": [
+      "Chocolate",
+      "Bread",
+      "Cheese",
+      "Ice cream"
+    ],
+    "humorous": [
+      "The word buffet",
+      "Other people's French fries"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q016",
+    "category": "Travel & Vacation",
+    "question": "What is your ideal vacation?",
+    "seasonal": null,
+    "regular": [
+      "Tropical beach",
+      "Snowy mountains",
+      "Big city",
+      "Countryside"
+    ],
+    "humorous": [
+      "Anywhere without relatives",
+      "My couch with room service"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q017",
+    "category": "Travel & Vacation",
+    "question": "Where would you most like to visit?",
+    "seasonal": null,
+    "regular": [
+      "Hawaii",
+      "Italy",
+      "Japan",
+      "Australia"
+    ],
+    "humorous": [
+      "The Moon",
+      "Wherever the tickets are free"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q018",
+    "category": "Travel & Vacation",
+    "question": "How would you prefer to travel?",
+    "seasonal": null,
+    "regular": [
+      "Airplane",
+      "Car",
+      "Train",
+      "Cruise ship"
+    ],
+    "humorous": [
+      "Private jet paid for by someone else",
+      "Teleportation"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q019",
+    "category": "Travel & Vacation",
+    "question": "Where would you rather spend a weekend?",
+    "seasonal": null,
+    "regular": [
+      "Theme park",
+      "Beach resort",
+      "National park",
+      "Big city"
+    ],
+    "humorous": [
+      "Mattress testing facility",
+      "Costco after hours"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q020",
+    "category": "Travel & Vacation",
+    "question": "Which natural wonder would you most like to see?",
+    "seasonal": null,
+    "regular": [
+      "Grand Canyon",
+      "Northern Lights",
+      "Niagara Falls",
+      "Great Barrier Reef"
+    ],
+    "humorous": [
+      "The bottom of the laundry basket",
+      "An empty freeway in Los Angeles"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q021",
+    "category": "Travel & Vacation",
+    "question": "Where would you prefer to stay on vacation?",
+    "seasonal": null,
+    "regular": [
+      "Luxury hotel",
+      "Cabin",
+      "Beach house",
+      "Cruise ship"
+    ],
+    "humorous": [
+      "A castle with servants",
+      "Anywhere with unlimited snacks"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q022",
+    "category": "Travel & Vacation",
+    "question": "What would you rather do on vacation?",
+    "seasonal": null,
+    "regular": [
+      "Relax",
+      "Explore",
+      "Shop",
+      "Seek adventure"
+    ],
+    "humorous": [
+      "Nap competitively",
+      "Avoid making decisions"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q023",
+    "category": "Travel & Vacation",
+    "question": "Which country would you most like to explore?",
+    "seasonal": null,
+    "regular": [
+      "France",
+      "Greece",
+      "England",
+      "New Zealand"
+    ],
+    "humorous": [
+      "The North Pole",
+      "The imaginary land of free vacations"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q024",
+    "category": "Travel & Vacation",
+    "question": "Which adventure would you choose?",
+    "seasonal": null,
+    "regular": [
+      "African safari",
+      "Alaskan cruise",
+      "European tour",
+      "Hawaiian island hopping"
+    ],
+    "humorous": [
+      "Around the world in a golf cart",
+      "A guided tour of dessert shops"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q025",
+    "category": "Travel & Vacation",
+    "question": "Where would you rather live?",
+    "seasonal": null,
+    "regular": [
+      "By the ocean",
+      "In the mountains",
+      "In a big city",
+      "In the countryside"
+    ],
+    "humorous": [
+      "Inside a shopping mall",
+      "In a mansion with no bills"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q026",
+    "category": "Travel & Vacation",
+    "question": "What is the most important thing to pack?",
+    "seasonal": null,
+    "regular": [
+      "Comfortable shoes",
+      "Phone",
+      "Snacks",
+      "Extra clothes"
+    ],
+    "humorous": [
+      "Emergency backup snacks",
+      "Someone to carry my luggage"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q027",
+    "category": "Travel & Vacation",
+    "question": "What is your least favorite part of traveling?",
+    "seasonal": null,
+    "regular": [
+      "Packing",
+      "Airport security",
+      "Traffic",
+      "Long flights"
+    ],
+    "humorous": [
+      "Paying for everything",
+      "Listening to the family argue about directions"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q028",
+    "category": "Personality & Daily Habits",
+    "question": "What time of day do you like most?",
+    "seasonal": null,
+    "regular": [
+      "Morning",
+      "Afternoon",
+      "Evening",
+      "Late night"
+    ],
+    "humorous": [
+      "Whenever dinner is served",
+      "Whenever nobody needs me"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q029",
+    "category": "Personality & Daily Habits",
+    "question": "What is your least favorite household chore?",
+    "seasonal": null,
+    "regular": [
+      "Laundry",
+      "Dishes",
+      "Vacuuming",
+      "Cleaning bathrooms"
+    ],
+    "humorous": [
+      "All household chores",
+      "Reminding others to do chores"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q030",
+    "category": "Personality & Daily Habits",
+    "question": "How would you spend a completely free day?",
+    "seasonal": null,
+    "regular": [
+      "Sleeping",
+      "Watching TV",
+      "Going outside",
+      "Visiting friends"
+    ],
+    "humorous": [
+      "Wearing pajamas all day",
+      "Making absolutely no progress"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q031",
+    "category": "Personality & Daily Habits",
+    "question": "What scares you the most?",
+    "seasonal": null,
+    "regular": [
+      "Spiders",
+      "Snakes",
+      "Heights",
+      "Flying"
+    ],
+    "humorous": [
+      "My credit card bill",
+      "Someone saying we need to talk"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q032",
+    "category": "Personality & Daily Habits",
+    "question": "What annoys you the most?",
+    "seasonal": null,
+    "regular": [
+      "Loud chewing",
+      "Being late",
+      "Messy rooms",
+      "Slow walkers"
+    ],
+    "humorous": [
+      "People touching my food",
+      "A spinning loading icon"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q033",
+    "category": "Personality & Daily Habits",
+    "question": "How would you describe yourself?",
+    "seasonal": null,
+    "regular": [
+      "Funny",
+      "Adventurous",
+      "Relaxed",
+      "Organized"
+    ],
+    "humorous": [
+      "Professionally confused",
+      "A misunderstood genius"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q034",
+    "category": "Personality & Daily Habits",
+    "question": "What are you most likely to misplace?",
+    "seasonal": null,
+    "regular": [
+      "Keys",
+      "Phone",
+      "Wallet",
+      "Glasses"
+    ],
+    "humorous": [
+      "My train of thought",
+      "Something already in my hand"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q035",
+    "category": "Personality & Daily Habits",
+    "question": "What is your ideal Friday night?",
+    "seasonal": null,
+    "regular": [
+      "Movie night",
+      "Dinner out",
+      "Game night",
+      "Going to bed early"
+    ],
+    "humorous": [
+      "Canceling my plans",
+      "Eating dinner in pajamas"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q036",
+    "category": "Personality & Daily Habits",
+    "question": "How do you usually make decisions?",
+    "seasonal": null,
+    "regular": [
+      "Quickly",
+      "Carefully",
+      "Ask someone",
+      "Trust my instincts"
+    ],
+    "humorous": [
+      "Ask everyone and ignore them",
+      "Wait until the decision makes itself"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q037",
+    "category": "Personality & Daily Habits",
+    "question": "What would you rather receive as a gift?",
+    "seasonal": null,
+    "regular": [
+      "Money",
+      "An experience",
+      "Something homemade",
+      "A surprise"
+    ],
+    "humorous": [
+      "A lifetime supply of snacks",
+      "Someone else paying my bills"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q038",
+    "category": "Personality & Daily Habits",
+    "question": "How would you describe your sleeping habits?",
+    "seasonal": null,
+    "regular": [
+      "Early bird",
+      "Night owl",
+      "Light sleeper",
+      "Deep sleeper"
+    ],
+    "humorous": [
+      "Professional napper",
+      "Human hibernating bear"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q039",
+    "category": "Personality & Daily Habits",
+    "question": "What are you most likely to forget?",
+    "seasonal": null,
+    "regular": [
+      "Someone's name",
+      "An appointment",
+      "A password",
+      "Where I parked"
+    ],
+    "humorous": [
+      "Why I walked into a room",
+      "That I already ate dessert"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q040",
+    "category": "Personality & Daily Habits",
+    "question": "What is your greatest everyday achievement?",
+    "seasonal": null,
+    "regular": [
+      "Staying organized",
+      "Exercising",
+      "Helping others",
+      "Getting things done"
+    ],
+    "humorous": [
+      "Getting out of bed",
+      "Keeping a houseplant alive"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q041",
+    "category": "Entertainment & Hobbies",
+    "question": "What type of movie do you enjoy most?",
+    "seasonal": null,
+    "regular": [
+      "Comedy",
+      "Action",
+      "Mystery",
+      "Adventure"
+    ],
+    "humorous": [
+      "Anything under 90 minutes",
+      "Whatever lets me fall asleep"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q042",
+    "category": "Entertainment & Hobbies",
+    "question": "What type of music do you prefer?",
+    "seasonal": null,
+    "regular": [
+      "Rock",
+      "Pop",
+      "Country",
+      "Classical"
+    ],
+    "humorous": [
+      "Elevator music",
+      "The sound of silence"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q043",
+    "category": "Entertainment & Hobbies",
+    "question": "Which sport would you rather watch?",
+    "seasonal": null,
+    "regular": [
+      "Football",
+      "Basketball",
+      "Baseball",
+      "Soccer"
+    ],
+    "humorous": [
+      "Competitive eating",
+      "Synchronized napping"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q044",
+    "category": "Entertainment & Hobbies",
+    "question": "Which activity would you rather do?",
+    "seasonal": null,
+    "regular": [
+      "Swimming",
+      "Hiking",
+      "Bowling",
+      "Biking"
+    ],
+    "humorous": [
+      "Walking to the refrigerator",
+      "Riding in a shopping cart"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q045",
+    "category": "Entertainment & Hobbies",
+    "question": "Which game would you prefer to play?",
+    "seasonal": null,
+    "regular": [
+      "Board game",
+      "Card game",
+      "Video game",
+      "Trivia game"
+    ],
+    "humorous": [
+      "Hide from the family",
+      "Anything I can win"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q046",
+    "category": "Entertainment & Hobbies",
+    "question": "What talent would you most like to have?",
+    "seasonal": null,
+    "regular": [
+      "Singing",
+      "Dancing",
+      "Painting",
+      "Playing an instrument"
+    ],
+    "humorous": [
+      "Finding matching socks",
+      "Understanding assembly instructions"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q047",
+    "category": "Entertainment & Hobbies",
+    "question": "Which instrument would you like to master?",
+    "seasonal": null,
+    "regular": [
+      "Guitar",
+      "Piano",
+      "Drums",
+      "Violin"
+    ],
+    "humorous": [
+      "Air guitar",
+      "The world's loudest cowbell"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q048",
+    "category": "Entertainment & Hobbies",
+    "question": "Which live event would you rather attend?",
+    "seasonal": null,
+    "regular": [
+      "Concert",
+      "Sporting event",
+      "Comedy show",
+      "Musical"
+    ],
+    "humorous": [
+      "A squirrel beauty pageant",
+      "The world championship of complaining"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q049",
+    "category": "Entertainment & Hobbies",
+    "question": "Which TV show genre do you prefer?",
+    "seasonal": null,
+    "regular": [
+      "Comedy",
+      "Drama",
+      "Reality",
+      "Documentary"
+    ],
+    "humorous": [
+      "Infomercials at 3 AM",
+      "Videos of cats knocking things over"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q050",
+    "category": "Entertainment & Hobbies",
+    "question": "Which hobby would you most like to try?",
+    "seasonal": null,
+    "regular": [
+      "Cooking",
+      "Photography",
+      "Gardening",
+      "Painting"
+    ],
+    "humorous": [
+      "Collecting free hotel toiletries",
+      "Professional hammock testing"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q051",
+    "category": "Entertainment & Hobbies",
+    "question": "What would you most like to collect?",
+    "seasonal": null,
+    "regular": [
+      "Coins",
+      "Artwork",
+      "Books",
+      "Sports memorabilia"
+    ],
+    "humorous": [
+      "Unused exercise equipment",
+      "Plastic containers without lids"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q052",
+    "category": "Entertainment & Hobbies",
+    "question": "Which competition would you enter?",
+    "seasonal": null,
+    "regular": [
+      "Talent show",
+      "Cooking contest",
+      "Trivia contest",
+      "Race"
+    ],
+    "humorous": [
+      "World's longest nap",
+      "Speed-eating contest"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q053",
+    "category": "What If & Imagination",
+    "question": "Which superpower would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Flying",
+      "Invisibility",
+      "Super strength",
+      "Time travel"
+    ],
+    "humorous": [
+      "Never gaining weight",
+      "Finding the TV remote instantly"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q054",
+    "category": "What If & Imagination",
+    "question": "What would you buy first if you won $1 million?",
+    "seasonal": null,
+    "regular": [
+      "House",
+      "Car",
+      "Vacation",
+      "Investments"
+    ],
+    "humorous": [
+      "A solid gold toilet",
+      "A giant statue of myself"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q055",
+    "category": "What If & Imagination",
+    "question": "Which mythical creature would you want as a pet?",
+    "seasonal": null,
+    "regular": [
+      "Dragon",
+      "Unicorn",
+      "Phoenix",
+      "Pegasus"
+    ],
+    "humorous": [
+      "A tiny dinosaur in pajamas",
+      "A talking goldfish"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q056",
+    "category": "What If & Imagination",
+    "question": "Which extraordinary experience would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Fly into space",
+      "Explore the ocean",
+      "Climb Everest",
+      "Visit Antarctica"
+    ],
+    "humorous": [
+      "Race a grandma on a mobility scooter",
+      "Spend the night in a chocolate factory"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q057",
+    "category": "What If & Imagination",
+    "question": "Which dream car would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Ferrari",
+      "Porsche",
+      "Lamborghini",
+      "Rolls-Royce"
+    ],
+    "humorous": [
+      "The Batmobile",
+      "A golf cart with rocket boosters"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q058",
+    "category": "What If & Imagination",
+    "question": "Which job would you try for one day?",
+    "seasonal": null,
+    "regular": [
+      "Astronaut",
+      "Movie star",
+      "Professional athlete",
+      "Famous chef"
+    ],
+    "humorous": [
+      "Professional mattress tester",
+      "Royal food taster"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q059",
+    "category": "What If & Imagination",
+    "question": "Which room would you add to your dream house?",
+    "seasonal": null,
+    "regular": [
+      "Movie theater",
+      "Indoor pool",
+      "Game room",
+      "Giant kitchen"
+    ],
+    "humorous": [
+      "Room filled with puppies",
+      "A secret room to hide from everyone"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q060",
+    "category": "What If & Imagination",
+    "question": "Which invention would you most like to own?",
+    "seasonal": null,
+    "regular": [
+      "Teleporter",
+      "Time machine",
+      "Flying car",
+      "Robot assistant"
+    ],
+    "humorous": [
+      "Self-folding laundry machine",
+      "A refrigerator that follows me"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q061",
+    "category": "What If & Imagination",
+    "question": "If you could instantly master something, what would it be?",
+    "seasonal": null,
+    "regular": [
+      "Every language",
+      "Every instrument",
+      "Every sport",
+      "Every recipe"
+    ],
+    "humorous": [
+      "Parallel parking",
+      "Remembering everyone's birthday"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q062",
+    "category": "What If & Imagination",
+    "question": "Which would you rather have unlimited amounts of?",
+    "seasonal": null,
+    "regular": [
+      "Money",
+      "Free time",
+      "Energy",
+      "Vacation days"
+    ],
+    "humorous": [
+      "French fries",
+      "Excuses for being late"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q063",
+    "category": "What If & Imagination",
+    "question": "Which fictional world would you visit?",
+    "seasonal": null,
+    "regular": [
+      "Harry Potter",
+      "Star Wars",
+      "Jurassic Park",
+      "Super Mario"
+    ],
+    "humorous": [
+      "Willy Wonka's factory",
+      "SpongeBob's pineapple"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q064",
+    "category": "What If & Imagination",
+    "question": "Which extreme activity would you try?",
+    "seasonal": null,
+    "regular": [
+      "Skydiving",
+      "Bungee jumping",
+      "Scuba diving",
+      "Race car driving"
+    ],
+    "humorous": [
+      "Black Friday shopping",
+      "Teaching Grandma how to use Wi-Fi"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q065",
+    "category": "What If & Imagination",
+    "question": "If stranded on an island, what would you want most?",
+    "seasonal": null,
+    "regular": [
+      "Food",
+      "Comfortable bed",
+      "Internet",
+      "A boat"
+    ],
+    "humorous": [
+      "Pizza delivery",
+      "A five-star hotel"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q066",
+    "category": "What If & Imagination",
+    "question": "Which would you rather be famous for?",
+    "seasonal": null,
+    "regular": [
+      "Being funny",
+      "Being smart",
+      "Being talented",
+      "Being brave"
+    ],
+    "humorous": [
+      "The world's biggest collection of pajamas",
+      "Accidentally becoming an internet meme"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q067",
+    "category": "What If & Imagination",
+    "question": "If you could be ruler for a day, what would you change?",
+    "seasonal": null,
+    "regular": [
+      "End poverty",
+      "Protect nature",
+      "Improve education",
+      "Promote world peace"
+    ],
+    "humorous": [
+      "Mandatory afternoon naps",
+      "Free pizza every Friday"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q068",
+    "category": "Animals & Nature",
+    "question": "Which animal would you most like as a pet?",
+    "seasonal": null,
+    "regular": [
+      "Dog",
+      "Cat",
+      "Rabbit",
+      "Bird"
+    ],
+    "humorous": [
+      "A miniature elephant",
+      "A penguin in a tuxedo"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q069",
+    "category": "Animals & Nature",
+    "question": "Which wild animal is your favorite?",
+    "seasonal": null,
+    "regular": [
+      "Elephant",
+      "Lion",
+      "Dolphin",
+      "Penguin"
+    ],
+    "humorous": [
+      "A judgmental llama",
+      "A raccoon wearing sunglasses"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q070",
+    "category": "Animals & Nature",
+    "question": "Which animal best matches your personality?",
+    "seasonal": null,
+    "regular": [
+      "Lion",
+      "Golden retriever",
+      "Owl",
+      "Sloth"
+    ],
+    "humorous": [
+      "A confused chicken",
+      "A dramatic house cat"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q071",
+    "category": "Animals & Nature",
+    "question": "Which animal would you least like to encounter?",
+    "seasonal": null,
+    "regular": [
+      "Bear",
+      "Shark",
+      "Snake",
+      "Alligator"
+    ],
+    "humorous": [
+      "An angry Chihuahua",
+      "A goose with a personal vendetta"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q072",
+    "category": "Animals & Nature",
+    "question": "What is your favorite season?",
+    "seasonal": null,
+    "regular": [
+      "Spring",
+      "Summer",
+      "Fall",
+      "Winter"
+    ],
+    "humorous": [
+      "Girl Scout cookie season",
+      "Football and snack season"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q073",
+    "category": "Animals & Nature",
+    "question": "What is your favorite weather?",
+    "seasonal": null,
+    "regular": [
+      "Sunny",
+      "Snowy",
+      "Rainy",
+      "Cool and cloudy"
+    ],
+    "humorous": [
+      "Raining money",
+      "Whatever requires no yard work"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q074",
+    "category": "Animals & Nature",
+    "question": "Which natural setting do you find most relaxing?",
+    "seasonal": null,
+    "regular": [
+      "Ocean",
+      "Forest",
+      "Mountains",
+      "Lake"
+    ],
+    "humorous": [
+      "A hammock near a snack bar",
+      "My air-conditioned bedroom"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q075",
+    "category": "Animals & Nature",
+    "question": "Which animal would you like to be for a day?",
+    "seasonal": null,
+    "regular": [
+      "Eagle",
+      "Dolphin",
+      "Cheetah",
+      "Horse"
+    ],
+    "humorous": [
+      "A spoiled house cat",
+      "A zoo panda with no responsibilities"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q076",
+    "category": "Animals & Nature",
+    "question": "Which animal would you most like to see in the wild?",
+    "seasonal": null,
+    "regular": [
+      "Whale",
+      "Giraffe",
+      "Tiger",
+      "Polar bear"
+    ],
+    "humorous": [
+      "Bigfoot",
+      "The Loch Ness Monster"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q077",
+    "category": "Animals & Nature",
+    "question": "Which sound do you find most relaxing?",
+    "seasonal": null,
+    "regular": [
+      "Ocean waves",
+      "Falling rain",
+      "Crackling fire",
+      "Singing birds"
+    ],
+    "humorous": [
+      "The microwave saying dinner is ready",
+      "Everyone finally being quiet"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q078",
+    "category": "Holidays & Family",
+    "question": "What is your favorite holiday?",
+    "seasonal": null,
+    "regular": [
+      "Christmas",
+      "Thanksgiving",
+      "Halloween",
+      "Fourth of July"
+    ],
+    "humorous": [
+      "My birthday month",
+      "National Donut Day"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q079",
+    "category": "Holidays & Family",
+    "question": "What is your favorite part of Thanksgiving?",
+    "seasonal": "Thanksgiving",
+    "regular": [
+      "Food",
+      "Family",
+      "Football",
+      "Leftovers"
+    ],
+    "humorous": [
+      "Elastic waistbands",
+      "Not being responsible for cooking"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q080",
+    "category": "Holidays & Family",
+    "question": "What is your favorite part of Christmas?",
+    "seasonal": "Christmas",
+    "regular": [
+      "Presents",
+      "Decorations",
+      "Food",
+      "Family gatherings"
+    ],
+    "humorous": [
+      "Returning unwanted gifts",
+      "Watching someone untangle the lights"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q081",
+    "category": "Holidays & Family",
+    "question": "Which family activity do you enjoy most?",
+    "seasonal": null,
+    "regular": [
+      "Eating together",
+      "Playing games",
+      "Traveling",
+      "Watching movies"
+    ],
+    "humorous": [
+      "Making fun of old family photos",
+      "Listening to the same stories again"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q082",
+    "category": "Holidays & Family",
+    "question": "Which family vacation would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Theme park",
+      "Beach",
+      "Camping",
+      "Cruise"
+    ],
+    "humorous": [
+      "Separate hotel rooms for everyone",
+      "A vacation sponsored by Grandma"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q083",
+    "category": "Holidays & Family",
+    "question": "Which family competition would you most likely win?",
+    "seasonal": null,
+    "regular": [
+      "Trivia",
+      "Cooking",
+      "Sports",
+      "Telling jokes"
+    ],
+    "humorous": [
+      "Being the loudest",
+      "Getting the last word"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q084",
+    "category": "Holidays & Family",
+    "question": "What are you most likely to do after Thanksgiving dinner?",
+    "seasonal": "Thanksgiving",
+    "regular": [
+      "Take a nap",
+      "Watch football",
+      "Eat dessert",
+      "Play games"
+    ],
+    "humorous": [
+      "Unbutton my pants",
+      "Start planning my next meal"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q085",
+    "category": "Holidays & Family",
+    "question": "What would you bring to a family potluck?",
+    "seasonal": null,
+    "regular": [
+      "Main dish",
+      "Dessert",
+      "Drinks",
+      "Appetizers"
+    ],
+    "humorous": [
+      "Something purchased five minutes ago",
+      "My appetite"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q086",
+    "category": "Holidays & Family",
+    "question": "What is your favorite thing about birthdays?",
+    "seasonal": null,
+    "regular": [
+      "Cake",
+      "Presents",
+      "Parties",
+      "Birthday dinner"
+    ],
+    "humorous": [
+      "Not doing any chores",
+      "Pretending I'm younger"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q087",
+    "category": "Holidays & Family",
+    "question": "Which holiday activity would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Decorating",
+      "Baking",
+      "Shopping",
+      "Watching holiday movies"
+    ],
+    "humorous": [
+      "Supervising from the couch",
+      "Eating the decorations"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q088",
+    "category": "Funny & Unexpected",
+    "question": "What would you have the hardest time giving up for a week?",
+    "seasonal": null,
+    "regular": [
+      "Phone",
+      "Television",
+      "Chocolate",
+      "Air conditioning"
+    ],
+    "humorous": [
+      "Complaining",
+      "Afternoon naps"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q089",
+    "category": "Funny & Unexpected",
+    "question": "Which unusual world record would you try to break?",
+    "seasonal": null,
+    "regular": [
+      "Longest dance",
+      "Fastest puzzle",
+      "Most jumping jacks",
+      "Longest karaoke performance"
+    ],
+    "humorous": [
+      "Most consecutive naps",
+      "Most snacks eaten while watching TV"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q090",
+    "category": "Funny & Unexpected",
+    "question": "If you were accidentally locked inside a store overnight, which would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Grocery store",
+      "Electronics store",
+      "Bookstore",
+      "Sporting goods store"
+    ],
+    "humorous": [
+      "Costco",
+      "Mattress store"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q091",
+    "category": "Funny & Unexpected",
+    "question": "What would you do first during a zombie apocalypse?",
+    "seasonal": null,
+    "regular": [
+      "Hide",
+      "Run",
+      "Gather supplies",
+      "Find my family"
+    ],
+    "humorous": [
+      "Pretend to be a zombie",
+      "Go back to sleep"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q092",
+    "category": "Funny & Unexpected",
+    "question": "What would your personal assistant be responsible for?",
+    "seasonal": null,
+    "regular": [
+      "Cooking",
+      "Cleaning",
+      "Driving",
+      "Managing my schedule"
+    ],
+    "humorous": [
+      "Laughing at all my jokes",
+      "Explaining technology to me"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q093",
+    "category": "Funny & Unexpected",
+    "question": "What would you do if an alien landed in your backyard?",
+    "seasonal": null,
+    "regular": [
+      "Take a picture",
+      "Call for help",
+      "Run away",
+      "Say hello"
+    ],
+    "humorous": [
+      "Ask for a ride",
+      "Invite it to Thanksgiving"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q094",
+    "category": "Funny & Unexpected",
+    "question": "If you had your own restaurant, what would you serve?",
+    "seasonal": null,
+    "regular": [
+      "Pizza",
+      "Burgers",
+      "Tacos",
+      "Gourmet food"
+    ],
+    "humorous": [
+      "Breakfast for dinner only",
+      "Whatever is left in my refrigerator"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q095",
+    "category": "Funny & Unexpected",
+    "question": "What would you name your personal yacht?",
+    "seasonal": null,
+    "regular": [
+      "Ocean Dream",
+      "Freedom",
+      "Paradise",
+      "Endless Summer"
+    ],
+    "humorous": [
+      "The Unsinkable-ish",
+      "Somebody Else's Money"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q096",
+    "category": "Funny & Unexpected",
+    "question": "What would you do if you became invisible for a day?",
+    "seasonal": null,
+    "regular": [
+      "Explore somewhere new",
+      "Observe wildlife",
+      "Play harmless pranks",
+      "Avoid crowds"
+    ],
+    "humorous": [
+      "Sneak into a buffet",
+      "Hide from household chores"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q097",
+    "category": "Funny & Unexpected",
+    "question": "What would your autobiography be called?",
+    "seasonal": null,
+    "regular": [
+      "My Great Adventure",
+      "A Wonderful Life",
+      "Against All Odds",
+      "The Road Less Traveled"
+    ],
+    "humorous": [
+      "I Have No Idea What I'm Doing",
+      "It Wasn't My Fault"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q098",
+    "category": "Funny & Unexpected",
+    "question": "What would you most likely be arrested for in a comedy movie?",
+    "seasonal": null,
+    "regular": [
+      "Mistaken identity",
+      "A parking violation",
+      "Trespassing",
+      "An accidental misunderstanding"
+    ],
+    "humorous": [
+      "Stealing the last slice of pizza",
+      "Excessive dad jokes"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q099",
+    "category": "Funny & Unexpected",
+    "question": "What would be your biggest problem living in a castle?",
+    "seasonal": null,
+    "regular": [
+      "Too many stairs",
+      "Keeping it clean",
+      "Heating it",
+      "Finding my way around"
+    ],
+    "humorous": [
+      "Running out of Wi-Fi signal",
+      "Remembering which throne is mine"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q100",
+    "category": "Funny & Unexpected",
+    "question": "If you had a personal theme song, when would it play?",
+    "seasonal": null,
+    "regular": [
+      "When I wake up",
+      "When I enter a room",
+      "When I accomplish something",
+      "When I go on an adventure"
+    ],
+    "humorous": [
+      "When I open the refrigerator",
+      "Every time I successfully find my keys"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q103",
+    "category": "Presidents, Famous People & History",
+    "question": "If you could have lunch with anyone in history, who would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Albert Einstein",
+      "Leonardo da Vinci",
+      "Martin Luther King Jr.",
+      "Amelia Earhart"
+    ],
+    "humorous": [
+      "Elvis Presley impersonator",
+      "The person who invented pizza"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q104",
+    "category": "Presidents, Famous People & History",
+    "question": "Which celebrity would you invite to Thanksgiving dinner?",
+    "seasonal": "Thanksgiving",
+    "regular": [
+      "Taylor Swift",
+      "Tom Hanks",
+      "Dwayne Johnson",
+      "Dolly Parton"
+    ],
+    "humorous": [
+      "Mr. Bean",
+      "The entire cast of Scooby-Doo"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q105",
+    "category": "Presidents, Famous People & History",
+    "question": "Which historical period would you visit?",
+    "seasonal": null,
+    "regular": [
+      "Ancient Egypt",
+      "Roman Empire",
+      "American Revolution",
+      "Roaring Twenties"
+    ],
+    "humorous": [
+      "The age of dinosaurs",
+      "Yesterday, to fix my mistakes"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q106",
+    "category": "Presidents, Famous People & History",
+    "question": "Which famous inventor would you like to meet?",
+    "seasonal": null,
+    "regular": [
+      "Thomas Edison",
+      "Alexander Graham Bell",
+      "Nikola Tesla",
+      "Benjamin Franklin"
+    ],
+    "humorous": [
+      "Whoever invented reclining chairs",
+      "Whoever invented stretchy pants"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q107",
+    "category": "Presidents, Famous People & History",
+    "question": "Which famous person would you choose as a neighbor?",
+    "seasonal": null,
+    "regular": [
+      "Oprah Winfrey",
+      "George Clooney",
+      "Jennifer Aniston",
+      "Shaquille O'Neal"
+    ],
+    "humorous": [
+      "Santa Claus",
+      "Gordon Ramsay, if he cooks for me"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q108",
+    "category": "Presidents, Famous People & History",
+    "question": "Which famous landmark would you most like to visit?",
+    "seasonal": null,
+    "regular": [
+      "Eiffel Tower",
+      "Great Wall of China",
+      "Egyptian pyramids",
+      "Colosseum"
+    ],
+    "humorous": [
+      "World's largest ball of twine",
+      "The original McDonald's"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q110",
+    "category": "Presidents, Famous People & History",
+    "question": "Which famous person would you want to narrate your life?",
+    "seasonal": null,
+    "regular": [
+      "Morgan Freeman",
+      "David Attenborough",
+      "Tom Hanks",
+      "Samuel L. Jackson"
+    ],
+    "humorous": [
+      "Kermit the Frog",
+      "The guy from the movie trailers"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q111",
+    "category": "Sports & Competition",
+    "question": "If you played basketball, which position would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Point guard",
+      "Shooting guard",
+      "Forward",
+      "Center"
+    ],
+    "humorous": [
+      "Team mascot",
+      "Person who hands out water"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q112",
+    "category": "Sports & Competition",
+    "question": "If you played football, which position would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Quarterback",
+      "Running back",
+      "Wide receiver",
+      "Linebacker"
+    ],
+    "humorous": [
+      "Referee who makes up rules",
+      "Person in charge of halftime snacks"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q113",
+    "category": "Sports & Competition",
+    "question": "If you played baseball, which position would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Pitcher",
+      "Catcher",
+      "Infielder",
+      "Outfielder"
+    ],
+    "humorous": [
+      "Hot dog vendor",
+      "Person who argues with the umpire"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q114",
+    "category": "Sports & Competition",
+    "question": "Which Olympic sport would you most like to compete in?",
+    "seasonal": null,
+    "regular": [
+      "Swimming",
+      "Gymnastics",
+      "Track & field",
+      "Skiing"
+    ],
+    "humorous": [
+      "Competitive napping",
+      "Extreme channel surfing"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q115",
+    "category": "Sports & Competition",
+    "question": "Which basketball legend would you want on your team?",
+    "seasonal": null,
+    "regular": [
+      "Michael Jordan",
+      "Kobe Bryant",
+      "LeBron James",
+      "Magic Johnson"
+    ],
+    "humorous": [
+      "Bugs Bunny",
+      "My grandma with a stepladder"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q116",
+    "category": "Sports & Competition",
+    "question": "Which sporting event would you most like to attend?",
+    "seasonal": null,
+    "regular": [
+      "Super Bowl",
+      "World Series",
+      "NBA Finals",
+      "Olympics"
+    ],
+    "humorous": [
+      "Family backyard championship",
+      "World championship of thumb wrestling"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q117",
+    "category": "Sports & Competition",
+    "question": "If you were a professional wrestler, what would your nickname be?",
+    "seasonal": null,
+    "regular": [
+      "The Lightning Bolt",
+      "The Bulldozer",
+      "The Champion",
+      "The Warrior"
+    ],
+    "humorous": [
+      "Captain Cranky Pants",
+      "The Refrigerator Raider"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q118",
+    "category": "Sports & Competition",
+    "question": "If you were a professional athlete, what would be your favorite perk?",
+    "seasonal": null,
+    "regular": [
+      "Salary",
+      "Fame",
+      "Traveling",
+      "Winning championships"
+    ],
+    "humorous": [
+      "Free shoes forever",
+      "Getting paid to wear sweatpants"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q119",
+    "category": "Sports & Competition",
+    "question": "Which backyard game would you most likely win?",
+    "seasonal": null,
+    "regular": [
+      "Cornhole",
+      "Horseshoes",
+      "Ping-pong",
+      "Badminton"
+    ],
+    "humorous": [
+      "Sitting in a lawn chair",
+      "Complaining about the rules"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q120",
+    "category": "Sports & Competition",
+    "question": "Which position would you play on a soccer team?",
+    "seasonal": null,
+    "regular": [
+      "Goalkeeper",
+      "Defender",
+      "Midfielder",
+      "Forward"
+    ],
+    "humorous": [
+      "Person chasing the ball into the parking lot",
+      "Professional bench warmer"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q121",
+    "category": "Childhood, School & Memories",
+    "question": "Which school subject would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Math",
+      "History",
+      "Science",
+      "English"
+    ],
+    "humorous": [
+      "Lunch",
+      "Recess"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q122",
+    "category": "Childhood, School & Memories",
+    "question": "Which childhood toy would you most enjoy playing with today?",
+    "seasonal": null,
+    "regular": [
+      "LEGO",
+      "Hot Wheels",
+      "Barbie",
+      "Play-Doh"
+    ],
+    "humorous": [
+      "Bubble wrap",
+      "An enormous cardboard box"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q123",
+    "category": "Childhood, School & Memories",
+    "question": "Which classic cartoon would you rather watch?",
+    "seasonal": null,
+    "regular": [
+      "Scooby-Doo",
+      "Tom and Jerry",
+      "Looney Tunes",
+      "The Flintstones"
+    ],
+    "humorous": [
+      "A cartoon about my family",
+      "Whatever keeps the kids quiet"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q124",
+    "category": "Childhood, School & Memories",
+    "question": "If you could return to a younger age for one day, which would you choose?",
+    "seasonal": null,
+    "regular": [
+      "5 years old",
+      "10 years old",
+      "16 years old",
+      "21 years old"
+    ],
+    "humorous": [
+      "Before I had responsibilities",
+      "Before I discovered bills"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q125",
+    "category": "Childhood, School & Memories",
+    "question": "What would you most enjoy at a school reunion?",
+    "seasonal": null,
+    "regular": [
+      "Seeing old friends",
+      "Sharing memories",
+      "Looking at old photos",
+      "Finding out what everyone does now"
+    ],
+    "humorous": [
+      "Seeing who lost their hair",
+      "Pretending I was the popular kid"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q126",
+    "category": "Childhood, School & Memories",
+    "question": "Which playground activity would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Swings",
+      "Slide",
+      "Monkey bars",
+      "Merry-go-round"
+    ],
+    "humorous": [
+      "Sitting on the bench",
+      "Making everyone else push me"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q127",
+    "category": "Childhood, School & Memories",
+    "question": "If you were a teacher, what would you teach?",
+    "seasonal": null,
+    "regular": [
+      "History",
+      "Science",
+      "Music",
+      "Physical education"
+    ],
+    "humorous": [
+      "How to take proper naps",
+      "How to avoid homework"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q128",
+    "category": "Childhood, School & Memories",
+    "question": "Which school award would you most likely receive?",
+    "seasonal": null,
+    "regular": [
+      "Best athlete",
+      "Most creative",
+      "Best student",
+      "Friendliest person"
+    ],
+    "humorous": [
+      "Most likely to be late",
+      "Most likely to ask when lunch is"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q129",
+    "category": "Childhood, School & Memories",
+    "question": "Which decade's music would you choose for a party?",
+    "seasonal": null,
+    "regular": [
+      "1960s",
+      "1980s",
+      "2000s",
+      "2020s"
+    ],
+    "humorous": [
+      "Music from the ice cream truck",
+      "Songs from television commercials"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q130",
+    "category": "Childhood, School & Memories",
+    "question": "What would you buy first at a school book fair?",
+    "seasonal": null,
+    "regular": [
+      "Adventure book",
+      "Science book",
+      "Joke book",
+      "Comic book"
+    ],
+    "humorous": [
+      "The giant novelty eraser",
+      "Everything except a book"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q131",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If money were no object, which business would you own?",
+    "seasonal": null,
+    "regular": [
+      "Restaurant",
+      "Hotel",
+      "Clothing store",
+      "Travel company"
+    ],
+    "humorous": [
+      "A store that only sells snacks",
+      "A company where nobody works Mondays"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q132",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you had your own private jet, where would you fly first?",
+    "seasonal": null,
+    "regular": [
+      "Paris",
+      "New York",
+      "London",
+      "Hawaii"
+    ],
+    "humorous": [
+      "The nearest In-N-Out",
+      "Around the block to avoid traffic"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q133",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you could become an expert in one profession overnight, which would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Doctor",
+      "Engineer",
+      "Lawyer",
+      "Architect"
+    ],
+    "humorous": [
+      "Professional lottery winner",
+      "Fortune cookie writer"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q134",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "Which luxury item would you most like to own?",
+    "seasonal": null,
+    "regular": [
+      "Private jet",
+      "Yacht",
+      "Sports car",
+      "Beachfront mansion"
+    ],
+    "humorous": [
+      "A gold-plated refrigerator",
+      "A personal ice cream truck"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q135",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you never had to work again, what would you do?",
+    "seasonal": null,
+    "regular": [
+      "Travel",
+      "Volunteer",
+      "Pursue hobbies",
+      "Spend time with family"
+    ],
+    "humorous": [
+      "Become a professional couch potato",
+      "Visit every buffet in America"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q136",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "Which reality television show would you most like to compete on?",
+    "seasonal": null,
+    "regular": [
+      "Survivor",
+      "The Amazing Race",
+      "The Voice",
+      "Dancing with the Stars"
+    ],
+    "humorous": [
+      "America's Worst Cook",
+      "America's Got Naps"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q137",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you had a personal chauffeur, what vehicle would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Limousine",
+      "Luxury SUV",
+      "Rolls-Royce",
+      "Mercedes-Benz"
+    ],
+    "humorous": [
+      "Stretch golf cart",
+      "Oscar Mayer Wienermobile"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q138",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you received $10,000 to spend in one day, what would you buy?",
+    "seasonal": null,
+    "regular": [
+      "Electronics",
+      "Jewelry",
+      "Clothing",
+      "A vacation"
+    ],
+    "humorous": [
+      "10,000 lottery tickets",
+      "The world's largest supply of toilet paper"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q139",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you could eliminate one monthly expense, which would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Housing",
+      "Groceries",
+      "Utilities",
+      "Transportation"
+    ],
+    "humorous": [
+      "Everyone else's expenses",
+      "My family's Amazon orders"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q140",
+    "category": "Dream Jobs, Money & Lifestyle",
+    "question": "If you could hire someone to do one thing for you forever, what would it be?",
+    "seasonal": null,
+    "regular": [
+      "Cook",
+      "Clean",
+      "Shop",
+      "Maintain the house"
+    ],
+    "humorous": [
+      "Find everything I lose",
+      "Tell everyone I'm right"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q141",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you could replace your hands with something for a day, what would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Scissors",
+      "Flashlights",
+      "Magnets",
+      "Robotic hands"
+    ],
+    "humorous": [
+      "Spatulas",
+      "Giant foam fingers"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q142",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If animals could talk, which would you most like to have a conversation with?",
+    "seasonal": null,
+    "regular": [
+      "Dog",
+      "Cat",
+      "Dolphin",
+      "Elephant"
+    ],
+    "humorous": [
+      "A squirrel who knows neighborhood gossip",
+      "The turkey at Thanksgiving"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q143",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you had to wear one costume for an entire week, which would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Superhero",
+      "Pirate",
+      "Cowboy",
+      "Astronaut"
+    ],
+    "humorous": [
+      "Giant banana",
+      "Inflatable dinosaur"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q144",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you had to sing karaoke in front of 1,000 people, what would you sing?",
+    "seasonal": null,
+    "regular": [
+      "Sweet Caroline",
+      "Don't Stop Believin'",
+      "Dancing Queen",
+      "My Way"
+    ],
+    "humorous": [
+      "Happy Birthday",
+      "The alphabet song"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q145",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you could make one annoying sound disappear forever, what would it be?",
+    "seasonal": null,
+    "regular": [
+      "Alarm clocks",
+      "Car horns",
+      "Mosquitoes",
+      "Construction noise"
+    ],
+    "humorous": [
+      "People chewing",
+      "Someone asking what's for dinner"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q146",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If your life were a movie, what genre would it be?",
+    "seasonal": null,
+    "regular": [
+      "Comedy",
+      "Adventure",
+      "Drama",
+      "Romance"
+    ],
+    "humorous": [
+      "Disaster movie",
+      "Extremely confusing documentary"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q147",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you could switch lives with a fictional character for a day, who would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Superman",
+      "Wonder Woman",
+      "Harry Potter",
+      "Indiana Jones"
+    ],
+    "humorous": [
+      "Homer Simpson",
+      "Shrek"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q148",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you had to live inside one store for a month, which would you choose?",
+    "seasonal": null,
+    "regular": [
+      "Target",
+      "Walmart",
+      "IKEA",
+      "Costco"
+    ],
+    "humorous": [
+      "See's Candies",
+      "La-Z-Boy showroom"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q149",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you could replace the sound of your doorbell, what would it play?",
+    "seasonal": null,
+    "regular": [
+      "Classical music",
+      "Ocean waves",
+      "Church bells",
+      "A favorite song"
+    ],
+    "humorous": [
+      "A loud toilet flush",
+      "Someone yelling, \"Nobody's home!\""
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  },
+  {
+    "id": "q150",
+    "category": "Funny Situations & Impossible Choices",
+    "question": "If you were given a trophy for something you do every day, what would it be?",
+    "seasonal": null,
+    "regular": [
+      "Helping others",
+      "Working hard",
+      "Staying organized",
+      "Making people laugh"
+    ],
+    "humorous": [
+      "Looking for my phone",
+      "Opening the refrigerator without knowing why"
+    ],
+    "add_regular": 16,
+    "add_humorous": 8
+  }
+]
