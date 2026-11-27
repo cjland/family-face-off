@@ -1,4 +1,5 @@
 import { BOARD_IDS, DEFAULT_BOARDS } from "./boards";
+import { PIECE_GROUP_IDS } from "@/lib/pieces";
 import { z } from "zod";
 
 export const THEMES = ["classic", "thanksgiving"] as const;
@@ -28,6 +29,10 @@ export const settingsSchema = z
     music: z.enum(MUSIC).default("gameshow"),
     /** Playful on-screen nudges for players who are slow to lock in. */
     taunts: z.boolean().default(true),
+    /** At the reveal, the round loser (wrong or no answer) gets a full-screen spotlight and a sad trombone. */
+    shameSpotlight: z.boolean().default(true),
+    /** Which character groups players pick their game piece from. */
+    pieceGroups: z.array(z.enum(PIECE_GROUP_IDS)).min(1).default([...PIECE_GROUP_IDS]),
     /** TV sound effects and music (the TV still needs one click/keypress before browsers allow sound). */
     sound: z.boolean().default(true),
     /** TV animations (on even if the TV computer asks for reduced motion). */

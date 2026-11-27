@@ -67,8 +67,8 @@ export function PreQuestionCountdown({
               <p
                 className={`font-display font-bold -mt-8 ${tv ? "text-6xl" : "text-2xl"}`}
               >
-                {DIFFICULTY_LABEL[round.bonus.difficulty]} · worth{" "}
-                {round.bonus.points.toLocaleString()} points
+                {DIFFICULTY_LABEL[round.bonus.difficulty]} · fastest right answer wins{" "}
+                {round.bonus.points.toLocaleString()}
               </p>
             )}
           </>

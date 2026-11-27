@@ -625,8 +625,8 @@ describe("bonus questions", () => {
     const ev = await db.select().from(scoreEvents).where(eq(scoreEvents.roundId, r.id));
     expect(ev).toHaveLength(4);
     const pts = (i: number) => ev.find((e) => e.playerId === ps[i].player.id)!.points;
-    expect([pts(0), pts(1)].sort((a, b) => a - b)[0]).toBe(r.bonusPoints);
-    expect(Math.max(pts(0), pts(1))).toBeGreaterThanOrEqual(r.bonusPoints! + 25);
+    // Paid by place among right answers: fastest 1,500, next 1,200 (no 25–50 speed bonus here).
+    expect([pts(0), pts(1)].sort((a, b) => b - a)).toEqual([1500, 1200]);
     expect(pts(2)).toBe(0);
     expect(pts(3)).toBe(0);
     const after = await getGameState(db, game.code, auth("display"));

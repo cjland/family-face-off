@@ -17,7 +17,7 @@ import {
 import { ApiError } from "@/lib/errors";
 import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
 import { hashString, createRng } from "@/lib/prng";
-import { BONUS_POINTS, bonusSlots, defaultBonusCount, interleave, pickBonus, type BonusDifficulty } from "@/lib/bonus";
+import { BONUS_MIN_POINTS, BONUS_POINTS, bonusPlacePoints, bonusPlaces, bonusSlots, defaultBonusCount, interleave, pickBonus, type BonusDifficulty } from "@/lib/bonus";
 import { bonusIntroDurationMs, introDurationMs } from "@/server/introTiming";
 import { randomInt } from "node:crypto";
 import { FASTEST_BONUS_MAX, FASTEST_BONUS_MIN, fastestCorrect, pointsFor } from "@/lib/scoring";
@@ -368,13 +368,26 @@ async function revealRound(tx: DB, game: Game, round: Round, now: Date): Promise
     round.durationMs,
   );
   const bonus = randomInt(FASTEST_BONUS_MIN, FASTEST_BONUS_MAX + 1);
+  // Bonus rounds pay by finishing place among right answers (1,500, 1,200, 900… min 300).
+  const places = round.bonusPoints
+    ? bonusPlaces(
+        scoring.flatMap((p) => {
+          const g = byPlayer.get(p.id);
+          return g ? [{ playerId: p.id, correct: g.optionId === round.correctOptionId, elapsedMs: g.elapsedMs }] : [];
+        }),
+        round.durationMs,
+      )
+    : new Map<string, number>();
   const events = scoring
     .map((p) => {
       const g = byPlayer.get(p.id);
       const correct = Boolean(g && g.optionId === round.correctOptionId);
+      const place = places.get(p.id);
       const base = round.bonusPoints
         ? correct
-          ? round.bonusPoints
+          ? place
+            ? bonusPlacePoints(round.bonusPoints, place)
+            : BONUS_MIN_POINTS
           : 0
         : pointsFor({
             correct,
@@ -382,7 +395,8 @@ async function revealRound(tx: DB, game: Game, round: Round, now: Date): Promise
             remainingMs: g ? round.durationMs - g.elapsedMs : 0,
             durationMs: round.durationMs,
           });
-      const points = base + (settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
+      // The 25–50 speed bonus is for normal questions; bonus questions already reward speed.
+      const points = base + (!round.bonusPoints && settings.fastestBonus && correct && fastest.has(p.id) ? bonus : 0);
       return { roundId: round.id, playerId: p.id, points, isCorrect: correct };
     });
   if (events.length) await tx.insert(scoreEvents).values(events).onConflictDoNothing();

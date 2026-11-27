@@ -7,8 +7,40 @@ import { createRng } from "@/lib/prng";
  */
 export type BonusDifficulty = "easy" | "medium" | "hard";
 
-/** Points for a right bonus answer (a normal right answer is 1,000). */
-export const BONUS_POINTS: Record<BonusDifficulty, number> = { easy: 1500, medium: 2000, hard: 2500 };
+/**
+ * Bonus questions pay by finishing place among the right answers: the fastest gets the top prize
+ * (1,500), then 300 less for each place after (1,200, 900, 600), never below 300. Right answers
+ * that came in after the timer get the 300 minimum. Difficulty changes the time, not the points.
+ */
+export const BONUS_TOP_POINTS = 1500;
+export const BONUS_STEP = 300;
+export const BONUS_MIN_POINTS = 300;
+export const BONUS_POINTS: Record<BonusDifficulty, number> = { easy: BONUS_TOP_POINTS, medium: BONUS_TOP_POINTS, hard: BONUS_TOP_POINTS };
+
+/** Points for finishing in `place` (1 = fastest right answer) when the top prize is `top`. */
+export function bonusPlacePoints(top: number, place: number): number {
+  return Math.max(BONUS_MIN_POINTS, top - BONUS_STEP * (place - 1));
+}
+
+/**
+ * Finishing places among right answers given in time (fastest first; an exact tie shares the
+ * place). Late right answers aren't ranked (they get the minimum).
+ */
+export function bonusPlaces(gs: { playerId: string; correct: boolean; elapsedMs: number }[], durationMs: number): Map<string, number> {
+  const onTime = gs.filter((g) => g.correct && g.elapsedMs <= durationMs).sort((a, b) => a.elapsedMs - b.elapsedMs);
+  const places = new Map<string, number>();
+  onTime.forEach((g, i) => {
+    const prev = onTime[i - 1];
+    places.set(g.playerId, prev && prev.elapsedMs === g.elapsedMs ? places.get(prev.playerId)! : i + 1);
+  });
+  return places;
+}
+
+/** "1,500, then 1,200, 900…" */
+export function bonusLadder(top: number): string {
+  const steps = [0, 1, 2].map((i) => bonusPlacePoints(top, i + 1).toLocaleString());
+  return `${steps[0]}, then ${steps[1]}, ${steps[2]}…`;
+}
 
 /** Stand-in "game piece" for bonus rounds in history and leaderboard pages (drawn as a 🎁). */
 export const BONUS_PIECE = "bonus:gift";

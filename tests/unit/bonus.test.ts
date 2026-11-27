@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bonusSlots, interleave, pickBonus } from "@/lib/bonus";
+import { bonusPlacePoints, bonusPlaces, bonusSlots, interleave, pickBonus } from "@/lib/bonus";
 import { BONUS_QUESTIONS } from "@/data/bonusQuestions";
 
 const bank = BONUS_QUESTIONS.map((b) => ({ ...b, correctIndex: b.correct }));
@@ -31,3 +31,13 @@ describe("bonus questions", () => {
     expect(pickBonus(bank, 50, "s")).toHaveLength(20);
   });
 });
+
+describe("bonus points by place", () => {
+  it("pays 1,500, 1,200, 900… down to 300, fastest right answer first; ties share; late answers unranked", () => {
+    expect([1, 2, 3, 4, 5, 6, 9].map((p) => bonusPlacePoints(1500, p))).toEqual([1500, 1200, 900, 600, 300, 300, 300]);
+    const g = (playerId: string, correct: boolean, elapsedMs: number) => ({ playerId, correct, elapsedMs });
+    const places = bonusPlaces([g("a", true, 4000), g("b", true, 2000), g("c", false, 1000), g("d", true, 4000), g("e", true, 30000), g("f", true, 6000)], 20000);
+    expect(Object.fromEntries(places)).toEqual({ b: 1, a: 2, d: 2, f: 4 });
+  });
+});
+

@@ -295,7 +295,7 @@ function QuestionScreen({ state, code, offsetMs, refresh }: { state: GameStateDT
     <section className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <span className="font-display text-accent-2">
-          {round.bonus ? `🎁 Bonus · +${round.bonus.points.toLocaleString()}` : `Q${round.number} of ${round.total}`}
+          {round.bonus ? `🎁 Bonus · up to ${round.bonus.points.toLocaleString()}` : `Q${round.number} of ${round.total}`}
         </span>
         {timeUp && !locked && (
           <span role="status" className="shame-alert rounded-full border-2 border-white px-3 py-1 text-sm font-semibold text-white text-center">

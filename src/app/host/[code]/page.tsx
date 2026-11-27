@@ -220,6 +220,7 @@ function LobbyControls({
     aiDistractors: state.host?.aiDistractors ?? false,
     music: state.music,
     taunts: state.taunts,
+    shameSpotlight: state.shameSpotlight,
     sound: state.sound,
     animations: state.animations,
     voice: state.voice,
@@ -229,6 +230,7 @@ function LobbyControls({
     fastestBonus: state.settings.fastestBonus,
     bonusQuestions: state.settings.bonusQuestions,
     bonusCount: state.settings.bonusCount ?? undefined,
+    pieceGroups: state.settings.pieceGroups as SettingsDraft["pieceGroups"],
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;
@@ -426,7 +428,7 @@ function RoundControls({
         <div className="flex items-center justify-between gap-4">
           <span className="font-display text-xl text-accent-2">
             {roundLabel(round)}
-            {round.bonus && ` · ${DIFFICULTY_LABEL[round.bonus.difficulty]}, +${round.bonus.points.toLocaleString()}`}
+            {round.bonus && ` · ${DIFFICULTY_LABEL[round.bonus.difficulty]}, up to ${round.bonus.points.toLocaleString()}`}
           </span>
           {isQuestion && <CountdownRing remainingMs={now ? remaining : round.remainingMs} durationMs={round.durationMs} paused={round.paused} size={88} />}
         </div>

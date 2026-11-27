@@ -1,6 +1,7 @@
 "use client";
 
-import { BONUS_PERSON, BONUS_PIECE, DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
+import { CountUp, ScrambleText, SplitText, StaggerIn } from "@/components/Motion";
+import { BONUS_PERSON, BONUS_PIECE, bonusLadder, DIFFICULTY_LABEL, roundLabel } from "@/lib/bonus";
 import confetti from "canvas-confetti";
 import { useParams, useSearchParams } from "next/navigation";
 import { createContext, Fragment, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -436,7 +437,7 @@ function TvScreen({
     case "QUESTION":
       return <TvQuestion key={state.round?.id} state={state} offsetMs={offsetMs} sfx={sfx} />;
     case "REVEAL":
-      return <TvReveal key={state.round?.id} state={state} />;
+      return <TvReveal key={state.round?.id} state={state} sfx={sfx} />;
     case "LEADERBOARD":
       return <TvLeaderboard state={state} />;
     case "FINISHED":
@@ -952,6 +953,8 @@ const HURRY_EVERY_S = 8;
 function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: number; sfx: React.RefObject<Sfx | null> }) {
   const round = state.round!;
   const now = useServerNow(offsetMs, !round.paused, 100);
+  // The question's text and tiles animate in when the countdown ends (not hidden under it).
+  const opened = !round.opensAt || (now > 0 && now >= new Date(round.opensAt).getTime());
   const remaining =
     round.paused || !round.deadlineAt || !now ? round.remainingMs : Math.min(round.durationMs, Math.max(0, new Date(round.deadlineAt).getTime() - now));
   const secs = Math.ceil(remaining / 1000);
@@ -1044,7 +1047,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             <div className="flex-none flex flex-col items-center gap-3 pop-in">
               <Avatar name="Bonus" piece={BONUS_PIECE} size={220} />
               <span className="panel-strong px-5 py-2 font-display text-3xl font-bold text-accent-2 whitespace-nowrap">
-                {DIFFICULTY_LABEL[round.bonus.difficulty]} · +{round.bonus.points.toLocaleString()}
+                {DIFFICULTY_LABEL[round.bonus.difficulty]} · up to {round.bonus.points.toLocaleString()}
               </span>
             </div>
           ) : (
@@ -1059,13 +1062,15 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
               const q = splitQuestion(round.questionText);
               return q.lead ? (
                 <h2 className="font-display font-bold">
-                  <span className="block text-5xl text-accent-2 truncate leading-tight">{q.lead}</span>
+                  <span className="block text-5xl text-accent-2 truncate leading-tight">
+                    <SplitText text={q.lead} effect="drop" step={22} play={opened} />
+                  </span>
                   {/* Always two lines at most: long questions get smaller instead of spilling into the answers. */}
-                  <FitText text={q.question} max={86} min={44} className="mt-2" />
+                  <FitText text={q.question} max={86} min={44} className="mt-2" animate delay={350} play={opened} />
                 </h2>
               ) : (
                 <h2 className="font-display font-bold">
-                  <FitText text={round.questionText} max={74} min={40} />
+                  <FitText text={round.questionText} max={74} min={40} animate play={opened} />
                 </h2>
               );
             })()}
@@ -1085,11 +1090,11 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
           </div>
           <CountdownRing remainingMs={remaining} durationMs={round.durationMs} paused={round.paused} size={220} />
         </div>
-        <div className="grid grid-cols-2 gap-5">
+        <StaggerIn className="grid grid-cols-2 gap-5" from="sides" delay={700} step={140} play={opened}>
           {round.options.map((o, i) => (
             <AnswerTile key={o.id} index={i} option={o} size="tv" />
           ))}
-        </div>
+        </StaggerIn>
         <div className="relative" style={{ height: stripRows * stripRowH }} aria-label="Who has locked in">
           {stripOrder.map((p, i) => {
             // On mystery rounds the subject is shown like everyone else (as locked in) so nobody can tell.
@@ -1152,7 +1157,7 @@ function TvQuestion({ state, offsetMs, sfx }: { state: GameStateDTO; offsetMs: n
             </span>
           </div>
         ) : round.bonus ? (
-          <span className="text-2xl text-muted">Bonus trivia! Everyone plays · a right answer is worth {round.bonus.points.toLocaleString()}</span>
+          <span className="text-2xl text-muted">Bonus trivia! Everyone plays · fastest right answer {bonusLadder(round.bonus.points)}</span>
         ) : secret ? (
           <span className="text-2xl text-muted">One mystery person sits this one out 🤫</span>
         ) : subject && (
@@ -1275,7 +1280,62 @@ function StatCarousel({ state }: { state: GameStateDTO }) {
   );
 }
 
-function TvReveal({ state }: { state: GameStateDTO }) {
+/**
+ * Highlighted shame: a few seconds after the reveal, the round loser (wrong answer or no answer)
+ * gets a full-screen spotlight with their losing catchphrase and a sad trombone. Tap to skip.
+ */
+const SPOT_DELAY_MS = 1600;
+const SPOT_MS = 4500;
+function ShameSpotlight({
+  loser,
+  detail,
+  sfx,
+}: {
+  loser: { name: string; piece: string | null; slogan: string };
+  detail: string;
+  sfx: React.RefObject<Sfx | null>;
+}) {
+  const [phase, setPhase] = useState<"wait" | "on" | "done">("wait");
+  useEffect(() => {
+    const a = setTimeout(() => {
+      setPhase("on");
+      if (sfx.current?.enabled) sfx.current.sadTrombone();
+    }, SPOT_DELAY_MS);
+    const b = setTimeout(() => setPhase("done"), SPOT_DELAY_MS + SPOT_MS);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [sfx]);
+  if (phase !== "on") return null;
+  return (
+    <button
+      type="button"
+      className="spotlight-overlay absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 text-center cursor-pointer"
+      style={{ ["--spot-ms" as string]: `${SPOT_MS}ms` }}
+      onClick={() => setPhase("done")}
+      aria-label={`Round loser: ${loser.name}. Tap to skip.`}
+    >
+      <span className="font-display text-5xl font-bold text-bad">😬 Round loser</span>
+      <span className="spotlight-drop">
+        <span className="shame-wobble">
+          <Avatar name={loser.name} piece={loser.piece} size={300} />
+        </span>
+      </span>
+      <span className="font-display text-8xl font-bold">
+        <SplitText text={loser.name} effect="drop" delay={500} step={60} />
+      </span>
+      <span className="text-4xl text-muted max-w-[1400px]">{detail}</span>
+      {loser.slogan && (
+        <span className="slogan-pop mt-2 rounded-3xl bg-bad/85 px-10 py-4 font-display text-6xl font-bold text-white max-w-[1500px]">
+          “{loser.slogan}”
+        </span>
+      )}
+    </button>
+  );
+}
+
+function TvReveal({ state, sfx }: { state: GameStateDTO; sfx: React.RefObject<Sfx | null> }) {
   const round = state.round!;
   const reveal = state.reveal;
   const byOption = useMemo(() => {
@@ -1303,20 +1363,31 @@ function TvReveal({ state }: { state: GameStateDTO }) {
   return (
     <div className="h-full">
       <TvHeader state={state} right={roundLabel(round)} />
+      {state.shameSpotlight && rs.loser && rs.loser.reason !== "slowest" && (
+        <ShameSpotlight
+          loser={rs.loser}
+          sfx={sfx}
+          detail={
+            rs.loser.reason === "missed"
+              ? "Didn't even answer!"
+              : `Went with “${loserLabel ?? "?"}” · ${(rs.loser.elapsedMs / 1000).toFixed(1)}s`
+          }
+        />
+      )}
       <div className="absolute top-[115px] left-14 w-[1150px] bottom-[176px] flex flex-col gap-4 overflow-hidden px-2 pb-2">
         <p className="text-3xl text-muted leading-tight">{round.questionText}</p>
         <div className="panel-strong px-7 py-5 pop-in flex items-center gap-6">
           <Avatar name={reveal.subjectName || "Bonus"} piece={round.bonus ? BONUS_PIECE : reveal.subjectPiece} size={120} />
           <div className="min-w-0">
             <p className="text-2xl text-muted">Correct answer</p>
-            <p className="font-display text-6xl font-bold gold-text leading-tight break-words">{correct?.label ?? reveal.answerText}</p>
+            <p className="font-display text-6xl font-bold gold-text leading-tight break-words"><ScrambleText text={correct?.label ?? reveal.answerText} duration={1000} delay={150} /></p>
             <p className="font-display text-3xl mt-1">
-              {round.bonus ? `Bonus! +${round.bonus.points.toLocaleString()} for each right answer` : `${reveal.subjectName} submitted this!`}
+              {round.bonus ? `Bonus! Fastest right answers: ${bonusLadder(round.bonus.points)}` : `${reveal.subjectName} submitted this!`}
             </p>
           </div>
         </div>
         <p className="font-display text-3xl text-accent-2">How everyone answered</p>
-        <div className="grid grid-cols-2 gap-4 flex-1 content-start">
+        <StaggerIn className="grid grid-cols-2 gap-4 flex-1 content-start" from="scale" delay={400} step={110}>
           {round.options.map((o, i) => {
             const who = byOption[o.id] ?? [];
             return (
@@ -1342,12 +1413,14 @@ function TvReveal({ state }: { state: GameStateDTO }) {
               />
             );
           })}
-        </div>
+        </StaggerIn>
       </div>
       <div className="absolute top-[115px] right-14 w-[620px] bottom-[176px] flex flex-col gap-4 overflow-hidden">
         <div className="grid grid-cols-2 gap-3">
           <div className="panel p-4 flex flex-col items-center text-center gap-1">
-            <span className="font-display text-2xl text-good">🏆 Round winner</span>
+            <span className="font-display text-2xl text-good">
+              <span className="trophy-bounce">🏆</span> Round winner
+            </span>
             {rs.winner ? (
               <>
                 <Avatar name={rs.winner.name} piece={rs.winner.piece} size={68} />
@@ -1557,6 +1630,10 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
   const half = twoCols ? Math.ceil(rows.length / 2) : rows.length;
   const cols = twoCols ? [rows.slice(0, half), rows.slice(half)] : [rows];
   const big = !twoCols;
+  // A single, clear last place (behind someone, not a tie) gets a little rain cloud.
+  const lastRank = standings.length ? standings[standings.length - 1].rank : 0;
+  const lastCount = standings.filter((x) => x.rank === lastRank).length;
+  const rainOn = (st: (typeof standings)[number]) => lastRank > 1 && lastCount === 1 && st.rank === lastRank && standings.length >= 3;
   return (
     <>
       {spotlight.length > 0 && (
@@ -1566,15 +1643,23 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
             return (
               <div
                 key={s.playerId}
-                className={`flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-inset ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
+                className={`shine flex items-center rounded-3xl h-[196px] bg-accent/25 ring-4 ring-inset ring-accent shadow-[0_0_60px_rgba(255,200,60,0.25)] pop-in ${duo ? "gap-4 px-6" : "gap-6 px-8"}`}
                 aria-label={`First place: ${s.name}, ${s.points} points`}
               >
-                {!duo && <span className="text-8xl w-[1.2em] text-center" aria-hidden="true">👑</span>}
+                {!duo && (
+                  <span className="text-8xl w-[1.2em] text-center" aria-hidden="true">
+                    <span className="crown-drop">👑</span>
+                  </span>
+                )}
                 <Avatar name={s.name} piece={s.piece} size={duo ? 150 : 164} />
                 <div className="flex-1 min-w-0">
                   <div className={`truncate font-display font-bold ${duo ? "text-5xl" : "text-7xl"}`}>
-                    {duo && <span aria-hidden="true">👑 </span>}
-                    {s.name}
+                    {duo && (
+                      <span aria-hidden="true">
+                        <span className="crown-drop">👑</span>{" "}
+                      </span>
+                    )}
+                    <SplitText text={s.name} effect="pop" delay={300} step={45} />
                   </div>
                   <div className="flex gap-5 text-3xl text-muted tabular-nums mt-2 whitespace-nowrap">
                     {!duo && <span>1st place</span>}
@@ -1585,7 +1670,9 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
                     {!duo && s.eligible > 0 && <span>{Math.round(s.accuracy * 100)}%</span>}
                   </div>
                 </div>
-                <span className={`font-display font-bold tabular-nums gold-text ${duo ? "text-6xl" : "text-8xl"}`}>{s.points.toLocaleString()}</span>
+                <span className={`font-display font-bold tabular-nums gold-text ${duo ? "text-6xl" : "text-8xl"}`}>
+                  <CountUp value={s.points} delay={400} />
+                </span>
               </div>
             );
           })}
@@ -1603,7 +1690,14 @@ function OverallBoard({ state }: { state: GameStateDTO }) {
               >
                 <span className="font-display font-bold w-[2.2ch] text-center text-accent-2">{s.rank}</span>
                 <Avatar name={s.name} piece={s.piece} size={big ? 76 : 60} />
-                <span className="flex-1 min-w-0 truncate font-display font-semibold">{s.name}</span>
+                <span className="flex-1 min-w-0 truncate font-display font-semibold">
+                  {s.name}
+                  {rainOn(s) && (
+                    <span className="rain-cloud ml-3" role="img" aria-label="last place">
+                      🌧️
+                    </span>
+                  )}
+                </span>
                 {s.lastRound !== undefined && s.lastRound !== null && (
                   <span className={`text-2xl tabular-nums ${s.lastRound > 0 ? "text-good" : "text-muted"}`}>
                     {s.lastRound > 0 ? `+${s.lastRound.toLocaleString()}` : "+0"}

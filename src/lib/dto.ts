@@ -185,6 +185,7 @@ export type GameStateDTO = {
   theme: Theme;
   music: MusicStyle;
   taunts: boolean;
+  shameSpotlight: boolean;
   sound: boolean;
   animations: boolean;
   voice: boolean;
@@ -208,6 +209,7 @@ export type GameStateDTO = {
     fastestBonus: boolean;
     bonusQuestions: boolean;
     bonusCount: number | null;
+    pieceGroups: string[];
   };
   counts: { players: number; ready: number };
   lobby: LobbyPlayerDTO[] | null;

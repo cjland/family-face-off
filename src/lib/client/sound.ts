@@ -155,6 +155,39 @@ export class Sfx {
   reveal() {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i * 0.09, 0.3, "triangle", 0.12));
   }
+  /** "Wah, wah, wah, waaah" for the round loser's spotlight. */
+  sadTrombone() {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime;
+    const notes = [
+      [392, 0, 0.42],
+      [370, 0.45, 0.42],
+      [349, 0.9, 0.42],
+      [330, 1.35, 1.2],
+    ] as const;
+    for (const [f, start, dur] of notes) {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(f, t0 + start);
+      osc.frequency.linearRampToValueAtTime(f * 0.97, t0 + start + dur);
+      // A wobble on the long last note.
+      lfo.frequency.value = dur > 1 ? 6 : 0.01;
+      lfoGain.gain.value = dur > 1 ? 9 : 0;
+      lfo.connect(lfoGain).connect(osc.frequency);
+      g.gain.setValueAtTime(0.0001, t0 + start);
+      g.gain.exponentialRampToValueAtTime(0.1, t0 + start + 0.04);
+      g.gain.setValueAtTime(0.1, t0 + start + dur - 0.12);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+      osc.connect(g).connect(this.ctx.destination);
+      osc.start(t0 + start);
+      lfo.start(t0 + start);
+      osc.stop(t0 + start + dur + 0.05);
+      lfo.stop(t0 + start + dur + 0.05);
+    }
+  }
   fanfare() {
     [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => this.tone(f, i * 0.14, 0.35, "sawtooth", 0.07));
   }

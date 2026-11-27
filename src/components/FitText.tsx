@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { SplitText } from "@/components/Motion";
 
 /**
  * Text that shrinks until it fits in `lines` lines (from `max` px down to `min` px), so a long
@@ -13,8 +14,15 @@ export function FitText({
   lines = 2,
   lineHeight = 1.05,
   className = "",
+  animate = false,
+  delay = 0,
+  play = true,
 }: {
   text: string;
+  /** Words rise in one after another (TV question text). */
+  animate?: boolean;
+  delay?: number;
+  play?: boolean;
   max: number;
   min: number;
   lines?: number;
@@ -42,8 +50,23 @@ export function FitText({
     return () => ro.disconnect();
   }, [text, max, min, lines, lineHeight]);
   return (
-    <span ref={ref} className={`block ${className}`} style={{ fontSize: size, lineHeight, textWrap: "balance" }}>
-      {text}
+    <span
+      ref={ref}
+      className={`block ${className}`}
+      style={{ fontSize: size, lineHeight, textWrap: "balance" }}
+    >
+      {animate ? (
+        <SplitText
+          text={text}
+          by="words"
+          effect="rise"
+          step={70}
+          delay={delay}
+          play={play}
+        />
+      ) : (
+        text
+      )}
     </span>
   );
 }

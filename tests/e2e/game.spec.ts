@@ -232,7 +232,7 @@ test("demo bots let one person test, with auto reveal and auto next", async ({ b
   await hostLogin(host);
   // Auto reveal is on by default; turn on auto next too.
   await host.getByText("Auto next question").click();
-  await host.getByLabel("Seconds per question").fill("8");
+  await host.getByLabel("Seconds per question", { exact: true }).fill("8");
   await host.getByRole("radio", { name: "Thanksgiving" }).check({ force: true });
   await host.getByRole("button", { name: "Create game" }).first().click();
   await host.waitForURL(/\/host\/[A-Z0-9]{6}$/);

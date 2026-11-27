@@ -2,6 +2,7 @@
 
 import type { GameSettings, MusicStyle } from "@/lib/settings";
 import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS } from "@/lib/boards";
+import { PIECE_GROUP_IDS, PIECE_GROUPS, pieceSrc } from "@/lib/pieces";
 import {
   formatMinutes,
   MAX_QUESTIONS,
@@ -9,7 +10,7 @@ import {
   plannedMinutes,
   plannedQuestions,
 } from "@/lib/plan";
-import { BONUS_POINTS, defaultBonusCount } from "@/lib/bonus";
+import { BONUS_MIN_POINTS, BONUS_TOP_POINTS, bonusLadder, defaultBonusCount } from "@/lib/bonus";
 
 /** Bonus trivia questions in a game with this many regular questions (never first or last). */
 function bonusFor(value: SettingsDraft, perPerson: number, regular: number) {
@@ -56,22 +57,40 @@ function Planner({
             }
           />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-semibold">Seconds per question</span>
-          <input
-            className="input !w-28"
-            type="number"
-            min={5}
-            max={120}
-            value={value.questionSeconds}
-            onChange={(e) =>
-              set(
-                "questionSeconds",
-                Math.max(5, Math.min(120, Number(e.target.value) || 20)),
-              )
-            }
-          />
-        </label>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="questionSeconds" className="font-semibold">
+            Seconds per question
+          </label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              id="questionSeconds"
+              className="input !w-24"
+              type="number"
+              min={5}
+              max={120}
+              value={value.questionSeconds}
+              onChange={(e) =>
+                set(
+                  "questionSeconds",
+                  Math.max(5, Math.min(120, Number(e.target.value) || 20)),
+                )
+              }
+            />
+            <div className="flex gap-1" role="group" aria-label="Quick picks for seconds per question">
+              {[10, 15, 20, 30, 45].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={value.questionSeconds === n}
+                  className={`btn ${value.questionSeconds === n ? "btn-primary" : "btn-ghost"} !min-h-[40px] !px-3 !text-sm`}
+                  onClick={() => set("questionSeconds", n)}
+                >
+                  {n}s
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
       <div
         role="radiogroup"
@@ -135,6 +154,8 @@ export type SettingsDraft = Pick<
   | "aiDistractors"
   | "music"
   | "taunts"
+  | "shameSpotlight"
+  | "pieceGroups"
   | "sound"
   | "animations"
   | "voice"
@@ -157,6 +178,8 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   aiDistractors: false,
   music: "gameshow",
   taunts: true,
+  shameSpotlight: true,
+  pieceGroups: [...PIECE_GROUP_IDS],
   sound: true,
   animations: true,
   voice: true,
@@ -287,7 +310,7 @@ export function SettingsForm({
           <Toggle
             id="bonusQuestions"
             label="🎁 Bonus trivia questions"
-            hint={`Thanksgiving trivia slipped into the middle of the game, easy to hard. Everyone plays. A right answer is worth ${BONUS_POINTS.easy.toLocaleString()} / ${BONUS_POINTS.medium.toLocaleString()} / ${BONUS_POINTS.hard.toLocaleString()} (easy / medium / hard).`}
+            hint={`Thanksgiving trivia slipped into the middle of the game, easy to hard. Everyone plays. Right answers score by how fast they came in: ${bonusLadder(BONUS_TOP_POINTS)} (never less than ${BONUS_MIN_POINTS}).`}
             checked={value.bonusQuestions}
             onChange={(v) => set("bonusQuestions", v)}
           />
@@ -312,6 +335,46 @@ export function SettingsForm({
         </div>
         {aside && <div className="pt-2">{aside}</div>}
       </div>
+      <fieldset className="lg:col-span-2">
+        <legend className="font-semibold mb-1">Characters players can pick</legend>
+        <span className="text-sm text-muted block mb-2">
+          Each group has 20 game pieces. Pick at least one; with more players than pieces, pieces get shared.
+        </span>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+          {PIECE_GROUPS.map((g) => {
+            const on = value.pieceGroups.includes(g.id);
+            return (
+              <label
+                key={g.id}
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${on ? "border-accent bg-accent/15" : "border-white/15 bg-black/20"}`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-5 w-5 accent-[var(--accent)]"
+                  checked={on}
+                  disabled={on && value.pieceGroups.length === 1}
+                  onChange={(e) =>
+                    set(
+                      "pieceGroups",
+                      PIECE_GROUP_IDS.filter((x) => (x === g.id ? e.target.checked : value.pieceGroups.includes(x))),
+                    )
+                  }
+                />
+                <span className="flex -space-x-3 flex-none" aria-hidden="true">
+                  {g.pieces.slice(0, 4).map((id) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={id} src={pieceSrc(id)} alt="" width={40} height={40} className="w-10 h-10 object-contain" />
+                  ))}
+                </span>
+                <span className="min-w-0">
+                  <span className="font-semibold block">{g.label}</span>
+                  <span className="block text-sm text-muted truncate">{g.about}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
       <fieldset className="lg:col-span-2">
         <legend className="font-semibold mb-1">
           Leaderboard pages on the TV
@@ -381,6 +444,13 @@ export function SettingsForm({
           hint='The TV playfully calls out whoever hasn&apos;t locked in yet ("Hurry up, Ben!").'
           checked={value.taunts}
           onChange={(v) => set("taunts", v)}
+        />
+        <Toggle
+          id="shameSpotlight"
+          label="Shame spotlight"
+          hint="At each reveal, whoever got it wrong (or didn't answer) and was slowest gets a few seconds in the spotlight, with their losing catchphrase and a sad trombone."
+          checked={value.shameSpotlight}
+          onChange={(v) => set("shameSpotlight", v)}
         />
         <div>
           <Toggle

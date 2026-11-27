@@ -220,8 +220,10 @@ Set these when creating a game (**Game settings** in the lobby lets you change t
 |---|---|---|
 | Theme | Classic game show | Or Thanksgiving: warm colors, falling leaves, Thanksgiving questions |
 | Plan the game | 12 people, 3 each | Enter about how many people are coming and pick 3–8 questions about each person. Each choice shows the total questions and roughly how long the game takes (about 30 seconds per question on top of the answer time). You can change it when you press Start |
-| Seconds per question | 20 | 5–120 seconds |
+| Seconds per question | 20 | 5–120 seconds, with quick picks for 10, 15, 20, 30 and 45 |
 | Speed bonus | On | The fastest right answer each round gets a surprise 25–50 extra points |
+| Shame spotlight | On | At each reveal, the slowest person who got it wrong (or didn't answer) gets a few seconds in a full-screen spotlight with their losing catchphrase and a sad trombone |
+| Characters players can pick | Both groups | **Creatures & Things** (rocket, dino, unicorn…) and **People & Pros** (chef, detective, surfer…), 20 each |
 | 🎁 Bonus trivia questions | On, Auto | Thanksgiving trivia in the middle of the game (see below). **Auto** means one each time through everyone (the same as questions per person), or pick 1–8 |
 | Music while people choose | Game show | Or Tick-tock suspense, Lounge jazz, No music (made in the browser, nothing to download) |
 | Leaderboard pages | Overall, Leader, This round, Bets | Which of the ten pages the TV rotates through after each reveal |
@@ -239,7 +241,7 @@ Bonus questions are Thanksgiving trivia with one right answer (like "Which city 
 
 - They're spread through the middle of the game, never first or last, and go from easy to hard so the big points come late.
 - Everyone plays (nobody sits out), and they don't count toward "Question 3 of 24".
-- A right answer is worth **1,500** (easy), **2,000** (medium) or **2,500** (hard), plus the speed bonus. A normal question is worth 1,000.
+- Right answers score by finishing place: the fastest gets **1,500**, then **1,200**, **900**, **600**, and everyone after that **300** (late right answers too). A normal question is worth 1,000. The 25–50 speed bonus doesn't apply here.
 - Answer time is 15, 20 or 25 seconds, by difficulty.
 - The game prefers questions your family hasn't had in earlier games.
 - There are 20 of them (`b001`–`b020`), in `src/data/bonusQuestions.ts` and the `bonus_questions` table. Each has an announcer clip in `public/audio/questions`.

@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gt, lt, notInArray, sql } from "drizzle-orm";
 import { randomInt } from "node:crypto";
 import type { DB } from "@/db/client";
 import { families, games, playerPrompts, players, prompts, type Game, type Player } from "@/db/schema";
-import { PIECES, isPiece } from "@/lib/pieces";
+import { isPiece, piecesForGroups } from "@/lib/pieces";
 import { hashToken, newGameCode, newToken } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { ApiError } from "@/lib/errors";
@@ -187,15 +187,16 @@ export async function joinGame(
       .from(players)
       .where(and(eq(players.gameId, game.id), eq(players.active, true)));
     const taken = new Set(takenRows.map((r) => r.piece).filter(Boolean));
-    const free = PIECES.map((p) => p.id).filter((id) => !taken.has(id));
+    const allowed = piecesForGroups(settings.pieceGroups).map((p) => p.id as string);
+    const free = allowed.filter((id) => !taken.has(id));
     let piece: string;
-    if (opts.piece && isPiece(opts.piece)) {
+    if (opts.piece && isPiece(opts.piece) && allowed.includes(opts.piece)) {
       if (taken.has(opts.piece) && free.length) {
         throw new ApiError("PIECE_TAKEN", "Someone just grabbed that piece. Pick another one!");
       }
       piece = opts.piece;
     } else {
-      const pool = free.length ? free : PIECES.map((p) => p.id);
+      const pool = free.length ? free : allowed;
       piece = pool[randomInt(pool.length)];
     }
 
@@ -271,6 +272,7 @@ export async function joinInfo(db: DB, code: string) {
     title: game.title,
     familyName: fam?.name ?? null,
     theme: parseSettings(game.settings).theme,
+    pieces: piecesForGroups(parseSettings(game.settings).pieceGroups).map((p) => p.id),
     open: game.phase === "LOBBY" && !game.rosterLockedAt,
     taken: taken.map((t) => t.piece).filter((p): p is string => isPiece(p)),
   };

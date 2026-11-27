@@ -43,6 +43,25 @@ export const PIECES = [
 ] as const;
 
 export type PieceId = (typeof PIECES)[number]["id"];
+
+/**
+ * Character groups of 20; each game picks which groups players choose from (all by default).
+ * Add a group by adding its 20 pieces to PIECES and a line here.
+ */
+export const PIECE_GROUPS = [
+  { id: "creatures", label: "Creatures & Things", about: "Rocket, dino, unicorn, ghost, dragon…", pieces: PIECES.slice(0, 20).map((p) => p.id) },
+  { id: "people", label: "People & Pros", about: "Chef, detective, astronaut, surfer, queen…", pieces: PIECES.slice(20, 40).map((p) => p.id) },
+] as const;
+export type PieceGroupId = (typeof PIECE_GROUPS)[number]["id"];
+export const PIECE_GROUP_IDS = PIECE_GROUPS.map((g) => g.id) as unknown as [PieceGroupId, ...PieceGroupId[]];
+
+/** The pieces players can pick from in a game with these groups (all pieces if none). */
+export function piecesForGroups(groups: readonly string[] | undefined): (typeof PIECES)[number][] {
+  const chosen = PIECE_GROUPS.filter((g) => groups?.includes(g.id));
+  if (!chosen.length) return [...PIECES];
+  const ids = new Set<string>(chosen.flatMap((g) => g.pieces));
+  return PIECES.filter((p) => ids.has(p.id));
+}
 export const PIECE_IDS = PIECES.map((p) => p.id) as unknown as [PieceId, ...PieceId[]];
 
 export function isPiece(v: unknown): v is PieceId {
