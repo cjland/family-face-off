@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db/client";
-import { guesses, players, rounds, scoreEvents, type Player } from "@/db/schema";
+import { bonusQuestions, guesses, playerPrompts, players, prompts, rounds, scoreEvents, type Player } from "@/db/schema";
 import { ApiError } from "@/lib/errors";
 import { performAction, startGame, submitGuess } from "@/server/engine";
 import { previewRounds } from "@/server/engine";
@@ -787,6 +787,43 @@ describe("game modes", () => {
     expect((await refreshPlayer(p.id)).readyAt).not.toBeNull();
     await updateSettings(db, game.code, { mode: "personal" });
     expect((await refreshPlayer(p.id)).readyAt).toBeNull();
+  });
+});
+
+describe("question library picks", () => {
+  it("players get their 8 about-you questions from the picks, and swaps stay inside them", async () => {
+    const bank = await db.select({ id: prompts.id }).from(prompts).where(eq(prompts.active, true));
+    const picks = bank.slice(20, 30).map((b) => b.id);
+    const game = await createGame(db, { title: "Picked", settings: { promptIds: picks } });
+    const p = (await joinGame(db, game.code, "Picky", null)).player;
+    const mine = await db.select().from(playerPrompts).where(eq(playerPrompts.playerId, p.id));
+    expect(mine).toHaveLength(8);
+    expect(mine.every((m) => picks.includes(m.promptId))).toBe(true);
+    const q = await replacePrompt(db, await findGame(db, game.code), p, 1);
+    expect(picks).toContain(q.find((x) => x.slot === 1)!.promptId);
+  });
+
+  it("fewer than 8 picks are topped up from the rest of the bank", async () => {
+    const bank = await db.select({ id: prompts.id }).from(prompts).where(and(eq(prompts.active, true), eq(prompts.common, false)));
+    const picks = bank.slice(0, 3).map((b) => b.id);
+    const game = await createGame(db, { title: "Few", settings: { promptIds: picks } });
+    const p = (await joinGame(db, game.code, "Few", null)).player;
+    const mine = (await db.select().from(playerPrompts).where(eq(playerPrompts.playerId, p.id))).map((m) => m.promptId);
+    expect(mine).toHaveLength(8);
+    expect(new Set(mine).size).toBe(8);
+    for (const id of picks) expect(mine).toContain(id);
+  });
+
+  it("Quiz mode plays only the picked questions", async () => {
+    const all = await db.select({ id: bonusQuestions.id }).from(bonusQuestions).where(eq(bonusQuestions.active, true));
+    const picks = all.slice(0, 4).map((b) => b.id);
+    const game = await createGame(db, { title: "Picked quiz", settings: { mode: "quiz", questionIds: picks, roundCount: 10, countdownSeconds: 0 } });
+    for (let i = 0; i < 3; i++) await joinGame(db, game.code, `Q${i}`, null);
+    expect(await previewRounds(db, await findGame(db, game.code))).toMatchObject({ available: 4 });
+    await startGame(db, game.id, { excludeUnready: false, roundCount: 10 });
+    const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
+    expect(rs).toHaveLength(4);
+    expect(rs.every((r) => picks.includes(r.bonusQuestionId!))).toBe(true);
   });
 });
 

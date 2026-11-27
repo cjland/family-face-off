@@ -158,6 +158,8 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       speedSeconds: settings.speedSeconds,
       autoAway: settings.autoAway,
       leaderboardPageSeconds: settings.leaderboardPageSeconds,
+      pickedPrompts: settings.promptIds.length,
+      pickedQuestions: settings.questionIds.length,
     },
     counts: { players: activePlayers.length, ready: activePlayers.filter((p) => p.readyAt).length },
     lobby: null,

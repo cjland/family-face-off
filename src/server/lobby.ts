@@ -242,13 +242,15 @@ export async function joinGame(
     const player = inserted[0];
     if (!player) throw new ApiError("NAME_TAKEN", "Someone already joined with that name. Try adding an initial.");
 
-    const bank = (
-      await tx
-        .select({ id: prompts.id, common: prompts.common, seasonal: prompts.seasonal })
-        .from(prompts)
-        .where(eq(prompts.active, true))
-        .orderBy(asc(prompts.sortOrder))
-    ).filter((b) => seasonMatchesTheme(b.seasonal, settings.theme));
+    const allActive = await tx
+      .select({ id: prompts.id, common: prompts.common, seasonal: prompts.seasonal })
+      .from(prompts)
+      .where(eq(prompts.active, true))
+      .orderBy(asc(prompts.sortOrder));
+    // Questions picked in the library (any season) come first; otherwise the whole bank.
+    const picked = new Set(settings.promptIds);
+    const pickedRows = allActive.filter((b) => picked.has(b.id));
+    const bank = pickedRows.length ? pickedRows : allActive.filter((b) => seasonMatchesTheme(b.seasonal, settings.theme));
     const common = bank.filter((b) => b.common).slice(0, COMMON_SLOTS);
     // Spread random questions across the room: prefer ones fewer players already have,
     // so more distinct questions are available (no question is asked twice in a game).
@@ -261,6 +263,14 @@ export async function joinGame(
     const pool = randomPick(bank.filter((b) => !b.common), bank.length).sort((a, b) => (used.get(a.id) ?? 0) - (used.get(b.id) ?? 0));
     const random = pool.slice(0, PROMPT_SLOTS - common.length);
     const chosen = [...common, ...random];
+    if (chosen.length < PROMPT_SLOTS && pickedRows.length) {
+      // Fewer than 8 picked: top up from the rest of the bank.
+      const extra = randomPick(
+        allActive.filter((b) => !picked.has(b.id) && !b.common && seasonMatchesTheme(b.seasonal, settings.theme)),
+        PROMPT_SLOTS - chosen.length,
+      );
+      chosen.push(...extra);
+    }
     if (chosen.length < PROMPT_SLOTS) throw new ApiError("INTERNAL", "The question bank is not seeded. Run npm run db:seed.");
     await tx.insert(playerPrompts).values(
       chosen.map((c, i) => ({ gameId: game.id, playerId: player.id, promptId: c.id, slot: i + 1 })),
@@ -415,13 +425,14 @@ export async function replacePrompt(db: DB, game: Game, player: Player, slot: nu
       .from(playerPrompts)
       .where(eq(playerPrompts.playerId, player.id));
     const used = current.map((c) => c.promptId);
-    const theme = parseSettings(g.settings).theme;
-    const unused = (
-      await tx
-        .select({ id: prompts.id, seasonal: prompts.seasonal })
-        .from(prompts)
-        .where(and(eq(prompts.common, false), eq(prompts.active, true), used.length ? notInArray(prompts.id, used) : undefined))
-    ).filter((u) => seasonMatchesTheme(u.seasonal, theme));
+    const { theme, promptIds } = parseSettings(g.settings);
+    const candidates = await tx
+      .select({ id: prompts.id, seasonal: prompts.seasonal })
+      .from(prompts)
+      .where(and(eq(prompts.common, false), eq(prompts.active, true), used.length ? notInArray(prompts.id, used) : undefined));
+    // Swap within the library picks while any are left, then the rest of the bank.
+    const pickedLeft = candidates.filter((u) => promptIds.includes(u.id));
+    const unused = pickedLeft.length ? pickedLeft : candidates.filter((u) => seasonMatchesTheme(u.seasonal, theme));
     if (!unused.length) throw new ApiError("CONFLICT", "There are no more questions to swap in.");
     const next = unused[randomInt(unused.length)];
     await tx

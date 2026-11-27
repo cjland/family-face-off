@@ -1,11 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client/api";
 import { Banner } from "@/components/ui";
 
-type Group = { name: string; count: number; genres: string[]; easy: number; medium: number; hard: number };
-type UploadResult = { added: number; skipped: number; groups: string[]; errors: { row: number; message: string }[] };
+type Group = {
+  name: string;
+  count: number;
+  genres: string[];
+  easy: number;
+  medium: number;
+  hard: number;
+};
+type UploadResult = {
+  added: number;
+  skipped: number;
+  groups: string[];
+  errors: { row: number; message: string }[];
+};
 
 /**
  * Host page: your own questions for Custom mode. Download the template, fill it in (Excel,
@@ -33,9 +46,15 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
     setErr(null);
     setResult(null);
     try {
-      if (file.size > 600_000) throw new Error("That file is too big (600 KB max). Split it into smaller files.");
+      if (file.size > 600_000)
+        throw new Error(
+          "That file is too big (600 KB max). Split it into smaller files.",
+        );
       const csv = await file.text();
-      const r = await api<UploadResult>("/api/questions", { method: "POST", body: { csv, replace } });
+      const r = await api<UploadResult>("/api/questions", {
+        method: "POST",
+        body: { csv, replace },
+      });
       setResult(r);
       load();
       onChange?.();
@@ -50,19 +69,37 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
 
   const enc = encodeURIComponent;
   return (
-    <section className="panel p-5 flex flex-col gap-3" aria-labelledby="library">
-      <h2 id="library" className="font-display text-2xl font-bold">
-        Question library
-      </h2>
+    <section
+      className="panel p-5 flex flex-col gap-3"
+      aria-labelledby="library"
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 id="library" className="font-display text-2xl font-bold">
+          Question library
+        </h2>
+        <Link
+          className="btn btn-primary !text-sm !min-h-[44px]"
+          href="/host/library"
+        >
+          📚 Browse &amp; pick questions
+        </Link>
+      </div>
       <p className="text-sm text-muted">
-        Your own questions for <strong>Custom</strong> mode. Fill in the template (each row: group name, genre, difficulty, the question,
-        four choices and which one is right), save it as CSV, and upload it.
+        Your own questions for <strong>Custom</strong> mode. Fill in the
+        template (each row: group name, genre, difficulty, the question, four
+        choices and which one is right), save it as CSV, and upload it.
       </p>
       <div className="flex flex-wrap gap-2">
-        <a className="btn btn-ghost !text-sm !min-h-[44px]" href="/api/questions/template" download>
+        <a
+          className="btn btn-ghost !text-sm !min-h-[44px]"
+          href="/api/questions/template"
+          download
+        >
           ⬇ Template
         </a>
-        <label className={`btn btn-primary !text-sm !min-h-[44px] ${busy ? "opacity-60" : ""}`}>
+        <label
+          className={`btn btn-primary !text-sm !min-h-[44px] ${busy ? "opacity-60" : ""}`}
+        >
           {busy ? "Uploading…" : "⬆ Upload CSV"}
           <input
             ref={fileRef}
@@ -76,12 +113,22 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
             }}
           />
         </label>
-        <a className="btn btn-ghost !text-sm !min-h-[44px]" href="/api/questions/audio-list" download title="Which announcer clips to record">
+        <a
+          className="btn btn-ghost !text-sm !min-h-[44px]"
+          href="/api/questions/audio-list"
+          download
+          title="Which announcer clips to record"
+        >
           🎙 Audio list
         </a>
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" className="h-4 w-4 accent-[var(--accent)]" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-[var(--accent)]"
+          checked={replace}
+          onChange={(e) => setReplace(e.target.checked)}
+        />
         Replace groups that are already uploaded (instead of adding to them)
       </label>
       {err && <Banner kind="error">{err}</Banner>}
@@ -97,7 +144,9 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
                   Row {e.row}: {e.message}
                 </li>
               ))}
-              {result.errors.length > 8 && <li>…and {result.errors.length - 8} more</li>}
+              {result.errors.length > 8 && (
+                <li>…and {result.errors.length - 8} more</li>
+              )}
             </ul>
           )}
         </Banner>
@@ -109,17 +158,31 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
       ) : (
         <ul className="flex flex-col gap-2">
           {groups.map((g) => (
-            <li key={g.name} className="rounded-xl bg-black/25 px-3 py-2 flex items-center gap-2">
+            <li
+              key={g.name}
+              className="rounded-xl bg-black/25 px-3 py-2 flex items-center gap-2"
+            >
               <span className="flex-1 min-w-0">
                 <span className="font-semibold block truncate">{g.name}</span>
                 <span className="text-xs text-muted block truncate">
-                  {g.count} · {g.easy} easy, {g.medium} medium, {g.hard} hard{g.genres.length ? ` · ${g.genres.join(", ")}` : ""}
+                  {g.count} · {g.easy} easy, {g.medium} medium, {g.hard} hard
+                  {g.genres.length ? ` · ${g.genres.join(", ")}` : ""}
                 </span>
               </span>
-              <a className="btn btn-ghost !text-xs !min-h-[36px] !px-2" href={`/api/questions/export?group=${enc(g.name)}`} download title="Download to edit">
+              <a
+                className="btn btn-ghost !text-xs !min-h-[36px] !px-2"
+                href={`/api/questions/export?group=${enc(g.name)}`}
+                download
+                title="Download to edit"
+              >
                 ⬇
               </a>
-              <a className="btn btn-ghost !text-xs !min-h-[36px] !px-2" href={`/api/questions/audio-list?group=${enc(g.name)}`} download title="Audio list">
+              <a
+                className="btn btn-ghost !text-xs !min-h-[36px] !px-2"
+                href={`/api/questions/audio-list?group=${enc(g.name)}`}
+                download
+                title="Audio list"
+              >
                 🎙
               </a>
               <button
@@ -127,8 +190,15 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
                 className="btn btn-danger !text-xs !min-h-[36px] !px-2"
                 aria-label={`Delete group ${g.name}`}
                 onClick={async () => {
-                  if (!window.confirm(`Delete all ${g.count} questions in "${g.name}"? Games already played keep their questions.`)) return;
-                  await api(`/api/questions?group=${enc(g.name)}`, { method: "DELETE" });
+                  if (
+                    !window.confirm(
+                      `Delete all ${g.count} questions in "${g.name}"? Games already played keep their questions.`,
+                    )
+                  )
+                    return;
+                  await api(`/api/questions?group=${enc(g.name)}`, {
+                    method: "DELETE",
+                  });
                   load();
                   onChange?.();
                   window.dispatchEvent(new Event("questions-changed"));
@@ -141,8 +211,10 @@ export function QuestionLibrary({ onChange }: { onChange?: () => void }) {
         </ul>
       )}
       <p className="text-xs text-muted">
-        <strong>Audio list:</strong> each question gets an Audio ID. Record <code>questions/&lt;Audio ID&gt;.mp3</code> to have the announcer read it
-        (until then he says &ldquo;read it on the screen&rdquo;). Answer clips are listed for later.
+        <strong>Audio list:</strong> each question gets an Audio ID. Record{" "}
+        <code>questions/&lt;Audio ID&gt;.mp3</code> to have the announcer read
+        it (until then he says &ldquo;read it on the screen&rdquo;). Answer
+        clips are listed for later.
       </p>
     </section>
   );

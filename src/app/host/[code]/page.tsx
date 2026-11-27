@@ -446,7 +446,12 @@ function LobbyControls({
         <details open={editing} onToggle={(e) => setEditing((e.target as HTMLDetailsElement).open)} className="rounded-xl bg-black/20 p-4">
           <summary className="cursor-pointer font-semibold">Game settings</summary>
           <div className="mt-4 flex flex-col gap-4">
-            <SettingsForm value={draft} onChange={setDraft} aiAvailable={state.host?.aiAvailable ?? false} />
+            <SettingsForm
+              value={draft}
+              onChange={setDraft}
+              aiAvailable={state.host?.aiAvailable ?? false}
+              picked={{ prompts: state.settings.pickedPrompts, questions: state.settings.pickedQuestions }}
+            />
             <button
               className="btn btn-primary self-start !text-base"
               disabled={busy}

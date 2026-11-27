@@ -61,6 +61,13 @@ export const settingsSchema = z
     mode: z.enum(GAME_MODES).default("personal"),
     /** Custom mode: which uploaded question groups to play. */
     questionGroups: z.array(z.string().max(60)).max(50).default([]),
+    /**
+     * Picked in the question library. promptIds: the "about you" questions players get (fewer than 8
+     * are topped up from the rest of the bank). questionIds: the trivia/custom questions to play in Quiz or
+     * Custom mode (and the bonus questions in Get Personal mode). Empty = use everything.
+     */
+    promptIds: z.array(z.string().max(40)).max(200).default([]),
+    questionIds: z.array(z.string().max(60)).max(500).default([]),
     /** Speed questions: some questions get a short timer and pay by finishing place. */
     speedQuestions: z.boolean().default(false),
     speedCount: z.number().int().min(1).max(20).optional(),

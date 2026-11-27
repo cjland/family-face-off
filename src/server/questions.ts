@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import type { DB } from "@/db/client";
-import { customQuestions } from "@/db/schema";
+import { bonusQuestions, customQuestions, prompts } from "@/db/schema";
 import { audioListCsv, readQuestions, TEMPLATE_HEADERS, toCsv, type RowError } from "@/lib/customCsv";
 import { ApiError } from "@/lib/errors";
 
@@ -100,4 +100,47 @@ export async function exportQuestions(db: DB, group: string | null): Promise<str
     [...TEMPLATE_HEADERS],
     ...rows.map((r) => [r.groupName, r.genre, r.difficulty, r.question, ...r.options, "ABCD"[r.correctIndex], r.seconds ? String(r.seconds) : ""]),
   ]);
+}
+
+export type LibraryDTO = {
+  prompts: { id: string; text: string; category: string; common: boolean; seasonal: string | null; answers: { text: string; funny: boolean }[] }[];
+  trivia: { id: string; question: string; category: string; difficulty: string; seasonal: string | null; options: string[]; correctIndex: number }[];
+  custom: { id: string; group: string; genre: string; difficulty: string; question: string; options: string[]; correctIndex: number }[];
+};
+
+/** Everything in the question library, for the host's browse-and-pick page. */
+export async function libraryContents(db: DB): Promise<LibraryDTO> {
+  const [p, t, c] = await Promise.all([
+    db.select().from(prompts).where(eq(prompts.active, true)).orderBy(asc(prompts.sortOrder)),
+    db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)).orderBy(asc(bonusQuestions.sortOrder)),
+    db.select().from(customQuestions).orderBy(asc(customQuestions.groupName), asc(customQuestions.createdAt)),
+  ]);
+  return {
+    prompts: p.map((x) => ({
+      id: x.id,
+      text: x.text,
+      category: x.category,
+      common: x.common,
+      seasonal: x.seasonal,
+      answers: x.options.map((o) => ({ text: o.text, funny: o.humorous })),
+    })),
+    trivia: t.map((x) => ({
+      id: x.id,
+      question: x.question,
+      category: x.category,
+      difficulty: x.difficulty,
+      seasonal: x.seasonal,
+      options: x.options,
+      correctIndex: x.correctIndex,
+    })),
+    custom: c.map((x) => ({
+      id: x.id,
+      group: x.groupName,
+      genre: x.genre,
+      difficulty: x.difficulty,
+      question: x.question,
+      options: x.options,
+      correctIndex: x.correctIndex,
+    })),
+  };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
 
@@ -124,7 +125,9 @@ function GroupPicker({
   useEffect(() => {
     let alive = true;
     const load = () =>
-      api<{ groups: { name: string; count: number; genres: string[] }[] }>("/api/questions")
+      api<{ groups: { name: string; count: number; genres: string[] }[] }>(
+        "/api/questions",
+      )
         .then((r) => alive && setGroups(r.groups))
         .catch(() => alive && setGroups([]));
     void load();
@@ -325,6 +328,77 @@ function Planner({
   );
 }
 
+/** Shows questions picked in the question library, with a way to clear them or pick again. */
+function PicksPanel({
+  value,
+  onChange,
+  picked,
+}: {
+  value: SettingsDraft;
+  onChange: (v: SettingsDraft) => void;
+  picked?: { prompts: number; questions: number };
+}) {
+  const prompts = value.promptIds
+    ? value.promptIds.length
+    : (picked?.prompts ?? 0);
+  const questions = value.questionIds
+    ? value.questionIds.length
+    : (picked?.questions ?? 0);
+  if (!prompts && !questions) {
+    return (
+      <p className="text-sm text-muted mt-2">
+        Want specific questions?{" "}
+        <Link className="underline" href="/host/library">
+          Pick them in the question library
+        </Link>
+        .
+      </p>
+    );
+  }
+  const parts = [
+    prompts
+      ? `${prompts} about-the-players question${prompts === 1 ? "" : "s"}`
+      : "",
+    questions
+      ? `${questions} trivia / your question${questions === 1 ? "" : "s"}`
+      : "",
+  ].filter(Boolean);
+  const note =
+    value.mode === "personal"
+      ? prompts
+        ? "Players answer from these" +
+          (questions ? "; bonus trivia comes from your trivia picks." : ".")
+        : "Bonus trivia comes from these."
+      : questions
+        ? "Only these questions are played."
+        : "Your about-the-players picks only apply in Get Personal mode.";
+  return (
+    <div className="mt-3 rounded-xl border border-accent bg-accent/10 px-3 py-2 flex flex-wrap items-center gap-3">
+      <div className="flex-1 min-w-[220px]">
+        <p className="font-semibold">
+          📚 Picked in the library: {parts.join(" · ")}
+        </p>
+        <p className="text-sm text-muted">{note}</p>
+      </div>
+      {!picked && (
+        <Link
+          className="btn btn-ghost !text-sm !min-h-[40px]"
+          href="/host/library"
+        >
+          Change picks
+        </Link>
+      )}
+      <button
+        type="button"
+        className="btn btn-ghost !text-sm !min-h-[40px]"
+        onClick={() => onChange({ ...value, promptIds: [], questionIds: [] })}
+      >
+        Use all questions
+      </button>
+    </div>
+  );
+}
+
 export type SettingsDraft = Pick<
   GameSettings,
   | "theme"
@@ -354,7 +428,9 @@ export type SettingsDraft = Pick<
   | "fastestBonus"
   | "bonusQuestions"
   | "bonusCount"
->;
+> &
+  /** Library picks: the setup page sends the ids; [] clears them; unset leaves them alone. */
+  Partial<Pick<GameSettings, "promptIds" | "questionIds">>;
 
 export const DEFAULT_DRAFT: SettingsDraft = {
   theme: "classic",
@@ -426,7 +502,10 @@ export function SettingsForm({
   onChange,
   aiAvailable,
   aside,
+  picked,
 }: {
+  /** Library picks already saved on the game (lobby), when the draft doesn't carry the ids. */
+  picked?: { prompts: number; questions: number };
   value: SettingsDraft;
   onChange: (v: SettingsDraft) => void;
   aiAvailable: boolean;
@@ -468,11 +547,13 @@ export function SettingsForm({
             );
           })}
         </div>
-        {value.mode === "custom" && (
-          <div className="mt-3">
-            <GroupPicker value={value} set={set} />
-          </div>
-        )}
+        <PicksPanel value={value} onChange={onChange} picked={picked} />
+        {value.mode === "custom" &&
+          !(value.questionIds?.length || picked?.questions) && (
+            <div className="mt-3">
+              <GroupPicker value={value} set={set} />
+            </div>
+          )}
       </fieldset>
       <Planner value={value} set={set} />
       <div className="flex flex-col gap-5">

@@ -232,6 +232,9 @@ export type GameStateDTO = {
     speedSeconds: number;
     autoAway: boolean;
     leaderboardPageSeconds: number;
+    /** How many questions were picked in the library (0 = use everything). */
+    pickedPrompts: number;
+    pickedQuestions: number;
   };
   counts: { players: number; ready: number };
   lobby: LobbyPlayerDTO[] | null;

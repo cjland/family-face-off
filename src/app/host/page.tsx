@@ -11,6 +11,7 @@ import {
 } from "@/components/SettingsForm";
 import { Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
+import { loadPicks } from "@/lib/client/picks";
 
 type GameRow = {
   code: string;
@@ -128,6 +129,25 @@ export default function HostDashboard() {
     const t = setTimeout(load, 0);
     return () => clearTimeout(t);
   }, [load]);
+
+  // Coming from the question library's "Create a game with these": use the picks.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("picks") !== "1") return;
+    const t = setTimeout(() => {
+      const p = loadPicks();
+      if (!p.promptIds.length && !p.questionIds.length) return;
+      setDraft((d) => ({
+        ...d,
+        promptIds: p.promptIds,
+        questionIds: p.questionIds,
+        mode: p.promptIds.length ? "personal" : "quiz",
+        ...(p.promptIds.length ? {} : { roundCount: Math.min(Math.max(p.questionIds.length, 1), 80) }),
+        ...(p.promptIds.length && p.questionIds.length ? { bonusQuestions: true } : {}),
+      }));
+      document.getElementById("new-game")?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   if (!checked) {
     return (

@@ -26,6 +26,8 @@ import { FASTEST_BONUS_MAX, FASTEST_BONUS_MIN, fastestCorrect, pointsFor } from 
 import { MIN_PLAYERS, parseSettings } from "@/lib/settings";
 import { validateAnswer } from "@/lib/text";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const ACTIONS = ["prepare", "open", "next", "reveal", "pause", "resume", "skip", "end"] as const;
 export type GameAction = (typeof ACTIONS)[number];
 
@@ -168,8 +170,19 @@ export async function previewRounds(db: DB, game: Game) {
       .select({ n: sql<number>`count(*)::int` })
       .from(players)
       .where(and(eq(players.gameId, game.id), eq(players.active, true)));
-    const [{ n: available }] =
-      settings.mode === "quiz"
+    const picks = settings.questionIds;
+    const pickedUuids = picks.filter((id) => UUID_RE.test(id));
+    const [{ n: available }] = picks.length
+      ? [
+          {
+            n:
+              (await db.select({ n: sql<number>`count(*)::int` }).from(bonusQuestions).where(inArray(bonusQuestions.id, picks)))[0].n +
+              (pickedUuids.length
+                ? (await db.select({ n: sql<number>`count(*)::int` }).from(customQuestions).where(inArray(customQuestions.id, pickedUuids)))[0].n
+                : 0),
+          },
+        ]
+      : settings.mode === "quiz"
         ? await db.select({ n: sql<number>`count(*)::int` }).from(bonusQuestions).where(eq(bonusQuestions.active, true))
         : settings.questionGroups.length
           ? await db.select({ n: sql<number>`count(*)::int` }).from(customQuestions).where(inArray(customQuestions.groupName, settings.questionGroups))
@@ -258,7 +271,13 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
   // Bonus trivia in the middle of the game (fresh ones for this family first).
   let bonus: (typeof bonusQuestions.$inferSelect)[] = [];
   if (settings.bonusQuestions) {
-    const bank = await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)).orderBy(asc(bonusQuestions.sortOrder));
+    // Bonus questions picked in the library, if any were; otherwise the whole built-in set.
+    const pickedBonus = settings.questionIds.length
+      ? await db.select().from(bonusQuestions).where(inArray(bonusQuestions.id, settings.questionIds)).orderBy(asc(bonusQuestions.sortOrder))
+      : [];
+    const bank = pickedBonus.length
+      ? pickedBonus
+      : await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)).orderBy(asc(bonusQuestions.sortOrder));
     const recent = game.familyId
       ? await db
           .select({ id: rounds.bonusQuestionId })
@@ -358,12 +377,25 @@ function applySpeed<T extends { kind: RoundKind; durationMs: number; bonusPoints
 }
 
 /** Quiz mode (built-in trivia) and Custom mode (uploaded question groups). Everyone plays every question. */
+
 async function prepareTriviaRounds(db: DB, game: Game, opts: PrepareOptions): Promise<{ planned: number; achievable: number }> {
   const settings = parseSettings(game.settings);
   const seed = String(opts.seed ?? `${game.id}:${Date.now()}`);
   type Item = { key: string; builtIn: boolean; question: string; options: string[]; correctIndex: number; difficulty: string; seconds: number | null };
   let pool: Item[];
-  if (settings.mode === "quiz") {
+  const picks = settings.questionIds;
+  if (picks.length) {
+    // Picked in the question library: built-in trivia and the host's own questions, mixed.
+    const uuids = picks.filter((id) => UUID_RE.test(id));
+    const [built, own] = await Promise.all([
+      db.select().from(bonusQuestions).where(inArray(bonusQuestions.id, picks)),
+      uuids.length ? db.select().from(customQuestions).where(inArray(customQuestions.id, uuids)) : Promise.resolve([]),
+    ]);
+    pool = [
+      ...built.map((b) => ({ key: b.id, builtIn: true, question: b.question, options: b.options, correctIndex: b.correctIndex, difficulty: b.difficulty, seconds: null })),
+      ...own.map((c) => ({ key: c.id, builtIn: false, question: c.question, options: c.options, correctIndex: c.correctIndex, difficulty: c.difficulty, seconds: c.seconds })),
+    ];
+  } else if (settings.mode === "quiz") {
     const bank = await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true));
     pool = bank.map((b) => ({ key: b.id, builtIn: true, question: b.question, options: b.options, correctIndex: b.correctIndex, difficulty: b.difficulty, seconds: null }));
   } else {
