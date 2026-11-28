@@ -548,3 +548,10 @@ export async function setSlogans(db: DB, game: Game, player: Player, input: { wi
     await db.update(players).set(set).where(and(eq(players.id, player.id), eq(players.gameId, game.id)));
   }
 }
+
+/** A player of this game by id (for the host's simulation view). */
+export async function findPlayerInGame(db: DB, gameId: string, playerId: string): Promise<Player | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(playerId)) return null;
+  const [p] = await db.select().from(players).where(and(eq(players.gameId, gameId), eq(players.id, playerId)));
+  return p ?? null;
+}

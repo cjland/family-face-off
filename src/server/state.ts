@@ -154,6 +154,8 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       pieceGroups: settings.pieceGroups,
       characterPacks: settings.characterPacks,
       triviaCategories: settings.triviaCategories,
+      triviaDifficulty: settings.triviaDifficulty,
+      quizName: settings.quizName ?? null,
       questionGroups: settings.questionGroups,
       speedQuestions: settings.speedQuestions,
       speedCount: settings.speedCount ?? null,

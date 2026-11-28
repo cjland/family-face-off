@@ -72,6 +72,10 @@ export const settingsSchema = z
     questionIds: z.array(z.string().max(60)).max(500).default([]),
     /** Built-in trivia categories to use (Quiz mode and bonus questions); empty = all. */
     triviaCategories: z.array(z.string().max(60)).max(40).default([]),
+    /** Quiz mode: which difficulties to use ("mixed" = easy to hard). */
+    triviaDifficulty: z.enum(["mixed", "easy", "medium", "hard"]).default("mixed"),
+    /** Quiz mode: the quiz type it was set up from, for display ("🏟️ Sports Night"). */
+    quizName: z.string().max(60).optional(),
     /** Speed questions: some questions get a short timer and pay by finishing place. */
     speedQuestions: z.boolean().default(false),
     speedCount: z.number().int().min(1).max(20).optional(),

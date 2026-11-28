@@ -30,6 +30,8 @@ import { readFileSync } from "node:fs";
 import { closeTestDb, resetGames, testDb } from "../support/db";
 import { createPack, deletePack } from "@/server/packs";
 import { mashPiece } from "@/lib/mash";
+import { BUILT_IN_QUIZZES, quizSettings } from "@/lib/quizPresets";
+import { createQuiz, deleteQuiz, listQuizzes } from "@/server/quizzes";
 
 let db: DB;
 
@@ -810,6 +812,20 @@ describe("built-in trivia pools", () => {
       expect(r.options.find((o) => o.id === r.correctOptionId)!.label).toBe(r.answerText);
       for (const o of r.options) expect(q.options).toContain(o.label);
     }
+  });
+
+  it("a quiz type sets categories, difficulty and length", async () => {
+    const sports = BUILT_IN_QUIZZES.find((q) => q.id === "brainiac")!;
+    const game = await createGame(db, { title: "Brainiac", settings: { ...quizSettings(sports), countdownSeconds: 0 } });
+    for (let i = 0; i < 3; i++) await joinGame(db, game.code, `B${i}`, null);
+    expect(await previewRounds(db, await findGame(db, game.code))).toMatchObject({ available: 15 });
+    await startGame(db, game.id, { excludeUnready: false, roundCount: 15 });
+    const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
+    expect(rs).toHaveLength(15);
+    expect(rs.every((r) => r.bonusDifficulty === "hard")).toBe(true);
+    const saved = await createQuiz(db, { name: "Mine", emoji: "🎯", about: "", categories: ["Movies"], difficulty: "easy", questions: 4 });
+    expect((await listQuizzes(db)).quizzes.map((q) => q.id)).toContain(saved.id);
+    await deleteQuiz(db, saved.id);
   });
 
   it("Thanksgiving theme keeps the Thanksgiving bonus questions; classic uses general trivia", async () => {

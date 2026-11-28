@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { getPlayer, isHost } from "@/server/auth";
 import { aiAvailable, canViewDisplay, demoToolsEnabled } from "@/server/context";
 import { json, normalizeCode, route } from "@/server/http";
-import { findGame } from "@/server/lobby";
+import { findGame, findPlayerInGame } from "@/server/lobby";
 import { getGameState } from "@/server/state";
 
 type Ctx = { params: Promise<{ code: string }> };
@@ -20,7 +20,13 @@ export const GET = route<Ctx>(async (req, ctx, db) => {
   if (view === "display" && !(await canViewDisplay(db, req, game))) {
     throw new ApiError("FORBIDDEN", "Open the TV display from the host screen to get a valid link.");
   }
-  if (view === "player") player = await getPlayer(db, req, game);
+  // Simulation view: the host can look at any player's screen (read-only) with ?as=<playerId>.
+  const as = req.nextUrl.searchParams.get("as");
+  if (view === "player" && as) {
+    if (!(await isHost(db, req))) throw new ApiError("FORBIDDEN", "Only the host can view other players' screens.");
+    player = (await findPlayerInGame(db, game.id, as)) ?? null;
+    if (!player) throw new ApiError("NOT_FOUND", "That player isn't in this game.");
+  } else if (view === "player") player = await getPlayer(db, req, game);
 
   const state = await getGameState(db, code, {
     view,

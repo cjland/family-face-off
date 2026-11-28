@@ -32,13 +32,19 @@ export default function PlayPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
   const code = (params.code ?? "").toUpperCase();
+  // Host simulation view: ?as=<playerId> shows that player's screen, read-only.
+  const [as] = useState(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("as"),
+  );
   const { state, error, offsetMs, refresh } = useGameState(
-    `/api/games/${code}/state?view=player`,
+    `/api/games/${code}/state?view=player${as ? `&as=${encodeURIComponent(as)}` : ""}`,
   );
 
   useEffect(() => {
-    if (error?.status === 401) router.replace(`/join/${code}`);
-  }, [error, code, router]);
+    if (error?.status === 401 && !as) router.replace(`/join/${code}`);
+  }, [error, code, router, as]);
 
   useEffect(() => {
     if (!state) return;
@@ -79,7 +85,10 @@ export default function PlayPage() {
   const me = state.me;
   return (
     <Stage theme={state.theme}>
-      <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-4 py-5">
+      <main
+        className="mx-auto flex min-h-dvh max-w-lg flex-col gap-5 px-4 py-5"
+        inert={as ? true : undefined}
+      >
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <Avatar name={me.name} piece={me.piece} size={44} />

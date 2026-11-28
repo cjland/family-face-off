@@ -228,6 +228,8 @@ export type GameStateDTO = {
     pieceGroups: string[];
     characterPacks: string[];
     triviaCategories: string[];
+    triviaDifficulty: "mixed" | "easy" | "medium" | "hard";
+    quizName: string | null;
     questionGroups: string[];
     speedQuestions: boolean;
     speedCount: number | null;

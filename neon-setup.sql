@@ -329,6 +329,24 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0010_quiz_presets (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795829784813) THEN
+    EXECUTE $stmt$CREATE TABLE "quiz_presets" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"emoji" text DEFAULT '🎯' NOT NULL,
+	"about" text DEFAULT '' NOT NULL,
+	"config" jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "quiz_presets_name_len" CHECK (char_length("quiz_presets"."name") between 1 and 40)
+)$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('8ab1e622fbc49594eb2e1f381406a5234dd562ee9861eb59931b435e600bd64d', 1795829784813);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers","Sushi","Roast chicken","Steak","Lasagna","Fish and chips","Burritos","Fried rice","Chicken curry","Soup","Salad","Barbecue ribs","Grilled salmon","Mac and cheese","Dumplings","Meatloaf","Falafel","A mountain of mashed potatoes","Breakfast in bed","A buffet with no closing time","Whatever is on the next table","Food delivered by a robot","A seven-layer grilled cheese","A picnic in my pajamas","A sandwich taller than me"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true},{"id":"q001_7","text":"Sushi","humorous":false},{"id":"q001_8","text":"Roast chicken","humorous":false},{"id":"q001_9","text":"Steak","humorous":false},{"id":"q001_10","text":"Lasagna","humorous":false},{"id":"q001_11","text":"Fish and chips","humorous":false},{"id":"q001_12","text":"Burritos","humorous":false},{"id":"q001_13","text":"Fried rice","humorous":false},{"id":"q001_14","text":"Chicken curry","humorous":false},{"id":"q001_15","text":"Soup","humorous":false},{"id":"q001_16","text":"Salad","humorous":false},{"id":"q001_17","text":"Barbecue ribs","humorous":false},{"id":"q001_18","text":"Grilled salmon","humorous":false},{"id":"q001_19","text":"Mac and cheese","humorous":false},{"id":"q001_20","text":"Dumplings","humorous":false},{"id":"q001_21","text":"Meatloaf","humorous":false},{"id":"q001_22","text":"Falafel","humorous":false},{"id":"q001_23","text":"A mountain of mashed potatoes","humorous":true},{"id":"q001_24","text":"Breakfast in bed","humorous":true},{"id":"q001_25","text":"A buffet with no closing time","humorous":true},{"id":"q001_26","text":"Whatever is on the next table","humorous":true},{"id":"q001_27","text":"Food delivered by a robot","humorous":true},{"id":"q001_28","text":"A seven-layer grilled cheese","humorous":true},{"id":"q001_29","text":"A picnic in my pajamas","humorous":true},{"id":"q001_30","text":"A sandwich taller than me","humorous":true}]'::jsonb, true, NULL),

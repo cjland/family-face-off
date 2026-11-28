@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
 import { Avatar } from "@/components/ui";
+import { QuizTypes } from "@/components/QuizTypes";
 
 import { THEMES, type GameSettings, type MusicStyle } from "@/lib/settings";
 import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS } from "@/lib/boards";
@@ -364,12 +365,19 @@ function CategoryPicker({
 }) {
   const chosen = value.triviaCategories;
   const toggle = (name: string) =>
-    set("triviaCategories", chosen.includes(name) ? chosen.filter((c) => c !== name) : [...chosen, name]);
+    set(
+      "triviaCategories",
+      chosen.includes(name)
+        ? chosen.filter((c) => c !== name)
+        : [...chosen, name],
+    );
   return (
     <div className="mt-3">
       <div className="flex items-center gap-3 flex-wrap mb-2">
         <span className="font-semibold">
-          {value.mode === "quiz" ? "Trivia categories" : "Bonus trivia categories"}
+          {value.mode === "quiz"
+            ? "Trivia categories"
+            : "Bonus trivia categories"}
         </span>
         <span className="text-sm text-muted">
           {chosen.length
@@ -379,12 +387,20 @@ function CategoryPicker({
               : "None picked: all categories"}
         </span>
         {chosen.length > 0 && (
-          <button type="button" className="text-sm underline" onClick={() => set("triviaCategories", [])}>
+          <button
+            type="button"
+            className="text-sm underline"
+            onClick={() => set("triviaCategories", [])}
+          >
             Clear
           </button>
         )}
       </div>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Trivia categories">
+      <div
+        className="flex flex-wrap gap-1.5"
+        role="group"
+        aria-label="Trivia categories"
+      >
         {TRIVIA_CATEGORIES.map((c) => {
           const on = chosen.includes(c.name);
           return (
@@ -576,7 +592,9 @@ export type SettingsDraft = Pick<
   | "countdownSeconds"
   | "characterPacks"
   | "triviaCategories"
+  | "triviaDifficulty"
 > &
+  Partial<Pick<GameSettings, "quizName">> &
   /** Library picks: the setup page sends the ids; [] clears them; unset leaves them alone. */
   Partial<Pick<GameSettings, "promptIds" | "questionIds">>;
 
@@ -609,6 +627,7 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   countdownSeconds: 5,
   characterPacks: [],
   triviaCategories: [],
+  triviaDifficulty: "mixed",
 };
 
 const MUSIC_LABELS: [MusicStyle, string][] = [
@@ -699,9 +718,18 @@ export function SettingsForm({
           })}
         </div>
         <PicksPanel value={value} onChange={onChange} picked={picked} />
-        {(value.mode === "quiz" || (value.mode === "personal" && value.bonusQuestions)) && !(value.questionIds?.length || picked?.questions) && (
-          <CategoryPicker value={value} set={set} />
-        )}
+        {value.mode === "quiz" &&
+          !(value.questionIds?.length || picked?.questions) && (
+            <QuizTypes
+              value={value}
+              apply={(patch) => onChange({ ...value, ...patch })}
+            />
+          )}
+        {value.mode === "personal" &&
+          value.bonusQuestions &&
+          !(value.questionIds?.length || picked?.questions) && (
+            <CategoryPicker value={value} set={set} />
+          )}
         {value.mode === "custom" &&
           !(value.questionIds?.length || picked?.questions) && (
             <div className="mt-3">

@@ -14,6 +14,11 @@ import { api, ApiClientError } from "@/lib/client/api";
 import { loadPicks } from "@/lib/client/picks";
 import { THEMES } from "@/lib/settings";
 import { THEME_INFO } from "@/lib/themes";
+import {
+  BUILT_IN_QUIZZES,
+  quizSettings,
+  type QuizPreset,
+} from "@/lib/quizPresets";
 
 type GameRow = {
   code: string;
@@ -95,6 +100,14 @@ export default function HostDashboard() {
   const [title, setTitle] = useState("Family Face-Off");
   const [draft, setDraft] = useState<SettingsDraft>(DEFAULT_DRAFT);
   const [quickMode, setQuickMode] = useState<"personal" | "quiz">("personal");
+  const [quickQuiz, setQuickQuiz] = useState("family-mix");
+  const [savedQuizzes, setSavedQuizzes] = useState<QuizPreset[]>([]);
+  useEffect(() => {
+    if (!me) return;
+    api<{ quizzes: QuizPreset[] }>("/api/quizzes")
+      .then((r) => setSavedQuizzes(r.quizzes))
+      .catch(() => {});
+  }, [me]);
   const [quickTheme, setQuickTheme] =
     useState<SettingsDraft["theme"]>("classic");
   const [busy, setBusy] = useState(false);
@@ -196,7 +209,18 @@ export default function HostDashboard() {
         method: "POST",
         body: {
           title: "Family Face-Off",
-          settings: { ...DEFAULT_DRAFT, mode: quickMode, theme: quickTheme },
+          settings: {
+            ...DEFAULT_DRAFT,
+            mode: quickMode,
+            theme: quickTheme,
+            ...(quickMode === "quiz"
+              ? quizSettings(
+                  [...BUILT_IN_QUIZZES, ...savedQuizzes].find(
+                    (q) => q.id === quickQuiz,
+                  ) ?? BUILT_IN_QUIZZES[0],
+                )
+              : {}),
+          },
           familyId: familyId || undefined,
         },
       });
@@ -339,6 +363,23 @@ export default function HostDashboard() {
                     ))}
                   </div>
                 </div>
+                {quickMode === "quiz" && (
+                  <label className="flex flex-col gap-1">
+                    <span className="font-semibold">Quiz type</span>
+                    <select
+                      className="input"
+                      value={quickQuiz}
+                      onChange={(e) => setQuickQuiz(e.target.value)}
+                      aria-label="Quick start quiz type"
+                    >
+                      {[...BUILT_IN_QUIZZES, ...savedQuizzes].map((q) => (
+                        <option key={q.id} value={q.id}>
+                          {q.emoji} {q.name} ({q.questions})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="flex flex-col gap-1">
                   <span className="font-semibold">Theme</span>
                   <select
@@ -522,9 +563,9 @@ export default function HostDashboard() {
                         .map((g) => (
                           <li
                             key={g.code}
-                            className="flex items-center gap-2 rounded-xl bg-black/25 px-4 py-3"
+                            className="flex flex-wrap items-center gap-2 rounded-xl bg-black/25 px-4 py-3"
                           >
-                            <span className="flex-1 min-w-0">
+                            <span className="flex-1 min-w-[180px]">
                               <span className="flex items-baseline gap-2 min-w-0">
                                 <span className="font-display text-xl font-bold tracking-widest">
                                   {g.code}

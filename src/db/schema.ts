@@ -372,3 +372,17 @@ export const characterPacks = pgTable(
     check("character_packs_size", sql`jsonb_array_length(${t.characters}) <= 40`),
   ],
 );
+
+/** Quiz types the host designed (Quiz mode): categories, difficulty and length, by name. */
+export const quizPresets = pgTable(
+  "quiz_presets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    emoji: text("emoji").notNull().default("🎯"),
+    about: text("about").notNull().default(""),
+    config: jsonb("config").$type<{ categories: string[]; difficulty: "mixed" | "easy" | "medium" | "hard"; questions: number }>().notNull(),
+    createdAt: ts("created_at").notNull().defaultNow(),
+  },
+  (t) => [check("quiz_presets_name_len", sql`char_length(${t.name}) between 1 and 40`)],
+);

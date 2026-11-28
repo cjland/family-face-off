@@ -476,3 +476,14 @@ Host → **🧩 Characters**: put any character's head on any costume, fit the h
 ## Themes and countdown
 
 Themes: Classic, Thanksgiving, Christmas, Football (Game Day), Birthday. The countdown before each question can be 8, 5, 4 or 3 seconds (the announcer calls 5 to 1).
+
+## Trivia, quiz types and quick start
+
+- **Trivia:** nearly 300 questions in 30 categories (`src/data/trivia.json`, imported with `scripts/import-trivia.ts`); each question keeps up to 12 answers and every round shows the right one plus 3 random others. Holiday questions only appear in their theme.
+- **Quiz types:** in Quiz mode pick a ready-made quiz (Sports Night, Kids' Table, Brainiac…) or **Design a quiz** (categories, difficulty, length) and save it.
+- **Quick start** at the top of the host page; **↻ Like this** on a recent game copies its settings.
+
+## Expansion page and simulation
+
+- Host → **🛠 Expansion**: which questions have an announcer recording, the line catalog, and the voice recipe (ElevenLabs "Brian") as a copyable instruction file.
+- Host lobby → **📱 Simulate phones**: every player's phone (iPhone 13 size) and the TV, live, on one screen. Demo players need `ENABLE_DEMO_TOOLS=true`.

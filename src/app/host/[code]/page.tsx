@@ -107,6 +107,14 @@ export default function HostConsole() {
             >
               Open TV display ↗
             </a>
+            <a
+              className="btn btn-ghost !text-base"
+              href={`/host/${code}/simulate`}
+              target="_blank"
+              rel="noopener"
+            >
+              📱 Simulate phones ↗
+            </a>
           </div>
         </header>
 
@@ -270,6 +278,8 @@ function LobbyControls({
     countdownSeconds: state.countdownSeconds,
     characterPacks: state.settings.characterPacks,
     triviaCategories: state.settings.triviaCategories,
+    triviaDifficulty: state.settings.triviaDifficulty,
+    quizName: state.settings.quizName ?? undefined,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;

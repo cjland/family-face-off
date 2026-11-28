@@ -32,12 +32,13 @@ import { validateAnswer } from "@/lib/text";
  * in that holiday's theme. For bonus questions (seasonalFirst = how many are wanted) the holiday
  * set is used on its own when it has enough; otherwise general trivia is mixed in.
  */
-function themedTrivia<T extends { seasonal: string | null; category: string }>(bank: T[], settings: GameSettings, opts: { seasonalFirst?: number } = {}): T[] {
+function themedTrivia<T extends { seasonal: string | null; category: string; difficulty: string }>(bank: T[], settings: GameSettings, opts: { seasonalFirst?: number } = {}): T[] {
   const inCats = (b: T) => !settings.triviaCategories.length || settings.triviaCategories.includes(b.category);
   const seasonal = bank.filter((b) => b.seasonal && seasonMatchesTheme(b.seasonal, settings.theme));
-  const general = bank.filter((b) => !b.seasonal && inCats(b));
+  const general = bank.filter((b) => !b.seasonal && inCats(b) && (opts.seasonalFirst !== undefined || settings.triviaDifficulty === "mixed" || b.difficulty === settings.triviaDifficulty));
   if (opts.seasonalFirst !== undefined && !settings.triviaCategories.length && seasonal.length >= opts.seasonalFirst) return seasonal;
-  const mixed = settings.triviaCategories.length ? general : [...seasonal, ...general];
+  const diffOk = (b: T) => opts.seasonalFirst !== undefined || settings.triviaDifficulty === "mixed" || b.difficulty === settings.triviaDifficulty;
+  const mixed = settings.triviaCategories.length ? general : [...seasonal.filter(diffOk), ...general];
   return mixed.length ? mixed : bank.filter((b) => !b.seasonal || seasonal.includes(b));
 }
 
@@ -198,7 +199,7 @@ export async function previewRounds(db: DB, game: Game) {
           },
         ]
       : settings.mode === "quiz"
-        ? [{ n: themedTrivia(await db.select({ seasonal: bonusQuestions.seasonal, category: bonusQuestions.category }).from(bonusQuestions).where(eq(bonusQuestions.active, true)), settings).length }]
+        ? [{ n: themedTrivia(await db.select({ seasonal: bonusQuestions.seasonal, category: bonusQuestions.category, difficulty: bonusQuestions.difficulty }).from(bonusQuestions).where(eq(bonusQuestions.active, true)), settings).length }]
         : settings.questionGroups.length
           ? await db.select({ n: sql<number>`count(*)::int` }).from(customQuestions).where(inArray(customQuestions.groupName, settings.questionGroups))
           : [{ n: 0 }];
