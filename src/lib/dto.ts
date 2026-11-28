@@ -226,6 +226,7 @@ export type GameStateDTO = {
     bonusQuestions: boolean;
     bonusCount: number | null;
     pieceGroups: string[];
+    characterPacks: string[];
     questionGroups: string[];
     speedQuestions: boolean;
     speedCount: number | null;

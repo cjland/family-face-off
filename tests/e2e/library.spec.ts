@@ -5,7 +5,9 @@ test("question library: browse, pick, and create a game from the picks", async (
   await page.goto("/host");
   await page.getByLabel("Host password").fill(process.env.HOST_PASSWORD!);
   await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "New game" })).toBeVisible();
   await page.getByRole("link", { name: /Browse & pick questions/ }).click();
+  await page.waitForURL(/\/host\/library$/);
   await expect(page.getByRole("heading", { name: "Question library" })).toBeVisible();
   await page.evaluate(() => localStorage.removeItem("ffo-library-picks-v1"));
   await page.reload();

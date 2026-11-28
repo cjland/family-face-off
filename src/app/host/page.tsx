@@ -132,7 +132,8 @@ export default function HostDashboard() {
 
   // Coming from the question library's "Create a game with these": use the picks.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("picks") !== "1") return;
+    if (new URLSearchParams(window.location.search).get("picks") !== "1")
+      return;
     const t = setTimeout(() => {
       const p = loadPicks();
       if (!p.promptIds.length && !p.questionIds.length) return;
@@ -141,10 +142,16 @@ export default function HostDashboard() {
         promptIds: p.promptIds,
         questionIds: p.questionIds,
         mode: p.promptIds.length ? "personal" : "quiz",
-        ...(p.promptIds.length ? {} : { roundCount: Math.min(Math.max(p.questionIds.length, 1), 80) }),
-        ...(p.promptIds.length && p.questionIds.length ? { bonusQuestions: true } : {}),
+        ...(p.promptIds.length
+          ? {}
+          : { roundCount: Math.min(Math.max(p.questionIds.length, 1), 80) }),
+        ...(p.promptIds.length && p.questionIds.length
+          ? { bonusQuestions: true }
+          : {}),
       }));
-      document.getElementById("new-game")?.scrollIntoView({ behavior: "smooth" });
+      document
+        .getElementById("new-game")
+        ?.scrollIntoView({ behavior: "smooth" });
     }, 0);
     return () => clearTimeout(t);
   }, []);
@@ -192,17 +199,28 @@ export default function HostDashboard() {
             <TitleMark title="Family Face-Off" theme={draft.theme} size="sm" />
           </Link>
           {me && (
-            <button
-              className="btn btn-ghost !text-base"
-              onClick={async () => {
-                await api("/api/host/logout", { method: "POST" }).catch(
-                  () => {},
-                );
-                setMe(null);
-              }}
-            >
-              Sign out
-            </button>
+            <nav className="flex flex-wrap gap-2" aria-label="Host tools">
+              <Link className="btn btn-ghost !text-base" href="/host/library">
+                📚 Question library
+              </Link>
+              <Link
+                className="btn btn-ghost !text-base"
+                href="/host/characters"
+              >
+                🧩 Characters
+              </Link>
+              <button
+                className="btn btn-ghost !text-base"
+                onClick={async () => {
+                  await api("/api/host/logout", { method: "POST" }).catch(
+                    () => {},
+                  );
+                  setMe(null);
+                }}
+              >
+                Sign out
+              </button>
+            </nav>
           )}
         </header>
 
@@ -427,7 +445,7 @@ export default function HostDashboard() {
                   )}
                 </section>
                 <QuestionLibrary />
-              <AboutPanel />
+                <AboutPanel />
               </div>
             </div>
           </>

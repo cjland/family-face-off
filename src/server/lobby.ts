@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, gt, inArray, lt, notInArray, sql } from "drizzle-orm";
+import { allowedPieces } from "@/server/packs";
 import { randomInt } from "node:crypto";
 import type { DB } from "@/db/client";
 import { families, games, playerPrompts, players, prompts, type Game, type Player } from "@/db/schema";
-import { isPiece, piecesForGroups } from "@/lib/pieces";
 import { hashToken, newGameCode, newToken } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { ApiError } from "@/lib/errors";
@@ -211,10 +211,10 @@ export async function joinGame(
       .from(players)
       .where(and(eq(players.gameId, game.id), eq(players.active, true)));
     const taken = new Set(takenRows.map((r) => r.piece).filter(Boolean));
-    const allowed = piecesForGroups(settings.pieceGroups).map((p) => p.id as string);
+    const allowed = (await allowedPieces(tx, settings)).map((p) => p.id);
     const free = allowed.filter((id) => !taken.has(id));
     let piece: string;
-    if (opts.piece && isPiece(opts.piece) && allowed.includes(opts.piece)) {
+    if (opts.piece && allowed.includes(opts.piece)) {
       if (taken.has(opts.piece) && free.length) {
         throw new ApiError("PIECE_TAKEN", "Someone just grabbed that piece. Pick another one!");
       }
@@ -304,13 +304,15 @@ export async function joinInfo(db: DB, code: string) {
     .select({ piece: players.piece })
     .from(players)
     .where(and(eq(players.gameId, game.id), eq(players.active, true)));
+  const allowed = await allowedPieces(db, parseSettings(game.settings));
   return {
     title: game.title,
     familyName: fam?.name ?? null,
     theme: parseSettings(game.settings).theme,
-    pieces: piecesForGroups(parseSettings(game.settings).pieceGroups).map((p) => p.id),
+    pieces: allowed.map((p) => p.id),
+    labels: Object.fromEntries(allowed.map((p) => [p.id, p.label])),
     open: game.phase === "LOBBY" && !game.rosterLockedAt,
-    taken: taken.map((t) => t.piece).filter((p): p is string => isPiece(p)),
+    taken: taken.map((t) => t.piece).filter((p): p is string => !!p && !p.startsWith("photo:")),
   };
 }
 

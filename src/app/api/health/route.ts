@@ -25,6 +25,7 @@ export async function GET() {
     const [schema] = (
       (await handle.db.execute(sql`
         select to_regclass('public.player_photos') is not null as photos,
+               to_regclass('public.character_packs') is not null as packs,
                to_regclass('public.families') is not null as families,
                exists (select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid
                        where t.typname = 'game_phase' and e.enumlabel = 'LEADERBOARD') as leaderboard,
@@ -34,11 +35,11 @@ export async function GET() {
                        where table_schema = 'public' and table_name = 'rounds' and column_name = 'bonus_question_id') as bonus,
                exists (select 1 from information_schema.columns
                        where table_schema = 'public' and table_name = 'players' and column_name = 'away_at') as modes
-      `)) as unknown as { rows: { photos: boolean; families: boolean; leaderboard: boolean; slogans: boolean; bonus: boolean; modes: boolean }[] }
+      `)) as unknown as { rows: { photos: boolean; packs: boolean; families: boolean; leaderboard: boolean; slogans: boolean; bonus: boolean; modes: boolean }[] }
     ).rows;
     database = true;
     if (!tables?.n) databaseError = "connected, but no questions loaded: run neon-setup.sql in the Neon SQL Editor";
-    else if (!schema?.photos || !schema?.families || !schema?.leaderboard || !schema?.slogans || !schema?.bonus || !schema?.modes) {
+    else if (!schema?.photos || !schema?.packs || !schema?.families || !schema?.leaderboard || !schema?.slogans || !schema?.bonus || !schema?.modes) {
       databaseError = "connected, but the database is out of date: run the latest neon-setup.sql in the Neon SQL Editor";
     }
   } catch (err) {

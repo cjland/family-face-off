@@ -5,7 +5,7 @@ import { joinGame } from "@/server/lobby";
 import { rateLimit } from "@/server/rateLimit";
 
 type Ctx = { params: Promise<{ code: string }> };
-const body = z.object({ name: z.string().max(100).default(""), piece: z.string().max(20).optional() });
+const body = z.object({ name: z.string().max(100).default(""), piece: z.string().max(60).optional() });
 
 export const POST = route<Ctx>(async (req, ctx, db) => {
   const code = normalizeCode((await ctx.params).code);

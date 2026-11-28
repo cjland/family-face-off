@@ -12,7 +12,7 @@ import type { GameStateDTO } from "@/lib/dto";
 import { PIECES } from "@/lib/pieces";
 import type { Theme } from "@/lib/settings";
 
-type Info = { title: string; familyName: string | null; theme: Theme; open: boolean; taken: string[]; pieces?: string[] };
+type Info = { title: string; familyName: string | null; theme: Theme; open: boolean; taken: string[]; pieces?: string[]; labels?: Record<string, string> };
 
 export default function JoinPage() {
   const params = useParams<{ code: string }>();
@@ -76,8 +76,9 @@ export default function JoinPage() {
 
   const taken = new Set(info?.taken ?? []);
   // Only this game's character groups (the host picks them when creating the game).
-  const allowedIds = new Set(info?.pieces ?? PIECES.map((p) => p.id));
-  const choices = PIECES.filter((p) => allowedIds.has(p.id));
+  const choices: { id: string; label: string }[] = info?.pieces
+    ? info.pieces.map((id) => ({ id, label: info.labels?.[id] ?? PIECES.find((p) => p.id === id)?.label ?? "Character" }))
+    : PIECES.map((p) => ({ id: p.id, label: p.label }));
   const allTaken = choices.every((p) => taken.has(p.id));
 
   return (

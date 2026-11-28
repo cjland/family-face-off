@@ -353,3 +353,22 @@ export type Player = typeof players.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
 export type PlayerPrompt = typeof playerPrompts.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
+
+/**
+ * Character packs made on the host's Characters page: named sets of mashup characters (a game
+ * piece's head on a costume body). Each entry's piece is a self-contained "mash:..." string.
+ */
+export const characterPacks = pgTable(
+  "character_packs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    characters: jsonb("characters").$type<{ name: string; piece: string }[]>().notNull().default(sql`'[]'::jsonb`),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    check("character_packs_name_len", sql`char_length(${t.name}) between 1 and 40`),
+    check("character_packs_size", sql`jsonb_array_length(${t.characters}) <= 40`),
+  ],
+);

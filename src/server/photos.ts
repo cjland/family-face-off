@@ -1,3 +1,4 @@
+import { isMashPiece } from "@/lib/mash";
 import { randomInt } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { DB } from "@/db/client";
@@ -30,7 +31,7 @@ export async function setPhoto(db: DB, game: Game, player: Player, dataUrl: stri
     if (!g || g.phase === "FINISHED") throw new ApiError("WRONG_PHASE", "This game has ended.");
     const [current] = await tx.select().from(players).where(and(eq(players.id, player.id), eq(players.gameId, game.id)));
     if (!current) throw new ApiError("NOT_FOUND", "Player not found.");
-    const previous = isPiece(current.piece) ? current.piece : null;
+    const previous = isPiece(current.piece) || isMashPiece(current.piece) ? current.piece : null;
     const keptBody = current.piece && current.piece.startsWith("photo:") ? parsePhotoPiece(current.piece).body : null;
     const chosenBody = isBody(body) ? body : isBody(keptBody) ? keptBody : DEFAULT_BODY;
     await tx

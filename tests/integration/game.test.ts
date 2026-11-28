@@ -28,6 +28,8 @@ import { customQuestions } from "@/db/schema";
 import { decodePhoto, getPhoto, removePhoto, setPhoto, setPhotoBody } from "@/server/photos";
 import { readFileSync } from "node:fs";
 import { closeTestDb, resetGames, testDb } from "../support/db";
+import { createPack, deletePack } from "@/server/packs";
+import { mashPiece } from "@/lib/mash";
 
 let db: DB;
 
@@ -824,6 +826,23 @@ describe("question library picks", () => {
     const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
     expect(rs).toHaveLength(4);
     expect(rs.every((r) => picks.includes(r.bonusQuestionId!))).toBe(true);
+  });
+});
+
+describe("character packs", () => {
+  it("players can pick a mashup from a pack, and only pack characters are offered", async () => {
+    const mash = mashPiece({ head: "dino", body: "astro", zoom: 2, cx: 0.5, cy: 0.33 });
+    const pack = await createPack(db, { name: "Mashups", characters: [{ name: "Space Dino", piece: mash }, { name: "Dup", piece: mash }] });
+    expect(pack.characters).toHaveLength(1);
+    const game = await createGame(db, { title: "Packs", settings: { characterPacks: [pack.id], pieceGroups: [] } });
+    const info = await joinInfo(db, game.code);
+    expect(info.pieces).toEqual([mash]);
+    expect(info.labels[mash]).toBe("Space Dino");
+    const p = (await joinGame(db, game.code, "Rex", null, { piece: mash })).player;
+    expect(p.piece).toBe(mash);
+    const q = (await joinGame(db, game.code, "Sue", null, { piece: "dragon" })).player;
+    expect(q.piece).toBe(mash); // not offered here, so they get one from the pack
+    await deletePack(db, pack.id);
   });
 });
 

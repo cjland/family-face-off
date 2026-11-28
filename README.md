@@ -464,3 +464,15 @@ The script plays a short game with two pretend players and eight labelled demo b
 ## Answer pools
 
 Each question can have up to ~30 answer options; each player sees 6 of them (4 regular, 2 humorous), different per player. See [docs/answer-pools](docs/answer-pools/README.md) to export the list, expand it with a model and import it back.
+
+## Question library page
+
+Host → **📚 Question library**: browse every question by category (about-you, built-in trivia, your uploads), open one to see all its answers, tick the ones you want, then **Create a game with these**. Get Personal games give players their 8 questions from your picks (topped up if you picked fewer than 8); Quiz/Custom games play only the picked questions; bonus trivia comes from picked trivia.
+
+## Character packs (mashups)
+
+Host → **🧩 Characters**: put any character's head on any costume, fit the head with the sliders, name it and add it to a pack (up to 40). Tick the pack under **Characters players can pick** when setting up a game.
+
+## Themes and countdown
+
+Themes: Classic, Thanksgiving, Christmas, Football (Game Day), Birthday. The countdown before each question can be 8, 5, 4 or 3 seconds (the announcer calls 5 to 1).

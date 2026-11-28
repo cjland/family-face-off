@@ -1,5 +1,6 @@
 "use client";
 
+import { THEME_INFO } from "@/lib/themes";
 import { LogoSting } from "@/components/tv/LogoSting";
 import { QuestionCountPicker } from "@/components/QuestionCountPicker";
 import {
@@ -3336,10 +3337,7 @@ function TvFinal({
     if (reduced || !showPodium) return;
     const end = Date.now() + 4000;
     let raf = 0;
-    const colors =
-      state.theme === "thanksgiving"
-        ? ["#f28c28", "#a3203a", "#ffc46b", "#fff6e6"]
-        : ["#f5c542", "#ffffff", "#7c5cff", "#ff5d8f"];
+    const colors = THEME_INFO[state.theme]?.confetti ?? THEME_INFO.classic.confetti;
     const frame = () => {
       confetti({
         particleCount: 6,

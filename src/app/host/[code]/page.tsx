@@ -267,6 +267,8 @@ function LobbyControls({
     speedCount: state.settings.speedCount ?? undefined,
     speedSeconds: state.settings.speedSeconds,
     autoAway: state.settings.autoAway,
+    countdownSeconds: state.countdownSeconds,
+    characterPacks: state.settings.characterPacks,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;

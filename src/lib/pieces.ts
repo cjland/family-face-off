@@ -1,3 +1,4 @@
+import { BODIES } from "@/lib/bodies";
 /** The 40 cartoon game pieces (images in public/pieces/<id>.webp). */
 export const PIECES = [
   { id: "rocket", label: "Rocket" },
@@ -91,5 +92,9 @@ export function pieceSrc(id: string): string {
 }
 
 export function pieceLabel(id: string | null | undefined): string {
+  if (id?.startsWith("mash:")) {
+    const [, head, body] = id.split(":");
+    return `${PIECES.find((p) => p.id === head)?.label ?? "Mystery"} ${BODIES.find((b) => b.id === body)?.label ?? ""}`.trim();
+  }
   return PIECES.find((p) => p.id === id)?.label ?? "Player";
 }

@@ -298,6 +298,24 @@ BEGIN
 END
 $migration$;
 
+-- Migration 0008_character_packs (skipped if already applied)
+DO $migration$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM drizzle.__drizzle_migrations WHERE created_at = 1795815795442) THEN
+    EXECUTE $stmt$CREATE TABLE "character_packs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"characters" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "character_packs_name_len" CHECK (char_length("character_packs"."name") between 1 and 40),
+	CONSTRAINT "character_packs_size" CHECK (jsonb_array_length("character_packs"."characters") <= 40)
+)$stmt$;
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES ('2f90082340c4779e975f90fb344ce9bb7864e6c528500a855e5006aa6319c5ff', 1795815795442);
+  END IF;
+END
+$migration$;
+
 -- Question bank from src/data/questions.json (safe to re-run)
 INSERT INTO prompts (id, text, question_template, category, common, sort_order, fallback_options, options, active, seasonal) VALUES
   ('q001', 'Which food could you eat every week?', 'How did {name} answer: “Which food could you eat every week?”', 'Food & Drink', true, 0, '["Pizza","Tacos","Burgers","Pasta","Free samples at Costco","Someone else''s leftovers","Sushi","Roast chicken","Steak","Lasagna","Fish and chips","Burritos","Fried rice","Chicken curry","Soup","Salad","Barbecue ribs","Grilled salmon","Mac and cheese","Dumplings","Meatloaf","Falafel","A mountain of mashed potatoes","Breakfast in bed","A buffet with no closing time","Whatever is on the next table","Food delivered by a robot","A seven-layer grilled cheese","A picnic in my pajamas","A sandwich taller than me"]'::jsonb, '[{"id":"q001_1","text":"Pizza","humorous":false},{"id":"q001_2","text":"Tacos","humorous":false},{"id":"q001_3","text":"Burgers","humorous":false},{"id":"q001_4","text":"Pasta","humorous":false},{"id":"q001_5","text":"Free samples at Costco","humorous":true},{"id":"q001_6","text":"Someone else''s leftovers","humorous":true},{"id":"q001_7","text":"Sushi","humorous":false},{"id":"q001_8","text":"Roast chicken","humorous":false},{"id":"q001_9","text":"Steak","humorous":false},{"id":"q001_10","text":"Lasagna","humorous":false},{"id":"q001_11","text":"Fish and chips","humorous":false},{"id":"q001_12","text":"Burritos","humorous":false},{"id":"q001_13","text":"Fried rice","humorous":false},{"id":"q001_14","text":"Chicken curry","humorous":false},{"id":"q001_15","text":"Soup","humorous":false},{"id":"q001_16","text":"Salad","humorous":false},{"id":"q001_17","text":"Barbecue ribs","humorous":false},{"id":"q001_18","text":"Grilled salmon","humorous":false},{"id":"q001_19","text":"Mac and cheese","humorous":false},{"id":"q001_20","text":"Dumplings","humorous":false},{"id":"q001_21","text":"Meatloaf","humorous":false},{"id":"q001_22","text":"Falafel","humorous":false},{"id":"q001_23","text":"A mountain of mashed potatoes","humorous":true},{"id":"q001_24","text":"Breakfast in bed","humorous":true},{"id":"q001_25","text":"A buffet with no closing time","humorous":true},{"id":"q001_26","text":"Whatever is on the next table","humorous":true},{"id":"q001_27","text":"Food delivered by a robot","humorous":true},{"id":"q001_28","text":"A seven-layer grilled cheese","humorous":true},{"id":"q001_29","text":"A picnic in my pajamas","humorous":true},{"id":"q001_30","text":"A sandwich taller than me","humorous":true}]'::jsonb, true, NULL),

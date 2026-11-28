@@ -1,10 +1,12 @@
 "use client";
 
+import { THEME_INFO } from "@/lib/themes";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
+import { Avatar } from "@/components/ui";
 
-import type { GameSettings, MusicStyle } from "@/lib/settings";
+import { THEMES, type GameSettings, type MusicStyle } from "@/lib/settings";
 import { BOARD_IDS, BOARD_INFO, DEFAULT_BOARDS } from "@/lib/boards";
 import { PIECE_GROUP_IDS, PIECE_GROUPS, pieceSrc } from "@/lib/pieces";
 import {
@@ -263,6 +265,29 @@ function Planner({
             </div>
           </div>
         </div>
+        <div className="flex flex-col gap-1">
+          <span className="font-semibold" id="countdown-label">
+            Countdown before each question
+          </span>
+          <div
+            className="flex gap-1"
+            role="radiogroup"
+            aria-labelledby="countdown-label"
+          >
+            {[8, 5, 4, 3].map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={value.countdownSeconds === n}
+                className={`btn ${value.countdownSeconds === n ? "btn-primary" : "btn-ghost"} !min-h-[40px] !px-3 !text-sm`}
+                onClick={() => set("countdownSeconds", n)}
+              >
+                {n}…1
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       {value.mode === "personal" ? (
         <>
@@ -399,6 +424,72 @@ function PicksPanel({
   );
 }
 
+/** Character packs from the Characters page, as checkboxes next to the built-in groups. */
+function PackChoices({
+  value,
+  set,
+}: {
+  value: SettingsDraft;
+  set: <K extends keyof SettingsDraft>(k: K, v: SettingsDraft[K]) => void;
+}) {
+  const [packs, setPacks] = useState<
+    {
+      id: string;
+      name: string;
+      characters: { name: string; piece: string }[];
+    }[]
+  >([]);
+  useEffect(() => {
+    api<{ packs: typeof packs }>("/api/packs")
+      .then((r) => setPacks(r.packs.filter((p) => p.characters.length > 0)))
+      .catch(() => setPacks([]));
+  }, []);
+  return (
+    <>
+      {packs.map((p) => {
+        const on = value.characterPacks.includes(p.id);
+        return (
+          <label
+            key={p.id}
+            className={`flex items-center gap-3 rounded-xl border px-3 py-2 cursor-pointer ${on ? "border-accent bg-accent/15" : "border-white/15 bg-black/20"}`}
+          >
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-[var(--accent)]"
+              checked={on}
+              disabled={
+                on &&
+                value.characterPacks.length === 1 &&
+                !value.pieceGroups.length
+              }
+              onChange={(e) =>
+                set(
+                  "characterPacks",
+                  e.target.checked
+                    ? [...value.characterPacks, p.id]
+                    : value.characterPacks.filter((x) => x !== p.id),
+                )
+              }
+            />
+            <span className="flex -space-x-4 flex-none" aria-hidden="true">
+              {p.characters.slice(0, 3).map((c) => (
+                <Avatar key={c.piece} name={c.name} piece={c.piece} size={40} />
+              ))}
+            </span>
+            <span className="min-w-0">
+              <span className="font-semibold block truncate">🧩 {p.name}</span>
+              <span className="block text-sm text-muted truncate">
+                {p.characters.length} mashup
+                {p.characters.length === 1 ? "" : "s"}
+              </span>
+            </span>
+          </label>
+        );
+      })}
+    </>
+  );
+}
+
 export type SettingsDraft = Pick<
   GameSettings,
   | "theme"
@@ -428,6 +519,8 @@ export type SettingsDraft = Pick<
   | "fastestBonus"
   | "bonusQuestions"
   | "bonusCount"
+  | "countdownSeconds"
+  | "characterPacks"
 > &
   /** Library picks: the setup page sends the ids; [] clears them; unset leaves them alone. */
   Partial<Pick<GameSettings, "promptIds" | "questionIds">>;
@@ -458,6 +551,8 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   plannedPlayers: 12,
   fastestBonus: true,
   bonusQuestions: true,
+  countdownSeconds: 5,
+  characterPacks: [],
 };
 
 const MUSIC_LABELS: [MusicStyle, string][] = [
@@ -560,27 +655,24 @@ export function SettingsForm({
         <fieldset>
           <legend className="font-semibold mb-2">Theme</legend>
           <div className="flex gap-3 flex-wrap">
-            {(
-              [
-                ["classic", "Classic game show"],
-                ["thanksgiving", "Thanksgiving"],
-              ] as const
-            ).map(([t, label]) => (
-              <label
-                key={t}
-                className={`btn ${value.theme === t ? "btn-primary" : "btn-ghost"} !text-base`}
-              >
-                <input
-                  type="radio"
-                  name="theme"
-                  value={t}
-                  checked={value.theme === t}
-                  onChange={() => set("theme", t)}
-                  className="sr-only"
-                />
-                {label}
-              </label>
-            ))}
+            {THEMES.map((t) => [t, THEME_INFO[t].label] as const).map(
+              ([t, label]) => (
+                <label
+                  key={t}
+                  className={`btn ${value.theme === t ? "btn-primary" : "btn-ghost"} !text-base`}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={t}
+                    checked={value.theme === t}
+                    onChange={() => set("theme", t)}
+                    className="sr-only"
+                  />
+                  {label}
+                </label>
+              ),
+            )}
           </div>
         </fieldset>
         <fieldset>
@@ -718,10 +810,15 @@ export function SettingsForm({
           Characters players can pick
         </legend>
         <span className="text-sm text-muted block mb-2">
-          Each group has 20 game pieces. Pick at least one; with more players
-          than pieces, pieces get shared.
+          Each group has 20 game pieces, plus any character packs you built (
+          <Link className="underline" href="/host/characters">
+            mash up characters
+          </Link>
+          ). Pick at least one; with more players than pieces, pieces get
+          shared.
         </span>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+          <PackChoices value={value} set={set} />
           {PIECE_GROUPS.map((g) => {
             const on = value.pieceGroups.includes(g.id);
             return (
@@ -733,7 +830,11 @@ export function SettingsForm({
                   type="checkbox"
                   className="h-5 w-5 accent-[var(--accent)]"
                   checked={on}
-                  disabled={on && value.pieceGroups.length === 1}
+                  disabled={
+                    on &&
+                    value.pieceGroups.length === 1 &&
+                    !value.characterPacks.length
+                  }
                   onChange={(e) =>
                     set(
                       "pieceGroups",
