@@ -12,6 +12,8 @@ import {
 import { Banner, Spinner, Stage, TitleMark } from "@/components/ui";
 import { api, ApiClientError } from "@/lib/client/api";
 import { loadPicks } from "@/lib/client/picks";
+import { THEMES } from "@/lib/settings";
+import { THEME_INFO } from "@/lib/themes";
 
 type GameRow = {
   code: string;
@@ -23,6 +25,7 @@ type GameRow = {
   theme: string;
   familyId: string;
   familyName: string;
+  settings?: Partial<SettingsDraft> & Record<string, unknown>;
 };
 type FamilyRow = { id: string; name: string; gameCount: number };
 type Me = { host: true; aiAvailable: boolean; demoTools: boolean };
@@ -91,6 +94,9 @@ export default function HostDashboard() {
   const [filter, setFilter] = useState<string>("all");
   const [title, setTitle] = useState("Family Face-Off");
   const [draft, setDraft] = useState<SettingsDraft>(DEFAULT_DRAFT);
+  const [quickMode, setQuickMode] = useState<"personal" | "quiz">("personal");
+  const [quickTheme, setQuickTheme] =
+    useState<SettingsDraft["theme"]>("classic");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
     kind: "error" | "success";
@@ -181,6 +187,44 @@ export default function HostDashboard() {
       setBusy(false);
     }
   };
+  // Quick start: default settings, just a mode and a theme (state is declared up top).
+  const quickStart = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const res = await api<{ code: string }>("/api/games", {
+        method: "POST",
+        body: {
+          title: "Family Face-Off",
+          settings: { ...DEFAULT_DRAFT, mode: quickMode, theme: quickTheme },
+          familyId: familyId || undefined,
+        },
+      });
+      router.push(`/host/${res.code}`);
+    } catch (err) {
+      setMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Could not create the game.",
+      });
+      setBusy(false);
+    }
+  };
+  /** "Build me a game like this one": copy an old game's settings into the setup form. */
+  const likeThis = (g: GameRow) => {
+    if (!g.settings) return;
+    setDraft({
+      ...DEFAULT_DRAFT,
+      ...(g.settings as Partial<SettingsDraft>),
+    } as SettingsDraft);
+    setTitle(g.title);
+    setFamilyId(g.familyId);
+    setMessage({
+      kind: "success",
+      text: `Settings copied from game ${g.code}. Change anything you like, then Create game.`,
+    });
+    document.getElementById("new-game")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   const createButton = (
     <button
       className="btn btn-primary self-start"
@@ -209,6 +253,9 @@ export default function HostDashboard() {
               >
                 🧩 Characters
               </Link>
+              <Link className="btn btn-ghost !text-base" href="/host/expansion">
+                🛠 Expansion
+              </Link>
               <button
                 className="btn btn-ghost !text-base"
                 onClick={async () => {
@@ -231,6 +278,93 @@ export default function HostDashboard() {
         ) : (
           <>
             {message && <Banner kind={message.kind}>{message.text}</Banner>}
+            <section
+              className="panel p-6 flex flex-col gap-4 border-accent"
+              aria-labelledby="quick-start"
+            >
+              <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                <h2
+                  id="quick-start"
+                  className="font-display text-3xl font-bold"
+                >
+                  ⚡ Quick start
+                </h2>
+                <p className="text-sm text-muted">
+                  Good defaults: 20-second questions, 5-second countdown,
+                  autoplay, bonus trivia. Fine-tune from the lobby or set
+                  everything up below.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-end gap-4">
+                <label className="flex flex-col gap-1 min-w-[220px]">
+                  <span className="font-semibold">Family</span>
+                  <select
+                    className="input"
+                    value={familyId}
+                    onChange={(e) => setFamilyId(e.target.value)}
+                    aria-label="Quick start family"
+                  >
+                    {familiesList.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        The {f.name} Family
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold" id="qs-mode">
+                    Game
+                  </span>
+                  <div
+                    className="flex gap-2"
+                    role="radiogroup"
+                    aria-labelledby="qs-mode"
+                  >
+                    {(
+                      [
+                        ["personal", "🙋 Get Personal"],
+                        ["quiz", "🧠 Trivia quiz"],
+                      ] as const
+                    ).map(([m, label]) => (
+                      <button
+                        key={m}
+                        type="button"
+                        role="radio"
+                        aria-checked={quickMode === m}
+                        className={`btn ${quickMode === m ? "btn-primary" : "btn-ghost"} !text-base`}
+                        onClick={() => setQuickMode(m)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="flex flex-col gap-1">
+                  <span className="font-semibold">Theme</span>
+                  <select
+                    className="input"
+                    value={quickTheme}
+                    onChange={(e) =>
+                      setQuickTheme(e.target.value as SettingsDraft["theme"])
+                    }
+                    aria-label="Quick start theme"
+                  >
+                    {THEMES.map((t) => (
+                      <option key={t} value={t}>
+                        {THEME_INFO[t].label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="btn btn-primary !text-xl !px-8"
+                  disabled={busy}
+                  onClick={quickStart}
+                >
+                  {busy ? "Starting…" : "Start a game →"}
+                </button>
+              </div>
+            </section>
             <div className="grid gap-8 2xl:grid-cols-[minmax(0,1fr)_460px] items-start">
               <section
                 className="panel p-6 flex flex-col gap-5"
@@ -422,6 +556,16 @@ export default function HostDashboard() {
                             >
                               Open
                             </Link>
+                            {g.settings && (
+                              <button
+                                className="btn btn-ghost !text-sm !min-h-[44px] !px-3"
+                                title="Set up a new game with this game's settings"
+                                aria-label={`New game like ${g.code}`}
+                                onClick={() => likeThis(g)}
+                              >
+                                ↻ Like this
+                              </button>
+                            )}
                             <button
                               className="btn btn-danger !text-sm !min-h-[44px] !px-4"
                               onClick={async () => {

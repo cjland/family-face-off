@@ -99,7 +99,8 @@ export async function listGames(db: DB) {
     .where(gt(games.expiresAt, new Date()))
     .orderBy(desc(games.createdAt))
     .limit(50);
-  return rows.map((r) => ({ ...r, theme: parseSettings(r.settings).theme, settings: undefined }));
+  // Host only: settings let the dashboard offer "a game like this one".
+  return rows.map((r) => ({ ...r, theme: parseSettings(r.settings).theme, settings: parseSettings(r.settings) }));
 }
 
 export async function deleteGame(db: DB, code: string): Promise<boolean> {

@@ -105,7 +105,7 @@ export async function exportQuestions(db: DB, group: string | null): Promise<str
 export type LibraryDTO = {
   prompts: { id: string; text: string; category: string; common: boolean; seasonal: string | null; answers: { text: string; funny: boolean }[] }[];
   trivia: { id: string; question: string; category: string; difficulty: string; seasonal: string | null; options: string[]; correctIndex: number }[];
-  custom: { id: string; group: string; genre: string; difficulty: string; question: string; options: string[]; correctIndex: number }[];
+  custom: { id: string; audioId: string; group: string; genre: string; difficulty: string; question: string; options: string[]; correctIndex: number }[];
 };
 
 /** Everything in the question library, for the host's browse-and-pick page. */
@@ -135,6 +135,7 @@ export async function libraryContents(db: DB): Promise<LibraryDTO> {
     })),
     custom: c.map((x) => ({
       id: x.id,
+      audioId: x.audioId,
       group: x.groupName,
       genre: x.genre,
       difficulty: x.difficulty,
