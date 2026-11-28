@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bonusPlacePoints, bonusPlaces, bonusSlots, interleave, pickBonus } from "@/lib/bonus";
 import { BONUS_QUESTIONS } from "@/data/bonusQuestions";
 
-const bank = BONUS_QUESTIONS.map((b) => ({ ...b, correctIndex: b.correct }));
+const bank = BONUS_QUESTIONS.filter((b) => b.seasonal === "Thanksgiving").map((b) => ({ ...b, correctIndex: b.correct }));
 
 describe("bonus questions", () => {
   it("never go first or last, and are spread out", () => {
@@ -61,5 +61,23 @@ describe("question template", () => {
     expect(questions.map((q) => q.correctIndex)).toEqual([1, 2]);
     expect(errors.map((e) => e.row)).toEqual([4, 5]);
     expect(readQuestions("Question,Answer\nhi,there").errors[0].message).toContain("Missing column");
+  });
+});
+
+describe("fourChoices", () => {
+  it("keeps the right answer and picks 3 others from the pool", async () => {
+    const { fourChoices } = await import("@/lib/trivia");
+    const { createRng } = await import("@/lib/prng");
+    const pool = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+    const seen = new Set<number>();
+    for (let s = 0; s < 40; s++) {
+      const r = fourChoices(pool, 7, createRng(`s${s}`));
+      expect(r.options).toHaveLength(4);
+      expect(new Set(r.options).size).toBe(4);
+      expect(r.options[r.correctIndex]).toBe("h");
+      seen.add(r.correctIndex);
+    }
+    expect(seen.size).toBe(4); // the right answer moves around
+    expect(fourChoices(["w", "x", "y", "z"], 2, createRng("x"))).toEqual({ options: ["w", "x", "y", "z"], correctIndex: 2 });
   });
 });

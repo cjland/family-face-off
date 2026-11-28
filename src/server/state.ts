@@ -153,6 +153,7 @@ export async function getGameState(db: DB, code: string, auth: StateAuth): Promi
       bonusCount: settings.bonusCount ?? null,
       pieceGroups: settings.pieceGroups,
       characterPacks: settings.characterPacks,
+      triviaCategories: settings.triviaCategories,
       questionGroups: settings.questionGroups,
       speedQuestions: settings.speedQuestions,
       speedCount: settings.speedCount ?? null,

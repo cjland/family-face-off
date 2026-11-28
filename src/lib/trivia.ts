@@ -39,3 +39,20 @@ export function speedPositions(questions: number, count: number): number[] {
   // bonusSlots gives "after how many questions" (1..n-1), which is exactly a middle position.
   return [...new Set(bonusSlots(questions, count))];
 }
+
+/**
+ * The four choices shown for a trivia question: the right answer plus three others picked at
+ * random from its answer pool (questions with exactly four answers keep them as written).
+ */
+export function fourChoices(options: string[], correctIndex: number, rng: () => number): { options: string[]; correctIndex: number } {
+  if (options.length <= 4) return { options, correctIndex };
+  const wrong = options.filter((_, i) => i !== correctIndex);
+  for (let i = wrong.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [wrong[i], wrong[j]] = [wrong[j], wrong[i]];
+  }
+  const at = Math.floor(rng() * 4);
+  const shown = wrong.slice(0, 3);
+  shown.splice(at, 0, options[correctIndex]);
+  return { options: shown, correctIndex: at };
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Banner, Spinner, Stage, TitleMark } from "@/components/ui";
+import { triviaEmoji } from "@/lib/triviaCategories";
 import { api, ApiClientError } from "@/lib/client/api";
 import {
   EMPTY_PICKS,
@@ -294,7 +295,7 @@ export default function LibraryPage() {
                   {categories.map(([name, list]) => (
                     <CategoryButton
                       key={name}
-                      label={name}
+                      label={tab === "trivia" ? `${triviaEmoji(name)} ${name}` : name}
                       count={list.length}
                       picked={list.filter(isPicked).length}
                       on={category === name}

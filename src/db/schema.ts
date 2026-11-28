@@ -201,8 +201,8 @@ export const bonusQuestions = pgTable(
   },
   (t) => [
     check("bonus_difficulty", sql`${t.difficulty} in ('easy', 'medium', 'hard')`),
-    check("bonus_options_count", sql`jsonb_array_length(${t.options}) = 4`),
-    check("bonus_correct_index", sql`${t.correctIndex} between 0 and 3`),
+    check("bonus_options_count", sql`jsonb_array_length(${t.options}) between 4 and 12`),
+    check("bonus_correct_index", sql`${t.correctIndex} >= 0 and ${t.correctIndex} < jsonb_array_length(${t.options})`),
     check("bonus_points_pos", sql`${t.points} > 0 and ${t.timeSeconds} > 0`),
   ],
 );

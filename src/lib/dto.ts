@@ -227,6 +227,7 @@ export type GameStateDTO = {
     bonusCount: number | null;
     pieceGroups: string[];
     characterPacks: string[];
+    triviaCategories: string[];
     questionGroups: string[];
     speedQuestions: boolean;
     speedCount: number | null;

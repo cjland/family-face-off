@@ -18,13 +18,28 @@ import {
 import { ApiError } from "@/lib/errors";
 import { generateQuiz, maxPerSubject, type GenAnswer } from "@/lib/generator";
 import { hashString, createRng } from "@/lib/prng";
-import { defaultSpeedCount, pickTrivia, SPEED_MIN_POINTS, SPEED_TOP_POINTS, speedPlacePoints, speedPositions } from "@/lib/trivia";
+import { defaultSpeedCount, fourChoices, pickTrivia, SPEED_MIN_POINTS, SPEED_TOP_POINTS, speedPlacePoints, speedPositions } from "@/lib/trivia";
 import { BONUS_MIN_POINTS, BONUS_POINTS, bonusPlacePoints, bonusPlaces, bonusSlots, defaultBonusCount, interleave, pickBonus, type BonusDifficulty } from "@/lib/bonus";
 import { bonusIntroDurationMs, introDurationMs } from "@/server/introTiming";
 import { randomInt } from "node:crypto";
 import { FASTEST_BONUS_MAX, FASTEST_BONUS_MIN, fastestCorrect, pointsFor } from "@/lib/scoring";
-import { MIN_PLAYERS, parseSettings } from "@/lib/settings";
+import { MIN_PLAYERS, parseSettings, type GameSettings } from "@/lib/settings";
+import { seasonMatchesTheme } from "@/lib/promptBank";
 import { validateAnswer } from "@/lib/text";
+
+/**
+ * Built-in trivia for this game's theme and categories. Holiday questions (seasonal) only come up
+ * in that holiday's theme. For bonus questions (seasonalFirst = how many are wanted) the holiday
+ * set is used on its own when it has enough; otherwise general trivia is mixed in.
+ */
+function themedTrivia<T extends { seasonal: string | null; category: string }>(bank: T[], settings: GameSettings, opts: { seasonalFirst?: number } = {}): T[] {
+  const inCats = (b: T) => !settings.triviaCategories.length || settings.triviaCategories.includes(b.category);
+  const seasonal = bank.filter((b) => b.seasonal && seasonMatchesTheme(b.seasonal, settings.theme));
+  const general = bank.filter((b) => !b.seasonal && inCats(b));
+  if (opts.seasonalFirst !== undefined && !settings.triviaCategories.length && seasonal.length >= opts.seasonalFirst) return seasonal;
+  const mixed = settings.triviaCategories.length ? general : [...seasonal, ...general];
+  return mixed.length ? mixed : bank.filter((b) => !b.seasonal || seasonal.includes(b));
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -183,7 +198,7 @@ export async function previewRounds(db: DB, game: Game) {
           },
         ]
       : settings.mode === "quiz"
-        ? await db.select({ n: sql<number>`count(*)::int` }).from(bonusQuestions).where(eq(bonusQuestions.active, true))
+        ? [{ n: themedTrivia(await db.select({ seasonal: bonusQuestions.seasonal, category: bonusQuestions.category }).from(bonusQuestions).where(eq(bonusQuestions.active, true)), settings).length }]
         : settings.questionGroups.length
           ? await db.select({ n: sql<number>`count(*)::int` }).from(customQuestions).where(inArray(customQuestions.groupName, settings.questionGroups))
           : [{ n: 0 }];
@@ -277,7 +292,9 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
       : [];
     const bank = pickedBonus.length
       ? pickedBonus
-      : await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)).orderBy(asc(bonusQuestions.sortOrder));
+      : themedTrivia(await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)).orderBy(asc(bonusQuestions.sortOrder)), settings, {
+          seasonalFirst: Math.min(settings.bonusCount ?? defaultBonusCount(settings.perPlayer), Math.max(0, result.rounds.length - 1)),
+        });
     const recent = game.familyId
       ? await db
           .select({ id: rounds.bonusQuestionId })
@@ -317,7 +334,9 @@ export async function prepareRounds(db: DB, gameId: string, opts: PrepareOptions
       status,
       durationMs,
     });
-    const bonusRow = (b: (typeof bonus)[number]) => {
+    const bonusRow = (b0: (typeof bonus)[number]) => {
+      const pick = fourChoices(b0.options, b0.correctIndex, rng);
+      const b = { ...b0, options: pick.options, correctIndex: pick.correctIndex };
       const options = b.options.map((label) => ({ id: optId(), label }));
       const difficulty = b.difficulty as BonusDifficulty;
       return {
@@ -396,7 +415,7 @@ async function prepareTriviaRounds(db: DB, game: Game, opts: PrepareOptions): Pr
       ...own.map((c) => ({ key: c.id, builtIn: false, question: c.question, options: c.options, correctIndex: c.correctIndex, difficulty: c.difficulty, seconds: c.seconds })),
     ];
   } else if (settings.mode === "quiz") {
-    const bank = await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true));
+    const bank = themedTrivia(await db.select().from(bonusQuestions).where(eq(bonusQuestions.active, true)), settings);
     pool = bank.map((b) => ({ key: b.id, builtIn: true, question: b.question, options: b.options, correctIndex: b.correctIndex, difficulty: b.difficulty, seconds: null }));
   } else {
     const groups = settings.questionGroups;
@@ -420,7 +439,9 @@ async function prepareTriviaRounds(db: DB, game: Game, opts: PrepareOptions): Pr
       return;
     }
     const rows = applySpeed(
-      chosen.map((c) => {
+      chosen.map((c0) => {
+        const pick = fourChoices(c0.options, c0.correctIndex, rng);
+        const c = { ...c0, options: pick.options, correctIndex: pick.correctIndex };
         const options = c.options.map((label) => ({ id: optId(), label }));
         return {
           gameId: game.id,

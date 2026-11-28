@@ -732,7 +732,7 @@ describe("game modes", () => {
     for (let i = 0; i < 3; i++) ps.push((await joinGame(db, game.code, `Quizzer ${i + 1}`, null)).player);
     expect(ps.every((p) => p.readyAt)).toBe(true);
     const preview = await previewRounds(db, await findGame(db, game.code));
-    expect(preview).toMatchObject({ mode: "quiz", available: 20, suggestedQuestions: 5 });
+    expect(preview).toMatchObject({ mode: "quiz", available: 298, suggestedQuestions: 5 });
     await startGame(db, game.id, { excludeUnready: false, roundCount: 6 });
     const rs = (await db.select().from(rounds).where(eq(rounds.gameId, game.id))).sort((a, b) => a.ordinal - b.ordinal);
     expect(rs).toHaveLength(6);
@@ -742,7 +742,8 @@ describe("game modes", () => {
     await performAction(db, game.id, "open", (await findGame(db, game.code)).version);
     const tv = await getGameState(db, game.code, auth("display"));
     expect(tv.round).toMatchObject({ kind: "trivia", number: 1, total: 6, eligibleCount: 3, bonus: null });
-    expect(tv.round!.promptId).toMatch(/^b\d{3}$/);
+    expect(tv.round!.promptId).toMatch(/^t\d{3}$/); // classic theme: general trivia, no holiday questions
+    expect(tv.round!.options).toHaveLength(4);
     const { r } = await current(game.code);
     await submitGuess(db, game.id, ps[0], r.id, r.correctOptionId);
     await performAction(db, game.id, "reveal", (await findGame(db, game.code)).version);
@@ -789,6 +790,36 @@ describe("game modes", () => {
     expect((await refreshPlayer(p.id)).readyAt).not.toBeNull();
     await updateSettings(db, game.code, { mode: "personal" });
     expect((await refreshPlayer(p.id)).readyAt).toBeNull();
+  });
+});
+
+describe("built-in trivia pools", () => {
+  it("Quiz mode can be limited to categories, and each question shows 4 of its answers", async () => {
+    const game = await createGame(db, { title: "Cats", settings: { mode: "quiz", triviaCategories: ["Space & Astronomy", "Movies"], roundCount: 20, countdownSeconds: 0 } });
+    for (let i = 0; i < 3; i++) await joinGame(db, game.code, `C${i}`, null);
+    expect(await previewRounds(db, await findGame(db, game.code))).toMatchObject({ available: 20 });
+    await startGame(db, game.id, { excludeUnready: false, roundCount: 20 });
+    const rs = await db.select().from(rounds).where(eq(rounds.gameId, game.id));
+    expect(rs).toHaveLength(20);
+    const bank = await db.select().from(bonusQuestions);
+    for (const r of rs) {
+      const q = bank.find((b) => b.id === r.bonusQuestionId)!;
+      expect(["Space & Astronomy", "Movies"]).toContain(q.category);
+      expect(r.options).toHaveLength(4);
+      expect(r.answerText).toBe(q.options[q.correctIndex]);
+      expect(r.options.find((o) => o.id === r.correctOptionId)!.label).toBe(r.answerText);
+      for (const o of r.options) expect(q.options).toContain(o.label);
+    }
+  });
+
+  it("Thanksgiving theme keeps the Thanksgiving bonus questions; classic uses general trivia", async () => {
+    for (const [theme, re] of [["thanksgiving", /^b\d{3}$/], ["classic", /^t\d{3}$/]] as const) {
+      const { game } = await setupGame(4, { theme, bonusQuestions: true, bonusCount: 2 });
+      await startGame(db, game.id, { excludeUnready: false, perPlayer: 2 });
+      const bonus = (await db.select().from(rounds).where(eq(rounds.gameId, game.id))).filter((r) => r.kind === "bonus");
+      expect(bonus.length).toBeGreaterThan(0);
+      for (const b of bonus) expect(b.bonusQuestionId).toMatch(re);
+    }
   });
 });
 

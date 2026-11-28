@@ -269,6 +269,7 @@ function LobbyControls({
     autoAway: state.settings.autoAway,
     countdownSeconds: state.countdownSeconds,
     characterPacks: state.settings.characterPacks,
+    triviaCategories: state.settings.triviaCategories,
   });
   const roster = state.host?.roster.filter((p) => p.active) ?? [];
   const ready = roster.filter((p) => p.ready).length;

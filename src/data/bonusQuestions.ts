@@ -3,12 +3,15 @@
  * Source: thanksgiving-bonus-questions.csv. Audio for each is public/audio/questions/{id}.mp3.
  * Seeded into the bonus_questions table (npm run db:seed or neon-setup.sql).
  */
+import triviaData from "./trivia.json";
+
 export type BonusDifficulty = "easy" | "medium" | "hard";
 export type BonusQuestion = {
   id: string;
   question: string;
-  options: [string, string, string, string];
-  /** Index (0-3) of the right answer in options. */
+  /** 4 to 12 answers; each round shows the right one plus 3 others picked at random. */
+  options: string[];
+  /** Index of the right answer in options. */
   correct: number;
   difficulty: BonusDifficulty;
   points: number;
@@ -18,7 +21,7 @@ export type BonusQuestion = {
   seasonal: string | null;
 };
 
-export const BONUS_QUESTIONS: BonusQuestion[] = [
+const THANKSGIVING_BONUS: BonusQuestion[] = [
   {
     id: "b001",
     question: "In what month is U.S. Thanksgiving celebrated?",
@@ -309,3 +312,23 @@ export const BONUS_QUESTIONS: BonusQuestion[] = [
     seasonal: "Thanksgiving",
   },
 ];
+
+export { TRIVIA_CATEGORIES, triviaEmoji } from "@/lib/triviaCategories";
+
+/** General trivia (src/data/trivia.json, imported with scripts/import-trivia.ts), by category. */
+const POINTS = { easy: 100, medium: 200, hard: 300 } as const;
+const GENERAL_TRIVIA: BonusQuestion[] = (triviaData.questions as { id: string; category: string; difficulty: BonusDifficulty; question: string; answers: string[]; correct: number }[]).map((t) => ({
+  id: t.id,
+  question: t.question,
+  options: t.answers,
+  correct: t.correct,
+  difficulty: t.difficulty,
+  points: POINTS[t.difficulty],
+  timeSeconds: 20,
+  category: t.category,
+  active: true,
+  seasonal: null,
+}));
+
+/** Every built-in trivia question: the Thanksgiving bonus set, then general trivia. */
+export const BONUS_QUESTIONS: BonusQuestion[] = [...THANKSGIVING_BONUS, ...GENERAL_TRIVIA];

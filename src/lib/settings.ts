@@ -70,6 +70,8 @@ export const settingsSchema = z
      */
     promptIds: z.array(z.string().max(40)).max(200).default([]),
     questionIds: z.array(z.string().max(60)).max(500).default([]),
+    /** Built-in trivia categories to use (Quiz mode and bonus questions); empty = all. */
+    triviaCategories: z.array(z.string().max(60)).max(40).default([]),
     /** Speed questions: some questions get a short timer and pay by finishing place. */
     speedQuestions: z.boolean().default(false),
     speedCount: z.number().int().min(1).max(20).optional(),

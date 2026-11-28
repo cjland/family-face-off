@@ -64,6 +64,13 @@
       "when": 1795815795442,
       "tag": "0008_character_packs",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795828962003,
+      "tag": "0009_trivia_answer_pools",
+      "breakpoints": true
     }
   ]
 }

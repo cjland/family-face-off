@@ -1,6 +1,7 @@
 "use client";
 
 import { THEME_INFO } from "@/lib/themes";
+import { TRIVIA_CATEGORIES } from "@/lib/triviaCategories";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
@@ -102,7 +103,7 @@ const MODES = [
     emoji: "🧠",
     label: "Quiz",
     about:
-      "Built-in trivia (20 Thanksgiving questions so far). Nobody fills anything in: join and play.",
+      "Built-in trivia: nearly 300 questions in 30 categories (holiday questions in their theme). Nobody fills anything in: join and play.",
   },
   {
     id: "custom",
@@ -353,6 +354,59 @@ function Planner({
   );
 }
 
+/** Built-in trivia categories for Quiz mode and bonus questions (none ticked = all). */
+function CategoryPicker({
+  value,
+  set,
+}: {
+  value: SettingsDraft;
+  set: <K extends keyof SettingsDraft>(k: K, v: SettingsDraft[K]) => void;
+}) {
+  const chosen = value.triviaCategories;
+  const toggle = (name: string) =>
+    set("triviaCategories", chosen.includes(name) ? chosen.filter((c) => c !== name) : [...chosen, name]);
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-3 flex-wrap mb-2">
+        <span className="font-semibold">
+          {value.mode === "quiz" ? "Trivia categories" : "Bonus trivia categories"}
+        </span>
+        <span className="text-sm text-muted">
+          {chosen.length
+            ? `${chosen.length} picked`
+            : value.theme === "thanksgiving" && value.mode === "personal"
+              ? "None picked: Thanksgiving bonus questions"
+              : "None picked: all categories"}
+        </span>
+        {chosen.length > 0 && (
+          <button type="button" className="text-sm underline" onClick={() => set("triviaCategories", [])}>
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Trivia categories">
+        {TRIVIA_CATEGORIES.map((c) => {
+          const on = chosen.includes(c.name);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => toggle(c.name)}
+              className={`rounded-full border px-3 py-1.5 text-sm min-h-[40px] ${on ? "border-accent bg-accent/25 font-semibold" : "border-white/15 bg-black/20 hover:border-white/40"}`}
+            >
+              <span className="emoji-plain" aria-hidden="true">
+                {c.emoji}
+              </span>{" "}
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** Shows questions picked in the question library, with a way to clear them or pick again. */
 function PicksPanel({
   value,
@@ -521,6 +575,7 @@ export type SettingsDraft = Pick<
   | "bonusCount"
   | "countdownSeconds"
   | "characterPacks"
+  | "triviaCategories"
 > &
   /** Library picks: the setup page sends the ids; [] clears them; unset leaves them alone. */
   Partial<Pick<GameSettings, "promptIds" | "questionIds">>;
@@ -553,6 +608,7 @@ export const DEFAULT_DRAFT: SettingsDraft = {
   bonusQuestions: true,
   countdownSeconds: 5,
   characterPacks: [],
+  triviaCategories: [],
 };
 
 const MUSIC_LABELS: [MusicStyle, string][] = [
@@ -643,6 +699,9 @@ export function SettingsForm({
           })}
         </div>
         <PicksPanel value={value} onChange={onChange} picked={picked} />
+        {(value.mode === "quiz" || (value.mode === "personal" && value.bonusQuestions)) && !(value.questionIds?.length || picked?.questions) && (
+          <CategoryPicker value={value} set={set} />
+        )}
         {value.mode === "custom" &&
           !(value.questionIds?.length || picked?.questions) && (
             <div className="mt-3">
@@ -718,7 +777,7 @@ export function SettingsForm({
               <Toggle
                 id="bonusQuestions"
                 label="🎁 Bonus trivia questions"
-                hint={`Thanksgiving trivia slipped into the middle of the game, easy to hard. Everyone plays. Right answers score by how fast they came in: ${bonusLadder(BONUS_TOP_POINTS)} (never less than ${BONUS_MIN_POINTS}).`}
+                hint={`Trivia slipped into the middle of the game, easy to hard. Everyone plays. Right answers score by how fast they came in: ${bonusLadder(BONUS_TOP_POINTS)} (never less than ${BONUS_MIN_POINTS}).`}
                 checked={value.bonusQuestions}
                 onChange={(v) => set("bonusQuestions", v)}
               />

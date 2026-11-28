@@ -1,0 +1,152 @@
+[
+ {
+  "id": "around-the-world",
+  "name": "Around the World",
+  "emoji": "🌎"
+ },
+ {
+  "id": "american-history",
+  "name": "American History",
+  "emoji": "🇺🇸"
+ },
+ {
+  "id": "world-history",
+  "name": "World History",
+  "emoji": "🏛️"
+ },
+ {
+  "id": "science-discovery",
+  "name": "Science & Discovery",
+  "emoji": "🔬"
+ },
+ {
+  "id": "space-astronomy",
+  "name": "Space & Astronomy",
+  "emoji": "🚀"
+ },
+ {
+  "id": "common-knowledge",
+  "name": "Common Knowledge",
+  "emoji": "🧠"
+ },
+ {
+  "id": "movies",
+  "name": "Movies",
+  "emoji": "🎬"
+ },
+ {
+  "id": "television",
+  "name": "Television",
+  "emoji": "📺"
+ },
+ {
+  "id": "music-through-the-decades",
+  "name": "Music Through the Decades",
+  "emoji": "🎵"
+ },
+ {
+  "id": "disney-pixar",
+  "name": "Disney & Pixar",
+  "emoji": "🏰"
+ },
+ {
+  "id": "famous-people",
+  "name": "Famous People",
+  "emoji": "⭐"
+ },
+ {
+  "id": "cartoons-superheroes",
+  "name": "Cartoons & Superheroes",
+  "emoji": "🦸"
+ },
+ {
+  "id": "football",
+  "name": "Football",
+  "emoji": "🏈"
+ },
+ {
+  "id": "basketball",
+  "name": "Basketball",
+  "emoji": "🏀"
+ },
+ {
+  "id": "baseball",
+  "name": "Baseball",
+  "emoji": "⚾"
+ },
+ {
+  "id": "olympics-other-sports",
+  "name": "Olympics & Other Sports",
+  "emoji": "🏅"
+ },
+ {
+  "id": "games-toys",
+  "name": "Games & Toys",
+  "emoji": "🎲"
+ },
+ {
+  "id": "cars-planes-trains",
+  "name": "Cars, Planes & Trains",
+  "emoji": "🚗"
+ },
+ {
+  "id": "food-drink",
+  "name": "Food & Drink",
+  "emoji": "🍕"
+ },
+ {
+  "id": "animals-wildlife",
+  "name": "Animals & Wildlife",
+  "emoji": "🐘"
+ },
+ {
+  "id": "nature-weather",
+  "name": "Nature & Weather",
+  "emoji": "🌋"
+ },
+ {
+  "id": "the-human-body",
+  "name": "The Human Body",
+  "emoji": "🫀"
+ },
+ {
+  "id": "technology-inventions",
+  "name": "Technology & Inventions",
+  "emoji": "💻"
+ },
+ {
+  "id": "brands-slogans",
+  "name": "Brands & Slogans",
+  "emoji": "🛍️"
+ },
+ {
+  "id": "holidays-traditions",
+  "name": "Holidays & Traditions",
+  "emoji": "🎄"
+ },
+ {
+  "id": "remember-when",
+  "name": "Remember When?",
+  "emoji": "⏳"
+ },
+ {
+  "id": "riddles-brain-teasers",
+  "name": "Riddles & Brain Teasers",
+  "emoji": "🧩"
+ },
+ {
+  "id": "weird-but-true",
+  "name": "Weird but True",
+  "emoji": "🤯"
+ },
+ {
+  "id": "words-books-sayings",
+  "name": "Words, Books & Sayings",
+  "emoji": "📚"
+ },
+ {
+  "id": "potluck-trivia",
+  "name": "Potluck Trivia",
+  "emoji": "🎰"
+ }
+]
